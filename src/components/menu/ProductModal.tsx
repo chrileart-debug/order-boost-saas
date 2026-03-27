@@ -42,10 +42,11 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
         setGroups(g || []);
 
         if (g && g.length > 0) {
-          const { data: o } = await supabase
+        const { data: o } = await supabase
             .from("product_options")
             .select("*")
             .in("group_id", g.map((x: any) => x.id))
+            .eq("is_available", true)
             .order("created_at");
           setOptions(o || []);
         }
