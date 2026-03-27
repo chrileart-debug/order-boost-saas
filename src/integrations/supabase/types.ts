@@ -295,30 +295,54 @@ export type Database = {
           },
         ]
       }
-      product_option_groups: {
+      product_modifiers: {
         Row: {
           created_at: string
+          group_id: string
           id: string
-          max_selection: number | null
-          min_selection: number | null
-          name: string
           product_id: string
         }
         Insert: {
           created_at?: string
+          group_id: string
           id?: string
-          max_selection?: number | null
-          min_selection?: number | null
-          name: string
           product_id: string
         }
         Update: {
           created_at?: string
+          group_id?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: []
+      }
+      product_option_groups: {
+        Row: {
+          created_at: string
+          establishment_id: string | null
+          id: string
+          max_selection: number | null
+          min_selection: number | null
+          name: string
+          product_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          max_selection?: number | null
+          min_selection?: number | null
+          name: string
+          product_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string | null
           id?: string
           max_selection?: number | null
           min_selection?: number | null
           name?: string
-          product_id?: string
+          product_id?: string | null
         }
         Relationships: [
           {
