@@ -673,16 +673,18 @@ const ProductsPage = () => {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Mín. seleção</Label>
-                <Input type="number" min="0" value={groupForm.min} onChange={e => setGroupForm({ ...groupForm, min: e.target.value })} />
+            {groupForm.selectionType === "quantity" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Mín. seleção</Label>
+                  <Input type="number" min="0" value={groupForm.min} onChange={e => setGroupForm({ ...groupForm, min: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Máx. seleção</Label>
+                  <Input type="number" min="1" value={groupForm.max} onChange={e => setGroupForm({ ...groupForm, max: e.target.value })} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Máx. seleção</Label>
-                <Input type="number" min="1" value={groupForm.max} onChange={e => setGroupForm({ ...groupForm, max: e.target.value })} />
-              </div>
-            </div>
+            )}
 
             <Separator />
 
