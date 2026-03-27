@@ -48,7 +48,7 @@ const Onboarding = () => {
         }
         if (data.name) setName(data.name);
         if (data.whatsapp) setWhatsapp(data.whatsapp);
-        if (data.cnpj) setCnpj(data.cnpj);
+        if (data.cnpj) setCnpj(maskCnpj(data.cnpj));
         if (data.niche) setNiche(data.niche);
       }
     });
@@ -81,7 +81,7 @@ const Onboarding = () => {
     if (!user || !name) return;
     setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-    const payload = { name, slug, whatsapp: unmaskPhone(whatsapp), cnpj, niche, owner_id: user.id };
+    const payload = { name, slug, whatsapp: unmask(whatsapp), cnpj: unmask(cnpj), niche, owner_id: user.id };
 
     if (establishmentId) {
       await supabase.from("establishments").update(payload).eq("id", establishmentId);
@@ -142,7 +142,9 @@ const Onboarding = () => {
     }
   };
 
-  const step1Valid = name.trim().length > 0 && niche.length > 0;
+  const whatsappDigits = whatsapp.replace(/\D/g, "").length;
+  const cnpjDigits = cnpj.replace(/\D/g, "").length;
+  const step1Valid = name.trim().length > 0 && niche.length > 0 && whatsappDigits >= 10 && (cnpjDigits === 0 || cnpjDigits === 14);
   const step2Valid = !!address.cep && numero.trim().length > 0;
   const step3Valid = !!logoBlob || !!coverBlob;
 
@@ -185,12 +187,12 @@ const Onboarding = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>WhatsApp</Label>
+                      <Label>WhatsApp *</Label>
                       <MaskedInput mask="phone" value={whatsapp} onValueChange={setWhatsapp} placeholder="(00) 00000-0000" />
                     </div>
                     <div className="space-y-2">
                       <Label>CNPJ (opcional)</Label>
-                      <Input value={cnpj} onChange={e => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
+                      <MaskedInput mask="cnpj" value={cnpj} onValueChange={setCnpj} placeholder="00.000.000/0000-00" />
                     </div>
                   </div>
                 </div>
