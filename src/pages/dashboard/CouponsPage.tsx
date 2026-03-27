@@ -228,7 +228,7 @@ const CouponsPage = () => {
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>Mín: {formatPrice(Number(c.min_purchase || 0))}</span>
-                    <span>{Number(c.usage_count || 0)} usos</span>
+                    <span>{usageMap[c.id] || 0} usos</span>
                   </div>
 
                   <div className="flex gap-2">
