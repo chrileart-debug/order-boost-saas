@@ -709,7 +709,7 @@ const ProductsPage = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground text-sm">Itens da Biblioteca</h3>
-                <Button variant="outline" size="sm" onClick={() => { setLibSheet(false); openNewItem(); }}>
+                <Button variant="outline" size="sm" onClick={() => { setLibSheet(false); setCreatingFromGroup(true); openNewItem(); }}>
                   <Plus className="w-3 h-3 mr-1" /> Novo Item
                 </Button>
               </div>
