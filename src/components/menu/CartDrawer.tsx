@@ -11,7 +11,7 @@ import { haversineDistance, calculateShipping } from "@/lib/haversine";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import MaskedInput from "@/components/MaskedInput";
-import { maskPhone, unmaskPhone, maskCep } from "@/lib/masks";
+import { unmaskPhone } from "@/lib/masks";
 
 interface Props {
   open: boolean;
@@ -247,7 +247,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
               </div>
               <div>
                 <Label>Telefone *</Label>
-                <MaskedInput value={customerPhone} onValueChange={setCustomerPhone} mask={maskPhone} placeholder="(99) 99999-9999" />
+                <MaskedInput value={customerPhone} onValueChange={setCustomerPhone} mask="phone" placeholder="(99) 99999-9999" />
               </div>
               <Separator />
               <div>
@@ -258,7 +258,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                     setCep(v);
                     if (v.replace(/\D/g, "").length === 8) lookupCep(v);
                   }}
-                  mask={maskCep}
+                  mask="cep"
                   placeholder="00000-000"
                 />
               </div>
