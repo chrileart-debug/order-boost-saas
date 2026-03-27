@@ -409,7 +409,7 @@ const ProductsPage = () => {
                   </div>
                 </div>
                 {catProducts.length === 0 && <p className="text-sm text-muted-foreground pl-1">Nenhum produto nesta categoria.</p>}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {catProducts.map(prod => (
                     <div key={prod.id} className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-row h-28">
                       <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
