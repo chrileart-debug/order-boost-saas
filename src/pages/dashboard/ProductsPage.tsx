@@ -224,20 +224,18 @@ const ProductsPage = () => {
       newItemId = data?.id || null;
     }
     setItemSheet(false);
-    await fetchData();
 
     if (creatingFromGroup && newItemId && editingGroup) {
-      // Auto-link the new item to the current group
       await supabase.from("group_items").insert({ group_id: editingGroup.id, item_id: newItemId, sort_order: groupItemLinks.filter(gl => gl.group_id === editingGroup.id).length });
       await fetchData();
       setCreatingFromGroup(false);
-      setLibSheet(true);
       toast({ title: "Item adicionado à biblioteca e vinculado ao grupo" });
     } else if (creatingFromGroup) {
+      await fetchData();
       setCreatingFromGroup(false);
-      setLibSheet(true);
       toast({ title: "Item adicionado à biblioteca" });
     } else {
+      await fetchData();
       toast({ title: editingItem ? "Item atualizado" : "Item criado" });
     }
   };
@@ -361,7 +359,7 @@ const ProductsPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <Tabs defaultValue="products">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <TabsList>
             <TabsTrigger value="products">Produtos</TabsTrigger>
@@ -642,11 +640,16 @@ const ProductsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* ─── item library sheet ─── */}
-      <Sheet open={itemSheet} onOpenChange={setItemSheet}>
-        <SheetContent className="overflow-y-auto sm:max-w-md w-full">
-          <SheetHeader><SheetTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</SheetTitle></SheetHeader>
-          <div className="space-y-5 mt-6">
+      {/* ─── item library dialog (overlays on top of group sheet) ─── */}
+      <Dialog open={itemSheet} onOpenChange={(open) => {
+        setItemSheet(open);
+        if (!open && creatingFromGroup) {
+          setCreatingFromGroup(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</DialogTitle></DialogHeader>
+          <div className="space-y-5 mt-2">
             <div className="space-y-2">
               <Label>Nome *</Label>
               <Input value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Ex: Nutella" />
@@ -668,8 +671,8 @@ const ProductsPage = () => {
               </Button>
             )}
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── group sheet ─── */}
       <Sheet open={libSheet} onOpenChange={setLibSheet}>
@@ -710,7 +713,7 @@ const ProductsPage = () => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground text-sm">Itens da Biblioteca</h3>
-                <Button variant="outline" size="sm" onClick={() => { setLibSheet(false); setCreatingFromGroup(true); openNewItem(); }}>
+                <Button variant="outline" size="sm" onClick={() => { setCreatingFromGroup(true); openNewItem(); }}>
                   <Plus className="w-3 h-3 mr-1" /> Novo Item
                 </Button>
               </div>
