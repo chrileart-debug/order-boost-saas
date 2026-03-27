@@ -429,6 +429,14 @@ const ProductsPage = () => {
                           </div>
                         </div>
                       </div>
+                      <div className="w-28 h-28 flex-shrink-0 bg-muted relative">
+                        {prod.image_url ? <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" /> : (
+                          <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-8 h-8 text-muted-foreground/40" /></div>
+                        )}
+                        {!prod.is_available && (
+                          <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary" className="text-[10px]">Inativo</Badge></div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
