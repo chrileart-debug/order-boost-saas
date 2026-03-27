@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Store, User } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
 import MaskedInput from "@/components/MaskedInput";
-import { maskPhone, unmaskPhone, maskCep } from "@/lib/masks";
+import { maskPhone, unmask, maskCep, maskCnpj } from "@/lib/masks";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
@@ -21,6 +21,7 @@ const SettingsPage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [profileForm, setProfileForm] = useState({ full_name: "", phone: "" });
   const [estForm, setEstForm] = useState({ name: "", slug: "", niche: "", whatsapp: "", cnpj: "" });
+  const [formValid, setFormValid] = useState(true);
   const [cep, setCep] = useState("");
   const [address, setAddress] = useState<any>({});
   const [numero, setNumero] = useState("");
@@ -44,7 +45,7 @@ const SettingsPage = () => {
       slug: establishment.slug || "",
       niche: establishment.niche || "",
       whatsapp: maskPhone(establishment.whatsapp || ""),
-      cnpj: establishment.cnpj || "",
+      cnpj: maskCnpj(establishment.cnpj || ""),
     });
     if (establishment.address && typeof establishment.address === "object" && !Array.isArray(establishment.address)) {
       const addr = establishment.address as Record<string, string>;
@@ -59,7 +60,7 @@ const SettingsPage = () => {
     setSavingProfile(true);
     await supabase.from("profiles").update({
       full_name: profileForm.full_name,
-      phone: unmaskPhone(profileForm.phone),
+      phone: unmask(profileForm.phone),
     }).eq("id", user.id);
     setSavingProfile(false);
     toast({ title: "Perfil atualizado!" });
@@ -89,6 +90,16 @@ const SettingsPage = () => {
 
   const saveEstablishment = async () => {
     if (!user || !estForm.name) return;
+    const whatsDigits = estForm.whatsapp.replace(/\D/g, "").length;
+    const cnpjDigits = estForm.cnpj.replace(/\D/g, "").length;
+    if (whatsDigits < 10) {
+      toast({ title: "WhatsApp inválido", description: "Informe um número completo.", variant: "destructive" });
+      return;
+    }
+    if (cnpjDigits > 0 && cnpjDigits < 14) {
+      toast({ title: "CNPJ incompleto", description: "Informe os 14 dígitos do CNPJ.", variant: "destructive" });
+      return;
+    }
     setSavingEst(true);
     const slug = estForm.slug || estForm.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
     const fullAddress = { ...address, numero };
@@ -96,8 +107,8 @@ const SettingsPage = () => {
       name: estForm.name,
       slug,
       niche: estForm.niche,
-      whatsapp: unmaskPhone(estForm.whatsapp),
-      cnpj: estForm.cnpj,
+      whatsapp: unmask(estForm.whatsapp),
+      cnpj: unmask(estForm.cnpj),
       address: fullAddress,
       owner_id: user.id,
     };
@@ -165,12 +176,12 @@ const SettingsPage = () => {
               </select>
             </div>
             <div className="space-y-2">
-              <Label>WhatsApp</Label>
+              <Label>WhatsApp *</Label>
               <MaskedInput mask="phone" value={estForm.whatsapp} onValueChange={v => setEstForm({ ...estForm, whatsapp: v })} placeholder="(00) 00000-0000" />
             </div>
             <div className="space-y-2">
               <Label>CNPJ (opcional)</Label>
-              <Input value={estForm.cnpj} onChange={e => setEstForm({ ...estForm, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+              <MaskedInput mask="cnpj" value={estForm.cnpj} onValueChange={v => setEstForm({ ...estForm, cnpj: v })} placeholder="00.000.000/0000-00" />
             </div>
           </div>
 
