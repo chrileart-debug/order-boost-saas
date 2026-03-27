@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -35,8 +37,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 const LogisticsPage = () => {
   const { user } = useAuth();
+  const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
-  const [establishment, setEstablishment] = useState<any>(null);
   const [rules, setRules] = useState<DeliveryRule[]>([]);
   const [dialog, setDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<DeliveryRule | null>(null);
@@ -52,19 +54,10 @@ const LogisticsPage = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("establishments")
-      .select("*")
-      .eq("owner_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setEstablishment(data);
-          fetchRules(data.id);
-        }
-      });
-  }, [user]);
+    if (establishment?.id) {
+      fetchRules(establishment.id);
+    }
+  }, [establishment?.id]);
 
   const fetchRules = async (estId: string) => {
     const { data } = await supabase
@@ -139,6 +132,22 @@ const LogisticsPage = () => {
     await supabase.from("delivery_rules" as any).update({ is_active: !r.is_active }).eq("id", r.id);
     fetchRules(establishment.id);
   };
+
+  if (estLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-9 w-36" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i}><CardContent className="p-6 space-y-3"><Skeleton className="h-5 w-32" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-20" /></CardContent></Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!establishment)
     return (

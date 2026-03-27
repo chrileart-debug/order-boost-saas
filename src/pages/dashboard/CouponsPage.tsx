@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,8 +16,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const CouponsPage = () => {
   const { user } = useAuth();
+  const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
-  const [establishment, setEstablishment] = useState<any>(null);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [performanceData, setPerformanceData] = useState<Array<{ code: string; usos: number }>>([]);
   const [usageMap, setUsageMap] = useState<Record<string, number>>({});
@@ -75,32 +77,22 @@ const CouponsPage = () => {
     }
   };
 
-  const fetchData = async () => {
-    if (!user) return;
-    const { data: est } = await supabase
-      .from("establishments")
+  const fetchCoupons = async () => {
+    if (!establishment) return;
+    const { data } = await supabase
+      .from("coupons")
       .select("*")
-      .eq("owner_id", user.id)
-      .maybeSingle();
+      .eq("establishment_id", establishment.id)
+      .order("created_at", { ascending: false });
 
-    setEstablishment(est);
-
-    if (est) {
-      const { data } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("establishment_id", est.id)
-        .order("created_at", { ascending: false });
-
-      const couponsData = data || [];
-      setCoupons(couponsData);
-      await fetchPerformanceData(est.id, couponsData);
-    }
+    const couponsData = data || [];
+    setCoupons(couponsData);
+    await fetchPerformanceData(establishment.id, couponsData);
   };
 
   useEffect(() => {
-    fetchData();
-  }, [user]);
+    fetchCoupons();
+  }, [establishment?.id]);
 
   const resetForm = () => {
     setForm({ code: "", description: "", type: "percentage", value: "", min_purchase: "0" });
@@ -146,22 +138,38 @@ const CouponsPage = () => {
 
     setDialog(false);
     resetForm();
-    fetchData();
+    fetchCoupons();
   };
 
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from("coupons").update({ is_active: !current }).eq("id", id);
-    fetchData();
+    fetchCoupons();
   };
 
   const deleteCoupon = async (id: string) => {
     await supabase.from("coupons").delete().eq("id", id);
-    fetchData();
+    fetchCoupons();
     toast({ title: "Cupom removido" });
   };
 
   const formatPrice = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  if (estLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}><CardContent className="p-6 space-y-3"><Skeleton className="h-5 w-24" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-20" /></CardContent></Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!establishment) {
     return (
