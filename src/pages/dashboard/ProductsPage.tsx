@@ -119,7 +119,7 @@ const ProductsPage = () => {
       await supabase.from("categories").insert({ establishment_id: establishment.id, name: catName, order_index: categories.length });
     }
     setCatDialog(false); setCatName(""); setEditingCat(null);
-    fetchData();
+    fetchData(true);
     toast({ title: editingCat ? "Categoria atualizada" : "Categoria criada" });
   };
 
@@ -129,7 +129,7 @@ const ProductsPage = () => {
       return;
     }
     await supabase.from("categories").delete().eq("id", id);
-    fetchData();
+    fetchData(true);
     toast({ title: "Categoria removida" });
   };
 
@@ -178,7 +178,7 @@ const ProductsPage = () => {
       }
       toast({ title: editingProd ? "Produto atualizado" : "Produto criado" });
       setProdSheet(false);
-      fetchData();
+      fetchData(true);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setSavingProd(false); }
@@ -187,7 +187,7 @@ const ProductsPage = () => {
   const deleteProduct = async (id: string) => {
     await supabase.from("product_modifiers").delete().eq("product_id", id);
     await supabase.from("products").delete().eq("id", id);
-    fetchData();
+    fetchData(true);
     toast({ title: "Produto removido" });
   };
 
@@ -226,15 +226,15 @@ const ProductsPage = () => {
 
     if (creatingFromGroup && newItemId && editingGroup) {
       await supabase.from("group_items").insert({ group_id: editingGroup.id, item_id: newItemId, sort_order: groupItemLinks.filter(gl => gl.group_id === editingGroup.id).length });
-      await fetchData();
+      await fetchData(true);
       setCreatingFromGroup(false);
       toast({ title: "Item adicionado à biblioteca e vinculado ao grupo" });
     } else if (creatingFromGroup) {
-      await fetchData();
+      await fetchData(true);
       setCreatingFromGroup(false);
       toast({ title: "Item adicionado à biblioteca" });
     } else {
-      await fetchData();
+      await fetchData(true);
       toast({ title: editingItem ? "Item atualizado" : "Item criado" });
     }
   };
@@ -243,7 +243,7 @@ const ProductsPage = () => {
     // Remove from all groups first
     await supabase.from("group_items").delete().eq("item_id", id);
     await supabase.from("item_library").delete().eq("id", id);
-    fetchData();
+    fetchData(true);
     toast({ title: "Item removido da biblioteca e de todos os grupos" });
   };
 
@@ -314,7 +314,7 @@ const ProductsPage = () => {
       }
     }
 
-    fetchData();
+    fetchData(true);
     toast({ title: editingGroup ? "Grupo atualizado" : "Grupo criado" });
   };
 
@@ -323,7 +323,7 @@ const ProductsPage = () => {
     await supabase.from("product_modifiers").delete().eq("group_id", id);
     await supabase.from("product_option_groups").delete().eq("id", id);
     setLibSheet(false);
-    fetchData();
+    fetchData(true);
     toast({ title: "Grupo excluído e desvinculado de todos os produtos" });
   };
 
@@ -646,7 +646,7 @@ const ProductsPage = () => {
           setCreatingFromGroup(false);
         }
       }}>
-        <SheetContent className="overflow-y-auto sm:max-w-lg w-full">
+        <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]">
           <SheetHeader><SheetTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</SheetTitle></SheetHeader>
           <div className="space-y-5 mt-6">
             <div className="space-y-2">
