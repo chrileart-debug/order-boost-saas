@@ -43,6 +43,7 @@ const ProductsPage = () => {
   const [editingProd, setEditingProd] = useState<Product | null>(null);
   const [prodForm, setProdForm] = useState({ name: "", description: "", price: "", category_id: "" });
   const [prodImageBlob, setProdImageBlob] = useState<Blob | null>(null);
+  const [prodImageRemoved, setProdImageRemoved] = useState(false);
   const [savingProd, setSavingProd] = useState(false);
 
   /* modifier groups */
