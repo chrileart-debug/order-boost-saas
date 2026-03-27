@@ -640,16 +640,16 @@ const ProductsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* ─── item library dialog (overlays on top of group sheet) ─── */}
-      <Dialog open={itemSheet} onOpenChange={(open) => {
+      {/* ─── item library sheet (same style as group sheet) ─── */}
+      <Sheet open={itemSheet} onOpenChange={(open) => {
         setItemSheet(open);
         if (!open && creatingFromGroup) {
           setCreatingFromGroup(false);
         }
       }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</DialogTitle></DialogHeader>
-          <div className="space-y-5 mt-2">
+        <SheetContent className="overflow-y-auto sm:max-w-lg w-full">
+          <SheetHeader><SheetTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</SheetTitle></SheetHeader>
+          <div className="space-y-5 mt-6">
             <div className="space-y-2">
               <Label>Nome *</Label>
               <Input value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Ex: Nutella" />
@@ -665,14 +665,9 @@ const ProductsPage = () => {
             <Button onClick={saveItem} className="w-full" disabled={!itemForm.name.trim()}>
               {editingItem ? "Atualizar Item" : "Criar Item"}
             </Button>
-            {editingItem && (
-              <Button variant="destructive" className="w-full" onClick={() => { deleteItem(editingItem.id); setItemSheet(false); }}>
-                <Trash2 className="w-4 h-4 mr-1" /> Excluir Item
-              </Button>
-            )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* ─── group sheet ─── */}
       <Sheet open={libSheet} onOpenChange={setLibSheet}>
@@ -759,12 +754,6 @@ const ProductsPage = () => {
             <Button onClick={saveGroup} className="w-full" disabled={!groupForm.name.trim()}>
               {editingGroup ? "Atualizar Grupo" : "Criar Grupo"}
             </Button>
-
-            {editingGroup && (
-              <Button variant="destructive" className="w-full" onClick={() => deleteGroup(editingGroup.id)}>
-                <Trash2 className="w-4 h-4 mr-1" /> Excluir Grupo
-              </Button>
-            )}
           </div>
         </SheetContent>
       </Sheet>
