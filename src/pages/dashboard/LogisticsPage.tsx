@@ -53,19 +53,10 @@ const LogisticsPage = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("establishments")
-      .select("*")
-      .eq("owner_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setEstablishment(data);
-          fetchRules(data.id);
-        }
-      });
-  }, [user]);
+    if (establishment?.id) {
+      fetchRules(establishment.id);
+    }
+  }, [establishment?.id]);
 
   const fetchRules = async (estId: string) => {
     const { data } = await supabase
