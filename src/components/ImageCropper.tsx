@@ -8,12 +8,13 @@ import { Upload, X } from "lucide-react";
 interface ImageCropperProps {
   aspectRatio: number;
   onCropped: (blob: Blob) => void;
+  onRemove?: () => void;
   currentUrl?: string;
   label: string;
   hint?: string;
 }
 
-const ImageCropper = ({ aspectRatio, onCropped, currentUrl, label, hint }: ImageCropperProps) => {
+const ImageCropper = ({ aspectRatio, onCropped, onRemove, currentUrl, label, hint }: ImageCropperProps) => {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentUrl || null);
@@ -70,7 +71,7 @@ const ImageCropper = ({ aspectRatio, onCropped, currentUrl, label, hint }: Image
             <button
               type="button"
               className="absolute top-2 right-2 bg-background/80 rounded-full p-1 hover:bg-background"
-              onClick={(e) => { e.stopPropagation(); setPreview(null); }}
+              onClick={(e) => { e.stopPropagation(); setPreview(null); onRemove?.(); }}
             >
               <X className="w-4 h-4" />
             </button>

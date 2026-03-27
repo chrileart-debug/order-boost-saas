@@ -43,6 +43,7 @@ const ProductsPage = () => {
   const [editingProd, setEditingProd] = useState<Product | null>(null);
   const [prodForm, setProdForm] = useState({ name: "", description: "", price: "", category_id: "" });
   const [prodImageBlob, setProdImageBlob] = useState<Blob | null>(null);
+  const [prodImageRemoved, setProdImageRemoved] = useState(false);
   const [savingProd, setSavingProd] = useState(false);
 
   /* modifier groups */
@@ -138,13 +139,13 @@ const ProductsPage = () => {
     let defaultCatId = categories[0]?.id || "";
     if (!defaultCatId) { try { defaultCatId = await ensureDefaultCategory(); } catch { return; } }
     setProdForm({ name: "", description: "", price: "", category_id: defaultCatId });
-    setEditingProd(null); setProdImageBlob(null); setLinkedGroupIds([]);
+    setEditingProd(null); setProdImageBlob(null); setProdImageRemoved(false); setLinkedGroupIds([]);
     setProdSheet(true);
   };
 
   const openEditProduct = async (prod: Product) => {
     setProdForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id });
-    setEditingProd(prod); setProdImageBlob(null);
+    setEditingProd(prod); setProdImageBlob(null); setProdImageRemoved(false);
     const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
     setLinkedGroupIds((mods || []).map((m: any) => m.group_id));
     setProdSheet(true);
@@ -169,6 +170,10 @@ const ProductsPage = () => {
         await supabase.storage.from("establishments").upload(path, prodImageBlob, { upsert: true, contentType: "image/webp" });
         const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
         await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", productId);
+      } else if (prodImageRemoved && productId) {
+        const path = `products/${productId}.webp`;
+        await supabase.storage.from("establishments").remove([path]);
+        await supabase.from("products").update({ image_url: null }).eq("id", productId);
       }
       if (productId) {
         await supabase.from("product_modifiers").delete().eq("product_id", productId);
@@ -582,7 +587,7 @@ const ProductsPage = () => {
         <SheetContent className="overflow-y-auto sm:max-w-lg w-full">
           <SheetHeader><SheetTitle>{editingProd ? "Editar" : "Novo"} Produto</SheetTitle></SheetHeader>
           <div className="space-y-5 mt-6">
-            <ImageCropper aspectRatio={1} onCropped={setProdImageBlob} currentUrl={editingProd?.image_url || undefined} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
+            <ImageCropper aspectRatio={1} onCropped={setProdImageBlob} onRemove={() => { setProdImageRemoved(true); setProdImageBlob(null); }} currentUrl={editingProd?.image_url || undefined} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
             <div className="space-y-2">
               <Label>Categoria</Label>
               <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={prodForm.category_id} onChange={e => setProdForm({ ...prodForm, category_id: e.target.value })}>
