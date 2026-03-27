@@ -250,7 +250,7 @@ const LogisticsPage = () => {
                   <SelectItem value="free">Frete Grátis (por faixa de CEP)</SelectItem>
                   <SelectItem value="fixed_zip">Valor fixo por faixa de CEP</SelectItem>
                   <SelectItem value="fixed_global">Valor fixo global</SelectItem>
-                  <SelectItem value="per_km">Valor por KM (distância)</SelectItem>
+                  <SelectItem value="per_km">Valor fixo por faixa de KM (escadinha)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -270,7 +270,7 @@ const LogisticsPage = () => {
 
             {showValueField && (
               <div className="space-y-2">
-                <Label>{form.type === "per_km" ? "Valor por KM (R$)" : "Valor do frete (R$)"}</Label>
+                <Label>{form.type === "per_km" ? "Valor fixo do frete (R$)" : "Valor do frete (R$)"}</Label>
                 <Input
                   type="number"
                   step="0.01"
