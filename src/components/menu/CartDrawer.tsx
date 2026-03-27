@@ -478,8 +478,21 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Entrega</span>
-                  <span>{shippingFee > 0 ? formatPrice(shippingFee) : "Calcular via CEP"}</span>
+                  {shippingBlocked ? (
+                    <span className="text-destructive text-xs font-medium">{shippingLabel}</span>
+                  ) : shippingLabel ? (
+                    <span className={shippingFee === 0 ? "text-green-500 font-semibold" : ""}>
+                      {shippingFee === 0 ? "GRÁTIS" : formatPrice(shippingFee)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">Calcular via CEP</span>
+                  )}
                 </div>
+                {shippingLabel && !shippingBlocked && (
+                  <p className={`text-xs ${shippingFee === 0 ? "text-green-500" : "text-muted-foreground"}`}>
+                    {shippingLabel}
+                  </p>
+                )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base pt-1">
                   <span>Total</span>
