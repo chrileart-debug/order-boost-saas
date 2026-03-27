@@ -25,7 +25,7 @@ interface LibraryItem { id: string; establishment_id: string; name: string; desc
 interface GroupItem { id: string; group_id: string; item_id: string; max_quantity: number; sort_order: number }
 
 const ProductsPage = () => {
-  const { establishment } = useEstablishment();
+  const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState("products");
@@ -354,6 +354,13 @@ const ProductsPage = () => {
   };
 
   /* ─── render ─── */
+  if (estLoading || loading) return (
+    <div className="space-y-6 animate-fade-in">
+      <Skeleton className="h-8 w-64" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>
+    </div>
+  );
+
   if (!establishment) return <div className="text-center py-12 text-muted-foreground">Configure seu estabelecimento primeiro.</div>;
 
   if (loading) return (
