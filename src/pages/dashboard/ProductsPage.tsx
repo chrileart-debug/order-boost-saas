@@ -139,13 +139,13 @@ const ProductsPage = () => {
     let defaultCatId = categories[0]?.id || "";
     if (!defaultCatId) { try { defaultCatId = await ensureDefaultCategory(); } catch { return; } }
     setProdForm({ name: "", description: "", price: "", category_id: defaultCatId });
-    setEditingProd(null); setProdImageBlob(null); setLinkedGroupIds([]);
+    setEditingProd(null); setProdImageBlob(null); setProdImageRemoved(false); setLinkedGroupIds([]);
     setProdSheet(true);
   };
 
   const openEditProduct = async (prod: Product) => {
     setProdForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id });
-    setEditingProd(prod); setProdImageBlob(null);
+    setEditingProd(prod); setProdImageBlob(null); setProdImageRemoved(false);
     const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
     setLinkedGroupIds((mods || []).map((m: any) => m.group_id));
     setProdSheet(true);
