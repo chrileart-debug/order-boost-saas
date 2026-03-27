@@ -69,9 +69,9 @@ const ProductsPage = () => {
   const [linkedGroupIds, setLinkedGroupIds] = useState<string[]>([]);
 
   /* ─── fetch ─── */
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     if (!establishment) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     const [catsRes, groupsRes, itemsRes, giRes] = await Promise.all([
       supabase.from("categories").select("*").eq("establishment_id", establishment.id).order("order_index"),
       supabase.from("product_option_groups").select("*").eq("establishment_id", establishment.id).order("created_at"),
@@ -93,11 +93,10 @@ const ProductsPage = () => {
     setAllGroups(groups);
     setLibraryItems((itemsRes.data || []) as LibraryItem[]);
 
-    // Filter group_items to only those belonging to our groups
     const groupIds = groups.map(g => g.id);
     setGroupItemLinks(((giRes.data || []) as GroupItem[]).filter(gi => groupIds.includes(gi.group_id)));
 
-    setLoading(false);
+    if (!silent) setLoading(false);
   }, [establishment]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
