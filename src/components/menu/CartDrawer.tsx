@@ -53,12 +53,24 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       const c = getCart();
       setCart(c && c.establishmentSlug === slug ? c : null);
       setStep("cart");
-      // Reset coupon when reopening
       setAppliedCoupon(null);
       setCouponCode("");
       setCouponError("");
+      setShippingLabel("");
+      setShippingBlocked(false);
+      setShippingFee(0);
+      // Fetch delivery rules for this establishment
+      if (establishment?.id) {
+        supabase
+          .from("delivery_rules" as any)
+          .select("*")
+          .eq("establishment_id", establishment.id)
+          .eq("is_active", true)
+          .order("priority", { ascending: true })
+          .then(({ data }) => setDeliveryRules((data as any as DeliveryRule[]) || []));
+      }
     }
-  }, [open, slug]);
+  }, [open, slug, establishment?.id]);
 
   const refreshCart = () => {
     const c = getCart();
