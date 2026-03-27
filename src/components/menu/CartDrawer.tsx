@@ -203,11 +203,19 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
 
       if (orderError) throw orderError;
 
-      // Record coupon usage
+      // Record coupon usage + increment counter
       if (appliedCoupon) {
-        await supabase.from("coupon_usage_history" as any).insert({
-          coupon_id: appliedCoupon.id,
-          order_id: order.id,
+        // Insert usage history via REST since table isn't in generated types
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        await fetch(`${supabaseUrl}/rest/v1/coupon_usage_history`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({ coupon_id: appliedCoupon.id, order_id: order.id }),
         });
         // Increment usage_count
         await supabase
