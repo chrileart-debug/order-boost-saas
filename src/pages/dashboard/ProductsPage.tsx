@@ -178,7 +178,7 @@ const ProductsPage = () => {
       }
       toast({ title: editingProd ? "Produto atualizado" : "Produto criado" });
       setProdSheet(false);
-      fetchData(true);
+      await fetchData(true);
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setSavingProd(false); }
@@ -314,7 +314,8 @@ const ProductsPage = () => {
       }
     }
 
-    fetchData(true);
+    setLibSheet(false);
+    await fetchData(true);
     toast({ title: editingGroup ? "Grupo atualizado" : "Grupo criado" });
   };
 
