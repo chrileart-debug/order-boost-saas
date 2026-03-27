@@ -40,14 +40,8 @@ const Signup = () => {
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
     } else {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        toast({ title: "Conta criada!", description: "Bem-vindo ao EPRATO!" });
-        navigate("/dashboard");
-      } else {
-        toast({ title: "Conta criada!", description: "Verifique seu e-mail para confirmar." });
-        navigate("/login");
-      }
+      toast({ title: "Conta criada!", description: "Bem-vindo ao EPRATO!" });
+      navigate("/onboarding");
     }
   };
 
