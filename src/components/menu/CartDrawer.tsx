@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,24 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [couponError, setCouponError] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const cepDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCepChange = useCallback((v: string) => {
+    setCep(v);
+    const digits = v.replace(/\D/g, "");
+    if (digits.length < 8) {
+      if (cepDebounceRef.current) clearTimeout(cepDebounceRef.current);
+      setShippingFee(0);
+      setShippingLabel("");
+      setShippingBlocked(false);
+      setAddressText("");
+      setCustomerLat(null);
+      setCustomerLng(null);
+    } else if (digits.length === 8) {
+      if (cepDebounceRef.current) clearTimeout(cepDebounceRef.current);
+      cepDebounceRef.current = setTimeout(() => lookupCep(v), 500);
+    }
+  }, [deliveryRules, establishment]);
 
   useEffect(() => {
     if (open) {
@@ -378,20 +396,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                 <Label>CEP *</Label>
                 <MaskedInput
                   value={cep}
-                  onValueChange={(v) => {
-                    setCep(v);
-                    const digits = v.replace(/\D/g, "");
-                    if (digits.length < 8) {
-                      setShippingFee(0);
-                      setShippingLabel("");
-                      setShippingBlocked(false);
-                      setAddressText("");
-                      setCustomerLat(null);
-                      setCustomerLng(null);
-                    } else if (digits.length === 8) {
-                      lookupCep(v);
-                    }
-                  }}
+                  onValueChange={handleCepChange}
                   mask="cep"
                   placeholder="00000-000"
                 />
