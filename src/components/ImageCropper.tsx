@@ -8,6 +8,7 @@ import { Upload, X } from "lucide-react";
 interface ImageCropperProps {
   aspectRatio: number;
   onCropped: (blob: Blob) => void;
+  onRemove?: () => void;
   currentUrl?: string;
   label: string;
   hint?: string;
