@@ -185,6 +185,9 @@ const ProductsPage = () => {
   };
 
   const deleteProduct = async (id: string) => {
+    // Remove image from storage bucket
+    const path = `products/${id}.webp`;
+    await supabase.storage.from("establishments").remove([path]);
     await supabase.from("product_modifiers").delete().eq("product_id", id);
     await supabase.from("products").delete().eq("id", id);
     fetchData(true);
