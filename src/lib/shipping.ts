@@ -6,6 +6,7 @@ export type DeliveryRule = {
   value: number;
   min_cep: string | null;
   max_cep: string | null;
+  min_km: number | null;
   max_km: number | null;
   is_active: boolean;
   name: string;
@@ -51,24 +52,28 @@ export function resolveShipping(
     }
   }
 
-  // 2) Check per_km rules
-  const kmRules = active.filter((r) => r.type === "per_km");
+  // 2) Check per_km rules (distance brackets)
+  const kmRules = active
+    .filter((r) => r.type === "per_km")
+    .sort((a, b) => (Number(a.min_km) || 0) - (Number(b.min_km) || 0));
   if (kmRules.length > 0 && distanceKm !== null) {
     for (const rule of kmRules) {
-      if (rule.max_km && distanceKm > Number(rule.max_km)) {
-        continue; // exceeds max km, skip
-      }
-      const fee = Math.round(distanceKm * Number(rule.value) * 100) / 100;
+      const minKm = Number(rule.min_km) || 0;
+      const maxKm = rule.max_km != null ? Number(rule.max_km) : null;
+      if (maxKm != null && distanceKm > maxKm) continue;
+      if (distanceKm < minKm) continue;
+      // Distance falls within this bracket — value is a fixed fee
+      const fee = Number(rule.value);
       return {
         fee,
         label: rule.name || `Frete: R$ ${fee.toFixed(2)} (${distanceKm.toFixed(1)} km)`,
         blocked: false,
       };
     }
-    // All km rules exceeded
+    // No bracket matched — blocked
     return {
       fee: 0,
-      label: "Ops! Não entregamos nesta região.",
+      label: "Ops! Não entregamos nesta distância.",
       blocked: true,
     };
   }

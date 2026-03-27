@@ -20,6 +20,7 @@ type DeliveryRule = {
   value: number;
   min_cep: string | null;
   max_cep: string | null;
+  min_km: number | null;
   max_km: number | null;
   is_active: boolean;
   priority: number;
@@ -45,6 +46,7 @@ const LogisticsPage = () => {
     value: "0",
     min_cep: "",
     max_cep: "",
+    min_km: "",
     max_km: "",
   });
   const [saving, setSaving] = useState(false);
@@ -75,7 +77,7 @@ const LogisticsPage = () => {
 
   const openCreate = () => {
     setEditingRule(null);
-    setForm({ name: "", type: "fixed_global", value: "0", min_cep: "", max_cep: "", max_km: "" });
+    setForm({ name: "", type: "fixed_global", value: "0", min_cep: "", max_cep: "", min_km: "", max_km: "" });
     setDialog(true);
   };
 
@@ -87,6 +89,7 @@ const LogisticsPage = () => {
       value: String(r.value),
       min_cep: r.min_cep || "",
       max_cep: r.max_cep || "",
+      min_km: r.min_km != null ? String(r.min_km) : "0",
       max_km: r.max_km ? String(r.max_km) : "",
     });
     setDialog(true);
@@ -103,6 +106,7 @@ const LogisticsPage = () => {
       value: form.type === "free" ? 0 : parseFloat(form.value) || 0,
       min_cep: form.type === "fixed_zip" || form.type === "free" ? form.min_cep.replace(/\D/g, "") || null : null,
       max_cep: form.type === "fixed_zip" || form.type === "free" ? form.max_cep.replace(/\D/g, "") || null : null,
+      min_km: form.type === "per_km" ? parseFloat(form.min_km) || 0 : null,
       max_km: form.type === "per_km" ? parseFloat(form.max_km) || null : null,
       priority: editingRule?.priority ?? rules.length,
     };
@@ -194,7 +198,7 @@ const LogisticsPage = () => {
                     {r.type === "free" && "Frete Grátis"}
                     {r.type === "fixed_zip" && `R$ ${Number(r.value).toFixed(2)} · CEP ${r.min_cep}–${r.max_cep}`}
                     {r.type === "fixed_global" && `R$ ${Number(r.value).toFixed(2)} fixo`}
-                    {r.type === "per_km" && `R$ ${Number(r.value).toFixed(2)}/km${r.max_km ? ` · máx ${r.max_km} km` : ""}`}
+                    {r.type === "per_km" && `R$ ${Number(r.value).toFixed(2)} · ${Number(r.min_km) || 0}–${r.max_km ?? "∞"} km`}
                   </p>
                 </div>
                 <Switch
@@ -246,7 +250,7 @@ const LogisticsPage = () => {
                   <SelectItem value="free">Frete Grátis (por faixa de CEP)</SelectItem>
                   <SelectItem value="fixed_zip">Valor fixo por faixa de CEP</SelectItem>
                   <SelectItem value="fixed_global">Valor fixo global</SelectItem>
-                  <SelectItem value="per_km">Valor por KM (distância)</SelectItem>
+                  <SelectItem value="per_km">Valor fixo por faixa de KM (escadinha)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -266,7 +270,7 @@ const LogisticsPage = () => {
 
             {showValueField && (
               <div className="space-y-2">
-                <Label>{form.type === "per_km" ? "Valor por KM (R$)" : "Valor do frete (R$)"}</Label>
+                <Label>{form.type === "per_km" ? "Valor fixo do frete (R$)" : "Valor do frete (R$)"}</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -277,15 +281,27 @@ const LogisticsPage = () => {
             )}
 
             {showKmField && (
-              <div className="space-y-2">
-                <Label>KM máximo de entrega</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={form.max_km}
-                  onChange={(e) => setForm({ ...form, max_km: e.target.value })}
-                  placeholder="Ex: 15"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Distância Inicial (KM)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={form.min_km}
+                    onChange={(e) => setForm({ ...form, min_km: e.target.value })}
+                    placeholder="Ex: 0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Distância Final (KM)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={form.max_km}
+                    onChange={(e) => setForm({ ...form, max_km: e.target.value })}
+                    placeholder="Ex: 15"
+                  />
+                </div>
               </div>
             )}
 

@@ -138,6 +138,7 @@ export type Database = {
           max_cep: string | null
           max_km: number | null
           min_cep: string | null
+          min_km: number | null
           name: string
           priority: number
           type: string
@@ -151,6 +152,7 @@ export type Database = {
           max_cep?: string | null
           max_km?: number | null
           min_cep?: string | null
+          min_km?: number | null
           name?: string
           priority?: number
           type?: string
@@ -164,6 +166,7 @@ export type Database = {
           max_cep?: string | null
           max_km?: number | null
           min_cep?: string | null
+          min_km?: number | null
           name?: string
           priority?: number
           type?: string

@@ -1,0 +1,1 @@
+ALTER TABLE public.delivery_rules ADD COLUMN min_km numeric DEFAULT 0;
