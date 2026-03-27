@@ -96,29 +96,48 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (!data.erro) {
-        setAddressText(`${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`);
+        const bairro = data.bairro || "";
+        setAddressText(`${data.logradouro}, ${bairro}, ${data.localidade} - ${data.uf}`);
+
+        let distanceKm: number | null = null;
+        // Geocode customer address
         const geoRes = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            `${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`
+            `${data.logradouro}, ${bairro}, ${data.localidade}, ${data.uf}, Brasil`
           )}&limit=1`
         );
         const geo = await geoRes.json();
         if (geo.length > 0) {
-          setCustomerLat(parseFloat(geo[0].lat));
-          setCustomerLng(parseFloat(geo[0].lon));
+          const lat = parseFloat(geo[0].lat);
+          const lng = parseFloat(geo[0].lon);
+          setCustomerLat(lat);
+          setCustomerLng(lng);
           if (establishment.lat && establishment.lng) {
-            const dist = haversineDistance(
-              establishment.lat, establishment.lng,
-              parseFloat(geo[0].lat), parseFloat(geo[0].lon)
-            );
-            const fee = calculateShipping(
-              dist,
-              establishment.base_fee || 0,
-              establishment.km_included || 0,
-              establishment.km_extra_price || 0
-            );
-            setShippingFee(Math.round(fee * 100) / 100);
+            distanceKm = haversineDistance(establishment.lat, establishment.lng, lat, lng);
           }
+        }
+
+        // Resolve shipping using rules
+        if (deliveryRules.length > 0) {
+          const result = resolveShipping(deliveryRules, digits, distanceKm);
+          setShippingFee(result.fee);
+          setShippingLabel(
+            result.blocked
+              ? result.label
+              : result.fee === 0
+              ? `Frete GRÁTIS${bairro ? ` para ${bairro}` : ""}`
+              : `Frete para ${bairro || "seu endereço"}: R$ ${result.fee.toFixed(2)}`
+          );
+          setShippingBlocked(result.blocked);
+        } else {
+          // Fallback to legacy fields
+          if (distanceKm !== null && establishment.base_fee != null) {
+            const extraKm = Math.max(0, distanceKm - (establishment.km_included || 0));
+            const fee = (establishment.base_fee || 0) + extraKm * (establishment.km_extra_price || 0);
+            setShippingFee(Math.round(fee * 100) / 100);
+            setShippingLabel(`Frete para ${bairro || "seu endereço"}: R$ ${(Math.round(fee * 100) / 100).toFixed(2)}`);
+          }
+          setShippingBlocked(false);
         }
       }
     } catch {
