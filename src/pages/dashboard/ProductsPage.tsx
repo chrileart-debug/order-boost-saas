@@ -646,7 +646,7 @@ const ProductsPage = () => {
           setCreatingFromGroup(false);
         }
       }}>
-        <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]">
+        <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]" overlayClassName="z-[55]">
           <SheetHeader><SheetTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</SheetTitle></SheetHeader>
           <div className="space-y-5 mt-6">
             <div className="space-y-2">
