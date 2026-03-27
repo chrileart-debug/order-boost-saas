@@ -217,11 +217,11 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                     <h4 className="font-medium text-sm text-foreground truncate">{item.productName}</h4>
                     {item.options.length > 0 && (
                       <p className="text-xs text-muted-foreground truncate">
-                        {item.options.map((o) => o.name).join(", ")}
+                        {item.options.map((o) => o.quantity > 1 ? `${o.quantity}x ${o.name}` : o.name).join(", ")}
                       </p>
                     )}
                     <p className="text-sm font-semibold text-primary mt-0.5">
-                      {formatPrice((item.basePrice + item.options.reduce((s, o) => s + o.price, 0)) * item.quantity)}
+                      {formatPrice((item.basePrice + item.options.reduce((s, o) => s + o.price * (o.quantity || 1), 0)) * item.quantity)}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <button onClick={() => handleQty(i, item.quantity - 1)} className="w-6 h-6 rounded-full border border-border flex items-center justify-center">
