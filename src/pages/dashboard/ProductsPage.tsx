@@ -363,12 +363,6 @@ const ProductsPage = () => {
 
   if (!establishment) return <div className="text-center py-12 text-muted-foreground">Configure seu estabelecimento primeiro.</div>;
 
-  if (loading) return (
-    <div className="space-y-6 animate-fade-in">
-      <Skeleton className="h-8 w-64" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>
-    </div>
-  );
 
   const filteredLibItems = libraryItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()));
 
