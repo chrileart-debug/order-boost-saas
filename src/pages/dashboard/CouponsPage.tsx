@@ -76,32 +76,22 @@ const CouponsPage = () => {
     }
   };
 
-  const fetchData = async () => {
-    if (!user) return;
-    const { data: est } = await supabase
-      .from("establishments")
+  const fetchCoupons = async () => {
+    if (!establishment) return;
+    const { data } = await supabase
+      .from("coupons")
       .select("*")
-      .eq("owner_id", user.id)
-      .maybeSingle();
+      .eq("establishment_id", establishment.id)
+      .order("created_at", { ascending: false });
 
-    setEstablishment(est);
-
-    if (est) {
-      const { data } = await supabase
-        .from("coupons")
-        .select("*")
-        .eq("establishment_id", est.id)
-        .order("created_at", { ascending: false });
-
-      const couponsData = data || [];
-      setCoupons(couponsData);
-      await fetchPerformanceData(est.id, couponsData);
-    }
+    const couponsData = data || [];
+    setCoupons(couponsData);
+    await fetchPerformanceData(establishment.id, couponsData);
   };
 
   useEffect(() => {
-    fetchData();
-  }, [user]);
+    fetchCoupons();
+  }, [establishment?.id]);
 
   const resetForm = () => {
     setForm({ code: "", description: "", type: "percentage", value: "", min_purchase: "0" });
