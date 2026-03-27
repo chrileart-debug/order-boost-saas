@@ -79,6 +79,11 @@ const Onboarding = () => {
 
   const saveStep1 = async () => {
     if (!user || !name) return;
+    const cnpjDigits = cnpj.replace(/\D/g, "").length;
+    if (cnpjDigits > 0 && cnpjDigits < 14) {
+      toast({ title: "CNPJ incompleto", description: "Informe os 14 dígitos.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
     const payload = { name, slug, whatsapp: unmask(whatsapp), cnpj: unmask(cnpj), niche, owner_id: user.id };
