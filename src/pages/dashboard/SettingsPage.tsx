@@ -111,12 +111,11 @@ const SettingsPage = () => {
       }
 
       if (establishment) {
-        const { data } = await supabase.from("establishments").update(payload).eq("id", establishment.id).select().single();
-        if (data) setEstablishment(data);
+        await supabase.from("establishments").update(payload).eq("id", establishment.id);
       } else {
-        const { data } = await supabase.from("establishments").insert(payload).select().single();
-        if (data) setEstablishment(data);
+        await supabase.from("establishments").insert(payload);
       }
+      await refresh();
       toast({ title: "Estabelecimento salvo!" });
     } catch (err: any) {
       toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
