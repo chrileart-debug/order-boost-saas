@@ -215,14 +215,30 @@ const ProductsPage = () => {
   const saveItem = async () => {
     if (!establishment || !itemForm.name.trim()) return;
     const payload = { name: itemForm.name, description: itemForm.description, price: parseFloat(itemForm.price) || 0, establishment_id: establishment.id };
+    let newItemId: string | null = null;
     if (editingItem) {
       await supabase.from("item_library").update(payload).eq("id", editingItem.id);
     } else {
-      await supabase.from("item_library").insert(payload);
+      const { data } = await supabase.from("item_library").insert(payload).select("id").single();
+      newItemId = data?.id || null;
     }
     setItemSheet(false);
-    fetchData();
-    toast({ title: editingItem ? "Item atualizado" : "Item criado" });
+    await fetchData();
+
+    if (creatingFromGroup && newItemId && editingGroup) {
+      // Auto-link the new item to the current group
+      await supabase.from("group_items").insert({ group_id: editingGroup.id, item_id: newItemId, sort_order: groupItemLinks.filter(gl => gl.group_id === editingGroup.id).length });
+      await fetchData();
+      setCreatingFromGroup(false);
+      setLibSheet(true);
+      toast({ title: "Item adicionado à biblioteca e vinculado ao grupo" });
+    } else if (creatingFromGroup) {
+      setCreatingFromGroup(false);
+      setLibSheet(true);
+      toast({ title: "Item adicionado à biblioteca" });
+    } else {
+      toast({ title: editingItem ? "Item atualizado" : "Item criado" });
+    }
   };
 
   const deleteItem = async (id: string) => {
