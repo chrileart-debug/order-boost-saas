@@ -36,8 +36,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 const LogisticsPage = () => {
   const { user } = useAuth();
+  const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
-  const [establishment, setEstablishment] = useState<any>(null);
   const [rules, setRules] = useState<DeliveryRule[]>([]);
   const [dialog, setDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<DeliveryRule | null>(null);
