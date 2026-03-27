@@ -47,12 +47,20 @@ const CouponsPage = () => {
       if (error) throw error;
 
       const usageByCode = new Map<string, number>();
+      const usageById = new Map<string, number>();
       for (const row of (data || []) as any[]) {
         const coupon = Array.isArray(row.coupons) ? row.coupons[0] : row.coupons;
         const code = coupon?.code;
         if (!code) continue;
         usageByCode.set(code, (usageByCode.get(code) || 0) + 1);
+        const couponId = row.coupon_id;
+        if (couponId) usageById.set(couponId, (usageById.get(couponId) || 0) + 1);
       }
+
+      // Build a map of coupon_id -> count for the cards
+      const idMap: Record<string, number> = {};
+      usageById.forEach((count, id) => { idMap[id] = count; });
+      setUsageMap(idMap);
 
       const grouped = Array.from(usageByCode.entries())
         .map(([code, usos]) => ({ code, usos }))
