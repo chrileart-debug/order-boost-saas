@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Store, User } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
+import MaskedInput from "@/components/MaskedInput";
+import { maskPhone, unmaskPhone, maskCep } from "@/lib/masks";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
@@ -30,15 +32,22 @@ const SettingsPage = () => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => {
       setProfile(data);
-      if (data) setProfileForm({ full_name: data.full_name || "", phone: data.phone || "" });
+      if (data) setProfileForm({ full_name: data.full_name || "", phone: maskPhone(data.phone || "") });
     });
     supabase.from("establishments").select("*").eq("owner_id", user.id).maybeSingle().then(({ data }) => {
       setEstablishment(data);
       if (data) {
-        setEstForm({ name: data.name, slug: data.slug, niche: data.niche || "", whatsapp: data.whatsapp || "", cnpj: data.cnpj || "" });
+        setEstForm({
+          name: data.name || "",
+          slug: data.slug || "",
+          niche: data.niche || "",
+          whatsapp: maskPhone(data.whatsapp || ""),
+          cnpj: data.cnpj || "",
+        });
         if (data.address && typeof data.address === "object" && !Array.isArray(data.address)) {
           const addr = data.address as Record<string, string>;
           setAddress(addr);
+          setCep(maskCep(addr.cep || ""));
           setNumero(addr.numero || "");
         }
       }
@@ -48,18 +57,24 @@ const SettingsPage = () => {
   const saveProfile = async () => {
     if (!user) return;
     setSavingProfile(true);
-    await supabase.from("profiles").update(profileForm).eq("id", user.id);
+    await supabase.from("profiles").update({
+      full_name: profileForm.full_name,
+      phone: unmaskPhone(profileForm.phone),
+    }).eq("id", user.id);
     setSavingProfile(false);
     toast({ title: "Perfil atualizado!" });
   };
 
   const searchCep = async () => {
-    if (cep.length < 8) return;
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length < 8) return;
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep.replace(/\D/g, "")}/json/`);
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (data.erro) { toast({ title: "CEP não encontrado", variant: "destructive" }); return; }
-      setAddress({ cep: data.cep, rua: data.logradouro, bairro: data.bairro, cidade: data.localidade, uf: data.uf });
+      const newAddr = { cep: data.cep, rua: data.logradouro, bairro: data.bairro, cidade: data.localidade, uf: data.uf };
+      setAddress(newAddr);
+      setCep(maskCep(data.cep));
     } catch {
       toast({ title: "Erro ao buscar CEP", variant: "destructive" });
     }
@@ -77,7 +92,15 @@ const SettingsPage = () => {
     setSavingEst(true);
     const slug = estForm.slug || estForm.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
     const fullAddress = { ...address, numero };
-    const payload: any = { ...estForm, slug, address: fullAddress, owner_id: user.id };
+    const payload: any = {
+      name: estForm.name,
+      slug,
+      niche: estForm.niche,
+      whatsapp: unmaskPhone(estForm.whatsapp),
+      cnpj: estForm.cnpj,
+      address: fullAddress,
+      owner_id: user.id,
+    };
 
     try {
       if (logoBlob) {
@@ -88,10 +111,11 @@ const SettingsPage = () => {
       }
 
       if (establishment) {
-        await supabase.from("establishments").update(payload).eq("id", establishment.id);
+        const { data } = await supabase.from("establishments").update(payload).eq("id", establishment.id).select().single();
+        if (data) setEstablishment(data);
       } else {
         const { data } = await supabase.from("establishments").insert(payload).select().single();
-        setEstablishment(data);
+        if (data) setEstablishment(data);
       }
       toast({ title: "Estabelecimento salvo!" });
     } catch (err: any) {
@@ -117,7 +141,7 @@ const SettingsPage = () => {
             </div>
             <div className="space-y-2">
               <Label>Telefone</Label>
-              <Input value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} placeholder="(00) 00000-0000" />
+              <MaskedInput mask="phone" value={profileForm.phone} onValueChange={v => setProfileForm({ ...profileForm, phone: v })} placeholder="(00) 00000-0000" />
             </div>
           </div>
           <Button onClick={saveProfile} disabled={savingProfile}>{savingProfile ? "Salvando..." : "Salvar Perfil"}</Button>
@@ -143,7 +167,7 @@ const SettingsPage = () => {
             </div>
             <div className="space-y-2">
               <Label>WhatsApp</Label>
-              <Input value={estForm.whatsapp} onChange={e => setEstForm({ ...estForm, whatsapp: e.target.value })} placeholder="(00) 00000-0000" />
+              <MaskedInput mask="phone" value={estForm.whatsapp} onValueChange={v => setEstForm({ ...estForm, whatsapp: v })} placeholder="(00) 00000-0000" />
             </div>
             <div className="space-y-2">
               <Label>CNPJ (opcional)</Label>
@@ -151,24 +175,11 @@ const SettingsPage = () => {
             </div>
           </div>
 
-          {/* Logo & Cover uploads */}
           <div className="border-t border-border pt-4 mt-4">
             <h3 className="font-medium text-foreground mb-3">Identidade Visual</h3>
             <div className="grid gap-6 sm:grid-cols-2">
-              <ImageCropper
-                aspectRatio={1}
-                onCropped={setLogoBlob}
-                currentUrl={establishment?.logo_url || undefined}
-                label="Logo"
-                hint="Proporção 1:1 (quadrado)"
-              />
-              <ImageCropper
-                aspectRatio={16 / 9}
-                onCropped={setCoverBlob}
-                currentUrl={establishment?.cover_url || undefined}
-                label="Capa"
-                hint="Proporção 16:9 (banner)"
-              />
+              <ImageCropper aspectRatio={1} onCropped={setLogoBlob} currentUrl={establishment?.logo_url || undefined} label="Logo" hint="Proporção 1:1 (quadrado)" />
+              <ImageCropper aspectRatio={16 / 9} onCropped={setCoverBlob} currentUrl={establishment?.cover_url || undefined} label="Capa" hint="Proporção 16:9 (banner)" />
             </div>
           </div>
 
@@ -178,7 +189,7 @@ const SettingsPage = () => {
               <div className="space-y-2">
                 <Label>CEP</Label>
                 <div className="flex gap-2">
-                  <Input value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" />
+                  <MaskedInput mask="cep" value={cep} onValueChange={setCep} placeholder="00000-000" />
                   <Button variant="outline" size="sm" onClick={searchCep}>Buscar</Button>
                 </div>
               </div>

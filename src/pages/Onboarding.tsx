@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Utensils, ArrowRight, ArrowLeft, Check } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
+import MaskedInput from "@/components/MaskedInput";
+import { unmaskPhone } from "@/lib/masks";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
@@ -44,7 +46,6 @@ const Onboarding = () => {
         if (data.onboarding_completed) {
           navigate("/dashboard", { replace: true });
         }
-        // Pre-fill if partial data exists
         if (data.name) setName(data.name);
         if (data.whatsapp) setWhatsapp(data.whatsapp);
         if (data.cnpj) setCnpj(data.cnpj);
@@ -54,10 +55,11 @@ const Onboarding = () => {
   }, [user, navigate]);
 
   const searchCep = async () => {
-    if (cep.replace(/\D/g, "").length < 8) return;
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length < 8) return;
     setLoadingCep(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cep.replace(/\D/g, "")}/json/`);
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (data.erro) { toast({ title: "CEP não encontrado", variant: "destructive" }); return; }
       setAddress({ cep: data.cep, rua: data.logradouro, bairro: data.bairro, cidade: data.localidade, uf: data.uf });
@@ -79,7 +81,7 @@ const Onboarding = () => {
     if (!user || !name) return;
     setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-    const payload = { name, slug, whatsapp, cnpj, niche, owner_id: user.id };
+    const payload = { name, slug, whatsapp: unmaskPhone(whatsapp), cnpj, niche, owner_id: user.id };
 
     if (establishmentId) {
       await supabase.from("establishments").update(payload).eq("id", establishmentId);
@@ -96,7 +98,6 @@ const Onboarding = () => {
     setSaving(true);
     const fullAddress = { ...address, numero };
 
-    // Attempt geocoding via Nominatim (free, no key)
     let lat = 0, lng = 0;
     try {
       const q = `${address.rua}, ${numero}, ${address.cidade}, ${address.uf}, Brazil`;
@@ -147,7 +148,6 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      {/* Header */}
       <header className="h-16 border-b border-border bg-card flex items-center px-6">
         <Utensils className="w-6 h-6 text-primary mr-2" />
         <span className="text-xl font-bold text-foreground">EPRATO</span>
@@ -155,7 +155,6 @@ const Onboarding = () => {
 
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-lg">
-          {/* Progress */}
           <div className="mb-8">
             <div className="flex justify-between text-sm text-muted-foreground mb-2">
               <span>Passo {step} de 3</span>
@@ -165,7 +164,6 @@ const Onboarding = () => {
           </div>
 
           <div className="bg-card rounded-2xl border border-border p-8 shadow-sm">
-            {/* STEP 1 */}
             {step === 1 && (
               <div className="space-y-6 animate-fade-in">
                 <div>
@@ -188,7 +186,7 @@ const Onboarding = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>WhatsApp</Label>
-                      <Input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="(00) 00000-0000" />
+                      <MaskedInput mask="phone" value={whatsapp} onValueChange={setWhatsapp} placeholder="(00) 00000-0000" />
                     </div>
                     <div className="space-y-2">
                       <Label>CNPJ (opcional)</Label>
@@ -204,7 +202,6 @@ const Onboarding = () => {
               </div>
             )}
 
-            {/* STEP 2 */}
             {step === 2 && (
               <div className="space-y-6 animate-fade-in">
                 <div>
@@ -216,7 +213,7 @@ const Onboarding = () => {
                   <div className="space-y-2">
                     <Label>CEP *</Label>
                     <div className="flex gap-2">
-                      <Input value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" />
+                      <MaskedInput mask="cep" value={cep} onValueChange={setCep} placeholder="00000-000" />
                       <Button variant="outline" onClick={searchCep} disabled={loadingCep}>
                         {loadingCep ? "Buscando..." : "Buscar"}
                       </Button>
@@ -266,7 +263,6 @@ const Onboarding = () => {
               </div>
             )}
 
-            {/* STEP 3 */}
             {step === 3 && (
               <div className="space-y-6 animate-fade-in">
                 <div>
@@ -274,19 +270,8 @@ const Onboarding = () => {
                   <p className="text-muted-foreground mt-1">Adicione o logo e a capa do seu cardápio.</p>
                 </div>
 
-                <ImageCropper
-                  aspectRatio={1}
-                  onCropped={setLogoBlob}
-                  label="Logo"
-                  hint="Proporção 1:1 (quadrado)"
-                />
-
-                <ImageCropper
-                  aspectRatio={16 / 9}
-                  onCropped={setCoverBlob}
-                  label="Capa"
-                  hint="Proporção 16:9 (banner)"
-                />
+                <ImageCropper aspectRatio={1} onCropped={setLogoBlob} label="Logo" hint="Proporção 1:1 (quadrado)" />
+                <ImageCropper aspectRatio={16 / 9} onCropped={setCoverBlob} label="Capa" hint="Proporção 16:9 (banner)" />
 
                 <div className="flex gap-3">
                   <Button variant="outline" size="lg" onClick={() => setStep(2)}>
