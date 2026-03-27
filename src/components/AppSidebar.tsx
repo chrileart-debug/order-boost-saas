@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
+import { useEstablishment } from "@/components/EstablishmentProvider";
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const menuItems = [
@@ -28,6 +29,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { signOut } = useAuth();
+  const { establishment } = useEstablishment();
   const location = useLocation();
 
   return (
@@ -56,7 +58,18 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3">
+      <SidebarFooter className="p-3 space-y-2">
+        {establishment?.slug && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start gap-2 text-primary border-primary/30 hover:bg-primary/10"
+            onClick={() => window.open(`/cardapio/${establishment.slug}`, "_blank")}
+          >
+            <ExternalLink className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Ver Minha Loja</span>}
+          </Button>
+        )}
         <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground" onClick={signOut}>
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Sair</span>}
