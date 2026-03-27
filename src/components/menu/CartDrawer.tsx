@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -378,20 +378,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                 <Label>CEP *</Label>
                 <MaskedInput
                   value={cep}
-                  onValueChange={(v) => {
-                    setCep(v);
-                    const digits = v.replace(/\D/g, "");
-                    if (digits.length < 8) {
-                      setShippingFee(0);
-                      setShippingLabel("");
-                      setShippingBlocked(false);
-                      setAddressText("");
-                      setCustomerLat(null);
-                      setCustomerLng(null);
-                    } else if (digits.length === 8) {
-                      lookupCep(v);
-                    }
-                  }}
+                  onValueChange={handleCepChange}
                   mask="cep"
                   placeholder="00000-000"
                 />
