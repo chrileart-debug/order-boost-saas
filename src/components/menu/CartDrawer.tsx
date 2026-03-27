@@ -517,7 +517,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!customerName || !customerPhone || !addressText || submitting}
+              disabled={!customerName || !customerPhone || !addressText || submitting || shippingBlocked}
               className="w-full h-12 text-base font-semibold"
             >
               {submitting ? "Finalizando..." : `Finalizar pedido ${formatPrice(total)}`}
