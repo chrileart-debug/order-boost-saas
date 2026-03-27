@@ -25,21 +25,30 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
 
   useEffect(() => {
     const load = async () => {
-      const { data: g } = await supabase
-        .from("product_option_groups")
-        .select("*")
-        .eq("product_id", product.id)
-        .order("created_at");
+      // Fetch groups via product_modifiers junction table
+      const { data: modifiers } = await supabase
+        .from("product_modifiers")
+        .select("group_id")
+        .eq("product_id", product.id);
 
-      setGroups(g || []);
+      const groupIds = (modifiers || []).map((m: any) => m.group_id);
 
-      if (g && g.length > 0) {
-        const { data: o } = await supabase
-          .from("product_options")
+      if (groupIds.length > 0) {
+        const { data: g } = await supabase
+          .from("product_option_groups")
           .select("*")
-          .in("group_id", g.map((x: any) => x.id))
+          .in("id", groupIds)
           .order("created_at");
-        setOptions(o || []);
+        setGroups(g || []);
+
+        if (g && g.length > 0) {
+          const { data: o } = await supabase
+            .from("product_options")
+            .select("*")
+            .in("group_id", g.map((x: any) => x.id))
+            .order("created_at");
+          setOptions(o || []);
+        }
       }
       setLoading(false);
     };
@@ -49,12 +58,8 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   const toggleOption = (groupId: string, optionId: string, maxSel: number) => {
     setSelected((prev) => {
       const current = prev[groupId] || [];
-      if (maxSel === 1) {
-        return { ...prev, [groupId]: [optionId] };
-      }
-      if (current.includes(optionId)) {
-        return { ...prev, [groupId]: current.filter((id) => id !== optionId) };
-      }
+      if (maxSel === 1) return { ...prev, [groupId]: [optionId] };
+      if (current.includes(optionId)) return { ...prev, [groupId]: current.filter((id) => id !== optionId) };
       if (current.length >= maxSel) return prev;
       return { ...prev, [groupId]: [...current, optionId] };
     });
@@ -62,8 +67,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
 
   const isValid = groups.every((g: any) => {
     const min = g.min_selection || 0;
-    const sel = selected[g.id]?.length || 0;
-    return sel >= min;
+    return (selected[g.id]?.length || 0) >= min;
   });
 
   const selectedOptions: CartItemOption[] = Object.values(selected)
@@ -172,7 +176,6 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
             })
           )}
 
-          {/* Quantity */}
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-3">
               <button
