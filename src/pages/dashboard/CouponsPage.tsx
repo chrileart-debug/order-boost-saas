@@ -137,17 +137,17 @@ const CouponsPage = () => {
 
     setDialog(false);
     resetForm();
-    fetchData();
+    fetchCoupons();
   };
 
   const toggleActive = async (id: string, current: boolean) => {
     await supabase.from("coupons").update({ is_active: !current }).eq("id", id);
-    fetchData();
+    fetchCoupons();
   };
 
   const deleteCoupon = async (id: string) => {
     await supabase.from("coupons").delete().eq("id", id);
-    fetchData();
+    fetchCoupons();
     toast({ title: "Cupom removido" });
   };
 
