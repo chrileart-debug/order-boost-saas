@@ -55,6 +55,7 @@ const ProductsPage = () => {
   const [itemSheet, setItemSheet] = useState(false);
   const [editingItem, setEditingItem] = useState<LibraryItem | null>(null);
   const [itemForm, setItemForm] = useState({ name: "", description: "", price: "0" });
+  const [creatingFromGroup, setCreatingFromGroup] = useState(false);
 
   /* group sheet */
   const [libSheet, setLibSheet] = useState(false);
