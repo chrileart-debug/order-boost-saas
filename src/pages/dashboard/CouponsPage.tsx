@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Ticket, BarChart3, Percent, DollarSign } from "lucide-react";
@@ -17,6 +17,8 @@ const CouponsPage = () => {
   const { toast } = useToast();
   const [establishment, setEstablishment] = useState<any>(null);
   const [coupons, setCoupons] = useState<any[]>([]);
+  const [performanceData, setPerformanceData] = useState<Array<{ code: string; usos: number }>>([]);
+  const [loadingPerformance, setLoadingPerformance] = useState(false);
   const [dialog, setDialog] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
   const [form, setForm] = useState({
@@ -27,6 +29,43 @@ const CouponsPage = () => {
     min_purchase: "0",
   });
 
+  const buildFallbackPerformance = (couponsData: any[]) =>
+    couponsData
+      .filter((c) => Number(c.usage_count || 0) > 0)
+      .sort((a, b) => Number(b.usage_count || 0) - Number(a.usage_count || 0))
+      .map((c) => ({ code: c.code, usos: Number(c.usage_count || 0) }));
+
+  const fetchPerformanceData = async (establishmentId: string, couponsData: any[]) => {
+    setLoadingPerformance(true);
+    try {
+      const { data, error } = await supabase
+        .from("coupon_usage_history" as any)
+        .select("coupon_id, coupons!inner(code, establishment_id)")
+        .eq("coupons.establishment_id", establishmentId);
+
+      if (error) throw error;
+
+      const usageByCode = new Map<string, number>();
+      for (const row of (data || []) as any[]) {
+        const coupon = Array.isArray(row.coupons) ? row.coupons[0] : row.coupons;
+        const code = coupon?.code;
+        if (!code) continue;
+        usageByCode.set(code, (usageByCode.get(code) || 0) + 1);
+      }
+
+      const grouped = Array.from(usageByCode.entries())
+        .map(([code, usos]) => ({ code, usos }))
+        .sort((a, b) => b.usos - a.usos)
+        .slice(0, 10);
+
+      setPerformanceData(grouped.length > 0 ? grouped : buildFallbackPerformance(couponsData));
+    } catch {
+      setPerformanceData(buildFallbackPerformance(couponsData));
+    } finally {
+      setLoadingPerformance(false);
+    }
+  };
+
   const fetchData = async () => {
     if (!user) return;
     const { data: est } = await supabase
@@ -34,14 +73,19 @@ const CouponsPage = () => {
       .select("*")
       .eq("owner_id", user.id)
       .maybeSingle();
+
     setEstablishment(est);
+
     if (est) {
       const { data } = await supabase
         .from("coupons")
         .select("*")
         .eq("establishment_id", est.id)
         .order("created_at", { ascending: false });
-      setCoupons(data || []);
+
+      const couponsData = data || [];
+      setCoupons(couponsData);
+      await fetchPerformanceData(est.id, couponsData);
     }
   };
 
@@ -73,6 +117,7 @@ const CouponsPage = () => {
 
   const save = async () => {
     if (!establishment || !form.code || !form.value) return;
+
     const payload = {
       establishment_id: establishment.id,
       code: form.code.toUpperCase(),
@@ -89,6 +134,7 @@ const CouponsPage = () => {
       await supabase.from("coupons").insert(payload);
       toast({ title: "Cupom criado!" });
     }
+
     setDialog(false);
     resetForm();
     fetchData();
@@ -108,18 +154,13 @@ const CouponsPage = () => {
   const formatPrice = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const chartData = coupons
-    .filter((c) => (c.usage_count || 0) > 0)
-    .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
-    .slice(0, 10)
-    .map((c) => ({ code: c.code, usos: c.usage_count || 0 }));
-
-  if (!establishment)
+  if (!establishment) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         Configure seu estabelecimento primeiro.
       </div>
     );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -140,7 +181,6 @@ const CouponsPage = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* ─── Aba Gestão ─── */}
         <TabsContent value="gestao">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
             {coupons.map((c) => (
@@ -178,45 +218,33 @@ const CouponsPage = () => {
                   )}
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      Mín: {formatPrice(Number(c.min_purchase || 0))}
-                    </span>
-                    <span>{c.usage_count || 0} usos</span>
+                    <span>Mín: {formatPrice(Number(c.min_purchase || 0))}</span>
+                    <span>{Number(c.usage_count || 0)} usos</span>
                   </div>
 
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => openEdit(c)}
-                    >
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => openEdit(c)}>
                       Editar
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => deleteCoupon(c.id)}
-                    >
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => deleteCoupon(c.id)}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
+
             {coupons.length === 0 && (
-              <p className="text-muted-foreground col-span-full text-center py-8">
-                Nenhum cupom criado.
-              </p>
+              <p className="text-muted-foreground col-span-full text-center py-8">Nenhum cupom criado.</p>
             )}
           </div>
         </TabsContent>
 
-        {/* ─── Aba Performance ─── */}
         <TabsContent value="performance">
           <div className="mt-4">
-            {chartData.length > 0 ? (
+            {loadingPerformance ? (
+              <div className="text-center py-12 text-muted-foreground">Carregando performance...</div>
+            ) : performanceData.length > 0 ? (
               <Card>
                 <CardContent className="p-6">
                   <h3 className="text-lg font-semibold text-foreground mb-4">
@@ -224,10 +252,10 @@ const CouponsPage = () => {
                   </h3>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData}>
+                      <BarChart data={performanceData}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                         <XAxis dataKey="code" className="text-xs" />
-                        <YAxis allowDecimals={false} className="text-xs" />
+                        <YAxis dataKey="usos" allowDecimals={false} className="text-xs" />
                         <Tooltip
                           contentStyle={{
                             backgroundColor: "hsl(var(--card))",
@@ -252,7 +280,6 @@ const CouponsPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* ─── Modal Criar/Editar ─── */}
       <Dialog
         open={dialog}
         onOpenChange={(v) => {
@@ -304,9 +331,7 @@ const CouponsPage = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>
-                Valor {form.type === "percentage" ? "(%)" : "(R$)"}
-              </Label>
+              <Label>Valor {form.type === "percentage" ? "(%)" : "(R$)"}</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   {form.type === "percentage" ? "%" : "R$"}
