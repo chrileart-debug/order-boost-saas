@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
+import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Res
 
 const Onboarding = () => {
   const { user } = useAuth();
+  const { refresh } = useEstablishment();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -138,11 +140,11 @@ const Onboarding = () => {
       if (coverUrl) updatePayload.cover_url = coverUrl;
 
       await supabase.from("establishments").update(updatePayload).eq("id", establishmentId);
+      await refresh();
       toast({ title: "Tudo pronto!", description: "Seu estabelecimento foi configurado." });
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       toast({ title: "Erro ao salvar imagens", description: err.message, variant: "destructive" });
-    } finally {
       setSaving(false);
     }
   };
@@ -151,7 +153,7 @@ const Onboarding = () => {
   const cnpjDigits = cnpj.replace(/\D/g, "").length;
   const step1Valid = name.trim().length > 0 && niche.length > 0 && whatsappDigits >= 10 && (cnpjDigits === 0 || cnpjDigits === 14);
   const step2Valid = !!address.cep && numero.trim().length > 0;
-  const step3Valid = !!logoBlob || !!coverBlob;
+  const step3Valid = true; // images are optional
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
