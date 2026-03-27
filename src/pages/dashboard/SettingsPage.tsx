@@ -33,9 +33,10 @@ const SettingsPage = () => {
       setEstablishment(data);
       if (data) {
         setEstForm({ name: data.name, slug: data.slug, niche: data.niche || "", whatsapp: data.whatsapp || "", cnpj: data.cnpj || "" });
-        if (data.address) {
-          setAddress(data.address);
-          setNumero(data.address.numero || "");
+        if (data.address && typeof data.address === "object" && !Array.isArray(data.address)) {
+          const addr = data.address as Record<string, string>;
+          setAddress(addr);
+          setNumero(addr.numero || "");
         }
       }
     });
