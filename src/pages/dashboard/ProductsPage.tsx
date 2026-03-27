@@ -263,10 +263,11 @@ const ProductsPage = () => {
 
   const saveGroup = async () => {
     if (!establishment || !groupForm.name.trim()) return;
+    const isQuantity = groupForm.selectionType === "quantity";
     const payload = {
       name: groupForm.name,
-      min_selection: parseInt(groupForm.min) || 0,
-      max_selection: parseInt(groupForm.max) || 1,
+      min_selection: isQuantity ? (parseInt(groupForm.min) || 0) : 0,
+      max_selection: isQuantity ? (parseInt(groupForm.max) || 1) : 1,
       selection_type: groupForm.selectionType,
       establishment_id: establishment.id,
     };
