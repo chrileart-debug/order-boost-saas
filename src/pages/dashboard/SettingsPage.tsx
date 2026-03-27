@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Store, User } from "lucide-react";
+import ImageCropper from "@/components/ImageCropper";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
@@ -22,6 +23,8 @@ const SettingsPage = () => {
   const [numero, setNumero] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingEst, setSavingEst] = useState(false);
+  const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
+  const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -62,21 +65,40 @@ const SettingsPage = () => {
     }
   };
 
+  const uploadImage = async (blob: Blob, path: string): Promise<string> => {
+    const { error } = await supabase.storage.from("establishments").upload(path, blob, { upsert: true, contentType: "image/webp" });
+    if (error) throw error;
+    const { data } = supabase.storage.from("establishments").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
   const saveEstablishment = async () => {
     if (!user || !estForm.name) return;
     setSavingEst(true);
     const slug = estForm.slug || estForm.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
     const fullAddress = { ...address, numero };
-    const payload = { ...estForm, slug, address: fullAddress, owner_id: user.id };
+    const payload: any = { ...estForm, slug, address: fullAddress, owner_id: user.id };
 
-    if (establishment) {
-      await supabase.from("establishments").update(payload).eq("id", establishment.id);
-    } else {
-      const { data } = await supabase.from("establishments").insert(payload).select().single();
-      setEstablishment(data);
+    try {
+      if (logoBlob) {
+        payload.logo_url = await uploadImage(logoBlob, `${user.id}/logo.webp`);
+      }
+      if (coverBlob) {
+        payload.cover_url = await uploadImage(coverBlob, `${user.id}/cover.webp`);
+      }
+
+      if (establishment) {
+        await supabase.from("establishments").update(payload).eq("id", establishment.id);
+      } else {
+        const { data } = await supabase.from("establishments").insert(payload).select().single();
+        setEstablishment(data);
+      }
+      toast({ title: "Estabelecimento salvo!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSavingEst(false);
     }
-    setSavingEst(false);
-    toast({ title: "Estabelecimento salvo!" });
   };
 
   return (
@@ -126,6 +148,27 @@ const SettingsPage = () => {
             <div className="space-y-2">
               <Label>CNPJ (opcional)</Label>
               <Input value={estForm.cnpj} onChange={e => setEstForm({ ...estForm, cnpj: e.target.value })} placeholder="00.000.000/0000-00" />
+            </div>
+          </div>
+
+          {/* Logo & Cover uploads */}
+          <div className="border-t border-border pt-4 mt-4">
+            <h3 className="font-medium text-foreground mb-3">Identidade Visual</h3>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <ImageCropper
+                aspectRatio={1}
+                onCropped={setLogoBlob}
+                currentUrl={establishment?.logo_url || undefined}
+                label="Logo"
+                hint="Proporção 1:1 (quadrado)"
+              />
+              <ImageCropper
+                aspectRatio={16 / 9}
+                onCropped={setCoverBlob}
+                currentUrl={establishment?.cover_url || undefined}
+                label="Capa"
+                hint="Proporção 16:9 (banner)"
+              />
             </div>
           </div>
 

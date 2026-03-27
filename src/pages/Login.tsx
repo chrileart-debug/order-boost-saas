@@ -23,7 +23,16 @@ const Login = () => {
     if (error) {
       toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
     } else {
-      navigate("/dashboard");
+      // Check onboarding status
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: est } = await supabase.from("establishments").select("onboarding_completed").eq("owner_id", session.user.id).maybeSingle();
+        if (!est || !est.onboarding_completed) {
+          navigate("/onboarding");
+        } else {
+          navigate("/dashboard");
+        }
+      }
     }
   };
 

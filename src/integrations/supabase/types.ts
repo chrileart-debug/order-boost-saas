@@ -103,6 +103,7 @@ export type Database = {
           logo_url: string | null
           name: string
           niche: string | null
+          onboarding_completed: boolean | null
           owner_id: string
           slug: string
           updated_at: string
@@ -123,6 +124,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           niche?: string | null
+          onboarding_completed?: boolean | null
           owner_id: string
           slug: string
           updated_at?: string
@@ -143,6 +145,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           niche?: string | null
+          onboarding_completed?: boolean | null
           owner_id?: string
           slug?: string
           updated_at?: string

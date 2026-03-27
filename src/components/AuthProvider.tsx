@@ -1,5 +1,5 @@
 import { useEffect, useState, createContext, useContext } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -46,14 +46,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/login");
+    if (loading) return;
+    if (!user) {
+      navigate("/login", { replace: true });
+      return;
     }
+
+    // Check if onboarding is completed
+    supabase
+      .from("establishments")
+      .select("onboarding_completed")
+      .eq("owner_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data || !data.onboarding_completed) {
+          navigate("/onboarding", { replace: true });
+        } else {
+          setChecking(false);
+        }
+      });
   }, [user, loading, navigate]);
 
-  if (loading) {
+  if (loading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
