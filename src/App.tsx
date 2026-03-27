@@ -16,6 +16,8 @@ import ProductsPage from "./pages/dashboard/ProductsPage";
 import LogisticsPage from "./pages/dashboard/LogisticsPage";
 import CouponsPage from "./pages/dashboard/CouponsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
+import MenuPage from "./pages/MenuPage";
+import OrderTrackingPage from "./pages/OrderTrackingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +35,8 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/cardapio/:slug" element={<MenuPage />} />
+              <Route path="/pedido/:id" element={<OrderTrackingPage />} />
               <Route path="/dashboard" element={<DashboardLayout />}>
                 <Route index element={<DashboardHome />} />
                 <Route path="orders" element={<OrdersPage />} />
