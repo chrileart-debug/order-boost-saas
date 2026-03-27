@@ -170,6 +170,10 @@ const ProductsPage = () => {
         await supabase.storage.from("establishments").upload(path, prodImageBlob, { upsert: true, contentType: "image/webp" });
         const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
         await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", productId);
+      } else if (prodImageRemoved && productId) {
+        const path = `products/${productId}.webp`;
+        await supabase.storage.from("establishments").remove([path]);
+        await supabase.from("products").update({ image_url: null }).eq("id", productId);
       }
       if (productId) {
         await supabase.from("product_modifiers").delete().eq("product_id", productId);
