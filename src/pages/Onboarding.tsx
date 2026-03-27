@@ -17,6 +17,7 @@ const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Res
 
 const Onboarding = () => {
   const { user } = useAuth();
+  const { refresh } = useEstablishment();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
