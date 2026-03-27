@@ -16,10 +16,30 @@ interface Props {
   onAdd: () => void;
 }
 
+interface GroupData {
+  id: string;
+  name: string;
+  min_selection: number;
+  max_selection: number;
+  selection_type: string; // 'selection' | 'quantity'
+}
+
+interface GroupItemData {
+  id: string;
+  group_id: string;
+  item_id: string;
+  max_quantity: number;
+  item_name: string;
+  item_price: number;
+}
+
 const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
-  const [groups, setGroups] = useState<any[]>([]);
-  const [options, setOptions] = useState<any[]>([]);
+  const [groups, setGroups] = useState<GroupData[]>([]);
+  const [groupItems, setGroupItems] = useState<GroupItemData[]>([]);
+  // For selection type: selected item ids per group
   const [selected, setSelected] = useState<Record<string, string[]>>({});
+  // For quantity type: quantity per group_item id
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
 
@@ -39,16 +59,40 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
           .select("*")
           .in("id", groupIds)
           .order("created_at");
-        setGroups(g || []);
+        setGroups((g || []) as GroupData[]);
 
         if (g && g.length > 0) {
-        const { data: o } = await supabase
-            .from("product_options")
+          // Fetch group_items + item_library data
+          const { data: gi } = await supabase
+            .from("group_items")
             .select("*")
             .in("group_id", g.map((x: any) => x.id))
-            .eq("is_available", true)
-            .order("created_at");
-          setOptions(o || []);
+            .order("sort_order");
+
+          if (gi && gi.length > 0) {
+            const itemIds = [...new Set(gi.map((x: any) => x.item_id))];
+            const { data: items } = await supabase
+              .from("item_library")
+              .select("*")
+              .in("id", itemIds)
+              .eq("is_available", true);
+
+            const itemMap = new Map((items || []).map((i: any) => [i.id, i]));
+            const resolved: GroupItemData[] = gi
+              .filter((x: any) => itemMap.has(x.item_id))
+              .map((x: any) => {
+                const item = itemMap.get(x.item_id)!;
+                return {
+                  id: x.id,
+                  group_id: x.group_id,
+                  item_id: x.item_id,
+                  max_quantity: x.max_quantity || 1,
+                  item_name: item.name,
+                  item_price: Number(item.price) || 0,
+                };
+              });
+            setGroupItems(resolved);
+          }
         }
       }
       setLoading(false);
@@ -56,30 +100,68 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
     load();
   }, [product.id]);
 
-  const toggleOption = (groupId: string, optionId: string, maxSel: number) => {
+  /* ─── selection type handlers ─── */
+  const toggleOption = (groupId: string, itemId: string, maxSel: number) => {
     setSelected((prev) => {
       const current = prev[groupId] || [];
-      if (maxSel === 1) return { ...prev, [groupId]: [optionId] };
-      if (current.includes(optionId)) return { ...prev, [groupId]: current.filter((id) => id !== optionId) };
+      if (maxSel === 1) return { ...prev, [groupId]: [itemId] };
+      if (current.includes(itemId)) return { ...prev, [groupId]: current.filter((id) => id !== itemId) };
       if (current.length >= maxSel) return prev;
-      return { ...prev, [groupId]: [...current, optionId] };
+      return { ...prev, [groupId]: [...current, itemId] };
     });
   };
 
-  const isValid = groups.every((g: any) => {
+  /* ─── quantity type handlers ─── */
+  const setItemQty = (giId: string, groupId: string, delta: number, maxQty: number, groupMax: number) => {
+    setQuantities((prev) => {
+      const current = prev[giId] || 0;
+      const newQty = Math.max(0, Math.min(current + delta, maxQty));
+      // Check group total
+      const groupGiIds = groupItems.filter(gi => gi.group_id === groupId).map(gi => gi.id);
+      const groupTotal = groupGiIds.reduce((s, id) => s + (id === giId ? newQty : (prev[id] || 0)), 0);
+      if (groupTotal > groupMax) return prev;
+      return { ...prev, [giId]: newQty };
+    });
+  };
+
+  /* ─── validation ─── */
+  const isValid = groups.every((g) => {
     const min = g.min_selection || 0;
+    if (min === 0) return true;
+    if (g.selection_type === "quantity") {
+      const gItems = groupItems.filter(gi => gi.group_id === g.id);
+      const totalQty = gItems.reduce((s, gi) => s + (quantities[gi.id] || 0), 0);
+      return totalQty >= min;
+    }
     return (selected[g.id]?.length || 0) >= min;
   });
 
-  const selectedOptions: CartItemOption[] = Object.values(selected)
-    .flat()
-    .map((optId) => {
-      const opt = options.find((o: any) => o.id === optId);
-      return opt ? { name: opt.name, price: opt.price || 0 } : null;
-    })
-    .filter(Boolean) as CartItemOption[];
+  /* ─── build selected options for cart ─── */
+  const buildCartOptions = (): CartItemOption[] => {
+    const opts: CartItemOption[] = [];
+    groups.forEach((g) => {
+      const gItems = groupItems.filter(gi => gi.group_id === g.id);
+      if (g.selection_type === "quantity") {
+        gItems.forEach((gi) => {
+          const qty = quantities[gi.id] || 0;
+          if (qty > 0) {
+            opts.push({ name: gi.item_name, price: gi.item_price, quantity: qty });
+          }
+        });
+      } else {
+        const sel = selected[g.id] || [];
+        gItems.forEach((gi) => {
+          if (sel.includes(gi.item_id)) {
+            opts.push({ name: gi.item_name, price: gi.item_price, quantity: 1 });
+          }
+        });
+      }
+    });
+    return opts;
+  };
 
-  const unitPrice = product.price + selectedOptions.reduce((s, o) => s + o.price, 0);
+  const selectedOptions = buildCartOptions();
+  const unitPrice = product.price + selectedOptions.reduce((s, o) => s + o.price * o.quantity, 0);
   const totalPrice = unitPrice * quantity;
 
   const formatPrice = (v: number) =>
@@ -117,9 +199,9 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
             </div>
           ) : (
-            groups.map((group: any) => {
-              const groupOptions = options.filter((o: any) => o.group_id === group.id);
-              const isRadio = (group.max_selection || 1) === 1;
+            groups.map((group) => {
+              const gItems = groupItems.filter((gi) => gi.group_id === group.id);
+              if (gItems.length === 0) return null;
               const isRequired = (group.min_selection || 0) > 0;
 
               return (
@@ -133,44 +215,81 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
                     {group.max_selection > 1 ? ` (máx. ${group.max_selection})` : ""}
                   </p>
 
-                  {isRadio ? (
-                    <RadioGroup
-                      value={selected[group.id]?.[0] || ""}
-                      onValueChange={(val) => toggleOption(group.id, val, 1)}
-                    >
-                      {groupOptions.map((opt: any) => (
-                        <div key={opt.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                          <div className="flex items-center gap-2">
-                            <RadioGroupItem value={opt.id} id={opt.id} />
-                            <Label htmlFor={opt.id} className="cursor-pointer">{opt.name}</Label>
-                          </div>
-                          {(opt.price || 0) > 0 && (
-                            <span className="text-sm text-muted-foreground">+ {formatPrice(opt.price)}</span>
-                          )}
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  ) : (
+                  {group.selection_type === "quantity" ? (
+                    /* ═══ QUANTITY MODE ═══ */
                     <div className="space-y-0">
-                      {groupOptions.map((opt: any) => {
-                        const checked = selected[group.id]?.includes(opt.id) || false;
+                      {gItems.map((gi) => {
+                        const qty = quantities[gi.id] || 0;
                         return (
-                          <div key={opt.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={opt.id}
-                                checked={checked}
-                                onCheckedChange={() => toggleOption(group.id, opt.id, group.max_selection || 1)}
-                              />
-                              <Label htmlFor={opt.id} className="cursor-pointer">{opt.name}</Label>
+                          <div key={gi.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-foreground">{gi.item_name}</span>
+                              {gi.item_price > 0 && (
+                                <span className="text-sm text-muted-foreground ml-2">+ {formatPrice(gi.item_price)}</span>
+                              )}
                             </div>
-                            {(opt.price || 0) > 0 && (
-                              <span className="text-sm text-muted-foreground">+ {formatPrice(opt.price)}</span>
-                            )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setItemQty(gi.id, group.id, -1, gi.max_quantity, group.max_selection || 99)}
+                                disabled={qty === 0}
+                                className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-accent disabled:opacity-30"
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
+                              <span className="text-sm font-semibold w-5 text-center">{qty}</span>
+                              <button
+                                onClick={() => setItemQty(gi.id, group.id, 1, gi.max_quantity, group.max_selection || 99)}
+                                disabled={qty >= gi.max_quantity}
+                                className="w-7 h-7 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 disabled:opacity-30"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
                     </div>
+                  ) : (
+                    /* ═══ SELECTION MODE ═══ */
+                    (group.max_selection || 1) === 1 ? (
+                      <RadioGroup
+                        value={selected[group.id]?.[0] || ""}
+                        onValueChange={(val) => toggleOption(group.id, val, 1)}
+                      >
+                        {gItems.map((gi) => (
+                          <div key={gi.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                            <div className="flex items-center gap-2">
+                              <RadioGroupItem value={gi.item_id} id={gi.id} />
+                              <Label htmlFor={gi.id} className="cursor-pointer">{gi.item_name}</Label>
+                            </div>
+                            {gi.item_price > 0 && (
+                              <span className="text-sm text-muted-foreground">+ {formatPrice(gi.item_price)}</span>
+                            )}
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    ) : (
+                      <div className="space-y-0">
+                        {gItems.map((gi) => {
+                          const checked = selected[group.id]?.includes(gi.item_id) || false;
+                          return (
+                            <div key={gi.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  id={gi.id}
+                                  checked={checked}
+                                  onCheckedChange={() => toggleOption(group.id, gi.item_id, group.max_selection || 1)}
+                                />
+                                <Label htmlFor={gi.id} className="cursor-pointer">{gi.item_name}</Label>
+                              </div>
+                              {gi.item_price > 0 && (
+                                <span className="text-sm text-muted-foreground">+ {formatPrice(gi.item_price)}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )
                   )}
                 </div>
               );

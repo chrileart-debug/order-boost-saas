@@ -153,6 +153,63 @@ export type Database = {
         }
         Relationships: []
       }
+      group_items: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          item_id: string
+          max_quantity: number
+          sort_order: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          item_id: string
+          max_quantity?: number
+          sort_order?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          item_id?: string
+          max_quantity?: number
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      item_library: {
+        Row: {
+          created_at: string
+          description: string | null
+          establishment_id: string
+          id: string
+          is_available: boolean
+          name: string
+          price: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          establishment_id: string
+          id?: string
+          is_available?: boolean
+          name: string
+          price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          establishment_id?: string
+          id?: string
+          is_available?: boolean
+          name?: string
+          price?: number
+        }
+        Relationships: []
+      }
       order_item_options: {
         Row: {
           created_at: string
@@ -325,6 +382,7 @@ export type Database = {
           min_selection: number | null
           name: string
           product_id: string | null
+          selection_type: string
         }
         Insert: {
           created_at?: string
@@ -334,6 +392,7 @@ export type Database = {
           min_selection?: number | null
           name: string
           product_id?: string | null
+          selection_type?: string
         }
         Update: {
           created_at?: string
@@ -343,6 +402,7 @@ export type Database = {
           min_selection?: number | null
           name?: string
           product_id?: string | null
+          selection_type?: string
         }
         Relationships: [
           {

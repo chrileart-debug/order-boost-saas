@@ -1,6 +1,7 @@
 export interface CartItemOption {
   name: string;
   price: number;
+  quantity: number;
 }
 
 export interface CartItem {
@@ -23,7 +24,14 @@ const CART_KEY = "eprato_cart";
 export function getCart(): Cart | null {
   try {
     const raw = localStorage.getItem(CART_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const cart = JSON.parse(raw) as Cart;
+    // Migrate old carts that don't have quantity on options
+    cart.items = cart.items.map(item => ({
+      ...item,
+      options: item.options.map(o => ({ ...o, quantity: o.quantity || 1 })),
+    }));
+    return cart;
   } catch {
     return null;
   }
@@ -69,7 +77,7 @@ export function updateCartItemQuantity(index: number, quantity: number) {
 
 export function getCartTotal(items: CartItem[]): number {
   return items.reduce((sum, item) => {
-    const optionsTotal = item.options.reduce((s, o) => s + o.price, 0);
+    const optionsTotal = item.options.reduce((s, o) => s + o.price * o.quantity, 0);
     return sum + (item.basePrice + optionsTotal) * item.quantity;
   }, 0);
 }
