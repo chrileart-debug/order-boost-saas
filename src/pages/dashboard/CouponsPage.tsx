@@ -18,6 +18,7 @@ const CouponsPage = () => {
   const [establishment, setEstablishment] = useState<any>(null);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [performanceData, setPerformanceData] = useState<Array<{ code: string; usos: number }>>([]);
+  const [usageMap, setUsageMap] = useState<Record<string, number>>({});
   const [loadingPerformance, setLoadingPerformance] = useState(false);
   const [dialog, setDialog] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
