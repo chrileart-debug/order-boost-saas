@@ -16,9 +16,9 @@ const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Res
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const { establishment, refresh } = useEstablishment();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
-  const [establishment, setEstablishment] = useState<any>(null);
   const [profileForm, setProfileForm] = useState({ full_name: "", phone: "" });
   const [estForm, setEstForm] = useState({ name: "", slug: "", niche: "", whatsapp: "", cnpj: "" });
   const [cep, setCep] = useState("");
@@ -35,25 +35,24 @@ const SettingsPage = () => {
       setProfile(data);
       if (data) setProfileForm({ full_name: data.full_name || "", phone: maskPhone(data.phone || "") });
     });
-    supabase.from("establishments").select("*").eq("owner_id", user.id).maybeSingle().then(({ data }) => {
-      setEstablishment(data);
-      if (data) {
-        setEstForm({
-          name: data.name || "",
-          slug: data.slug || "",
-          niche: data.niche || "",
-          whatsapp: maskPhone(data.whatsapp || ""),
-          cnpj: data.cnpj || "",
-        });
-        if (data.address && typeof data.address === "object" && !Array.isArray(data.address)) {
-          const addr = data.address as Record<string, string>;
-          setAddress(addr);
-          setCep(maskCep(addr.cep || ""));
-          setNumero(addr.numero || "");
-        }
-      }
-    });
   }, [user]);
+
+  useEffect(() => {
+    if (!establishment) return;
+    setEstForm({
+      name: establishment.name || "",
+      slug: establishment.slug || "",
+      niche: establishment.niche || "",
+      whatsapp: maskPhone(establishment.whatsapp || ""),
+      cnpj: establishment.cnpj || "",
+    });
+    if (establishment.address && typeof establishment.address === "object" && !Array.isArray(establishment.address)) {
+      const addr = establishment.address as Record<string, string>;
+      setAddress(addr);
+      setCep(maskCep(addr.cep || ""));
+      setNumero(addr.numero || "");
+    }
+  }, [establishment]);
 
   const saveProfile = async () => {
     if (!user) return;
