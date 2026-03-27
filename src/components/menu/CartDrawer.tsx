@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, Trash2, ArrowLeft } from "lucide-react";
-import { getCart, saveCart, removeFromCart, updateCartItemQuantity, getCartTotal, clearCart, type Cart } from "@/lib/cart";
+import { Minus, Plus, Trash2, ArrowLeft, Tag, X } from "lucide-react";
+import { getCart, removeFromCart, updateCartItemQuantity, getCartTotal, clearCart, type Cart } from "@/lib/cart";
 import { haversineDistance, calculateShipping } from "@/lib/haversine";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,11 +38,21 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("pix");
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
   useEffect(() => {
     if (open) {
       const c = getCart();
       setCart(c && c.establishmentSlug === slug ? c : null);
       setStep("cart");
+      // Reset coupon when reopening
+      setAppliedCoupon(null);
+      setCouponCode("");
+      setCouponError("");
     }
   }, [open, slug]);
 
@@ -71,7 +81,6 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       const data = await res.json();
       if (!data.erro) {
         setAddressText(`${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`);
-        // Geocode via nominatim
         const geoRes = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
             `${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`
@@ -102,11 +111,69 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
     setLoadingCep(false);
   };
 
+  // ─── Coupon validation ───
+  const validateCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError("");
+    try {
+      const { data, error } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("establishment_id", establishment.id)
+        .ilike("code", couponCode.trim())
+        .maybeSingle();
+
+      if (error || !data) {
+        setCouponError("Cupom não encontrado.");
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      if (data.is_active === false) {
+        setCouponError("Este cupom está inativo.");
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      const minPurchase = Number(data.min_purchase || 0);
+      if (subtotal < minPurchase) {
+        setCouponError(`Compra mínima de ${formatPrice(minPurchase)} não atingida.`);
+        setAppliedCoupon(null);
+        setValidatingCoupon(false);
+        return;
+      }
+      setAppliedCoupon(data);
+      setCouponError("");
+      toast({ title: `Cupom "${data.code}" aplicado!` });
+    } catch {
+      setCouponError("Erro ao validar cupom.");
+    }
+    setValidatingCoupon(false);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
+
   const formatPrice = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const subtotal = cart ? getCartTotal(cart.items) : 0;
-  const total = subtotal + shippingFee;
+
+  // Calculate discount
+  let discount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === "percentage") {
+      discount = Math.round(subtotal * (Number(appliedCoupon.value) / 100) * 100) / 100;
+    } else {
+      discount = Math.min(Number(appliedCoupon.value), subtotal);
+    }
+  }
+
+  const total = Math.max(0, subtotal - discount + shippingFee);
 
   const handleSubmit = async () => {
     if (!cart || cart.items.length === 0) return;
@@ -125,15 +192,29 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
           lng: customerLng,
           subtotal,
           shipping_fee: shippingFee,
-          discount: 0,
+          discount,
           total_price: total,
           payment_method: paymentMethod,
+          coupon_code: appliedCoupon?.code || null,
           status: "pending",
         })
         .select("id")
         .single();
 
       if (orderError) throw orderError;
+
+      // Record coupon usage
+      if (appliedCoupon) {
+        await supabase.from("coupon_usage_history" as any).insert({
+          coupon_id: appliedCoupon.id,
+          order_id: order.id,
+        });
+        // Increment usage_count
+        await supabase
+          .from("coupons")
+          .update({ usage_count: (appliedCoupon.usage_count || 0) + 1 })
+          .eq("id", appliedCoupon.id);
+      }
 
       for (const item of cart.items) {
         const { data: oi, error: oiError } = await supabase
@@ -294,12 +375,64 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                   ))}
                 </div>
               </div>
+
+              {/* ─── Cupom ─── */}
+              <Separator />
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  <Tag className="w-3.5 h-3.5" /> Cupom de desconto
+                </Label>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
+                    <div>
+                      <span className="text-sm font-semibold text-primary">{appliedCoupon.code}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {appliedCoupon.type === "percentage"
+                          ? `${appliedCoupon.value}% off`
+                          : `${formatPrice(Number(appliedCoupon.value))} off`}
+                      </span>
+                    </div>
+                    <button onClick={removeCoupon} className="text-muted-foreground hover:text-destructive">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError("");
+                      }}
+                      placeholder="Digite o código"
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={validateCoupon}
+                      disabled={validatingCoupon || !couponCode.trim()}
+                      className="shrink-0"
+                    >
+                      {validatingCoupon ? "..." : "Aplicar"}
+                    </Button>
+                  </div>
+                )}
+                {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+              </div>
+
               <Separator />
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-primary">
+                    <span>Desconto ({appliedCoupon?.code})</span>
+                    <span>-{formatPrice(discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Entrega</span>
                   <span>{shippingFee > 0 ? formatPrice(shippingFee) : "Calcular via CEP"}</span>
