@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Store, User } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
 import MaskedInput from "@/components/MaskedInput";
-import { maskPhone, unmaskPhone, maskCep } from "@/lib/masks";
+import { maskPhone, unmask, maskCep, maskCnpj } from "@/lib/masks";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 

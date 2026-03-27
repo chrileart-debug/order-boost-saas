@@ -1,8 +1,8 @@
 import { Input } from "@/components/ui/input";
-import { maskPhone, maskCep } from "@/lib/masks";
+import { maskPhone, maskCep, maskCnpj } from "@/lib/masks";
 import { ComponentProps } from "react";
 
-type MaskType = "phone" | "cep";
+type MaskType = "phone" | "cep" | "cnpj";
 
 interface MaskedInputProps extends Omit<ComponentProps<typeof Input>, "onChange"> {
   mask: MaskType;
@@ -13,6 +13,7 @@ interface MaskedInputProps extends Omit<ComponentProps<typeof Input>, "onChange"
 const maskFns: Record<MaskType, (v: string) => string> = {
   phone: maskPhone,
   cep: maskCep,
+  cnpj: maskCnpj,
 };
 
 const MaskedInput = ({ mask, value, onValueChange, ...props }: MaskedInputProps) => {
