@@ -46,35 +46,77 @@ export type Database = {
           },
         ]
       }
+      coupon_usage_history: {
+        Row: {
+          coupon_id: string
+          created_at: string
+          id: string
+          order_id: string
+        }
+        Insert: {
+          coupon_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+        }
+        Update: {
+          coupon_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_usage_history_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_usage_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupons: {
         Row: {
           code: string
           created_at: string
+          description: string | null
           establishment_id: string
           id: string
           is_active: boolean | null
           min_purchase: number | null
           type: string
+          usage_count: number | null
           value: number
         }
         Insert: {
           code: string
           created_at?: string
+          description?: string | null
           establishment_id: string
           id?: string
           is_active?: boolean | null
           min_purchase?: number | null
           type?: string
+          usage_count?: number | null
           value?: number
         }
         Update: {
           code?: string
           created_at?: string
+          description?: string | null
           establishment_id?: string
           id?: string
           is_active?: boolean | null
           min_purchase?: number | null
           type?: string
+          usage_count?: number | null
           value?: number
         }
         Relationships: [
