@@ -112,11 +112,11 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   };
 
   /* ─── quantity type handlers ─── */
-  const setItemQty = (giId: string, groupId: string, delta: number, maxQty: number, groupMax: number) => {
+  const setItemQty = (giId: string, groupId: string, delta: number, _maxQty: number, groupMax: number) => {
     setQuantities((prev) => {
       const current = prev[giId] || 0;
-      const newQty = Math.max(0, Math.min(current + delta, maxQty));
-      // Check group total
+      const newQty = Math.max(0, current + delta);
+      // Only enforce group total limit
       const groupGiIds = groupItems.filter(gi => gi.group_id === groupId).map(gi => gi.id);
       const groupTotal = groupGiIds.reduce((s, id) => s + (id === giId ? newQty : (prev[id] || 0)), 0);
       if (groupTotal > groupMax) return prev;

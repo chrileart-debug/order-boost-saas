@@ -712,7 +712,7 @@ const ProductsPage = () => {
                             <span className="text-sm text-foreground">{item.name}</span>
                             <span className="text-xs text-muted-foreground ml-2">R$ {Number(item.price).toFixed(2)}</span>
                           </div>
-                          {inGroup && groupForm.selectionType === "quantity" && (
+                          {inGroup && groupForm.selectionType === "selection" && (
                             <div className="flex items-center gap-1 shrink-0">
                               <Label className="text-xs text-muted-foreground">Máx:</Label>
                               <Input
