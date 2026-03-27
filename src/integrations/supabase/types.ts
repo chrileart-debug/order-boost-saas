@@ -129,6 +129,48 @@ export type Database = {
           },
         ]
       }
+      delivery_rules: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          id: string
+          is_active: boolean
+          max_cep: string | null
+          max_km: number | null
+          min_cep: string | null
+          name: string
+          priority: number
+          type: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          id?: string
+          is_active?: boolean
+          max_cep?: string | null
+          max_km?: number | null
+          min_cep?: string | null
+          name?: string
+          priority?: number
+          type?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          id?: string
+          is_active?: boolean
+          max_cep?: string | null
+          max_km?: number | null
+          min_cep?: string | null
+          name?: string
+          priority?: number
+          type?: string
+          value?: number
+        }
+        Relationships: []
+      }
       establishments: {
         Row: {
           address: Json | null

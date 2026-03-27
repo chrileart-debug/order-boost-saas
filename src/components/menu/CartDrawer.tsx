@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Minus, Plus, Trash2, ArrowLeft, Tag, X } from "lucide-react";
 import { getCart, removeFromCart, updateCartItemQuantity, getCartTotal, clearCart, type Cart } from "@/lib/cart";
-import { haversineDistance, calculateShipping } from "@/lib/haversine";
+import { haversineDistance } from "@/lib/haversine";
+import { resolveShipping, type DeliveryRule, type ShippingResult } from "@/lib/shipping";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import MaskedInput from "@/components/MaskedInput";
@@ -34,6 +35,9 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
   const [shippingFee, setShippingFee] = useState(0);
+  const [shippingLabel, setShippingLabel] = useState("");
+  const [shippingBlocked, setShippingBlocked] = useState(false);
+  const [deliveryRules, setDeliveryRules] = useState<DeliveryRule[]>([]);
   const [loadingCep, setLoadingCep] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("pix");
@@ -49,12 +53,24 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       const c = getCart();
       setCart(c && c.establishmentSlug === slug ? c : null);
       setStep("cart");
-      // Reset coupon when reopening
       setAppliedCoupon(null);
       setCouponCode("");
       setCouponError("");
+      setShippingLabel("");
+      setShippingBlocked(false);
+      setShippingFee(0);
+      // Fetch delivery rules for this establishment
+      if (establishment?.id) {
+        supabase
+          .from("delivery_rules" as any)
+          .select("*")
+          .eq("establishment_id", establishment.id)
+          .eq("is_active", true)
+          .order("priority", { ascending: true })
+          .then(({ data }) => setDeliveryRules((data as any as DeliveryRule[]) || []));
+      }
     }
-  }, [open, slug]);
+  }, [open, slug, establishment?.id]);
 
   const refreshCart = () => {
     const c = getCart();
@@ -80,29 +96,48 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
       const data = await res.json();
       if (!data.erro) {
-        setAddressText(`${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`);
+        const bairro = data.bairro || "";
+        setAddressText(`${data.logradouro}, ${bairro}, ${data.localidade} - ${data.uf}`);
+
+        let distanceKm: number | null = null;
+        // Geocode customer address
         const geoRes = await fetch(
           `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            `${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`
+            `${data.logradouro}, ${bairro}, ${data.localidade}, ${data.uf}, Brasil`
           )}&limit=1`
         );
         const geo = await geoRes.json();
         if (geo.length > 0) {
-          setCustomerLat(parseFloat(geo[0].lat));
-          setCustomerLng(parseFloat(geo[0].lon));
+          const lat = parseFloat(geo[0].lat);
+          const lng = parseFloat(geo[0].lon);
+          setCustomerLat(lat);
+          setCustomerLng(lng);
           if (establishment.lat && establishment.lng) {
-            const dist = haversineDistance(
-              establishment.lat, establishment.lng,
-              parseFloat(geo[0].lat), parseFloat(geo[0].lon)
-            );
-            const fee = calculateShipping(
-              dist,
-              establishment.base_fee || 0,
-              establishment.km_included || 0,
-              establishment.km_extra_price || 0
-            );
-            setShippingFee(Math.round(fee * 100) / 100);
+            distanceKm = haversineDistance(establishment.lat, establishment.lng, lat, lng);
           }
+        }
+
+        // Resolve shipping using rules
+        if (deliveryRules.length > 0) {
+          const result = resolveShipping(deliveryRules, digits, distanceKm);
+          setShippingFee(result.fee);
+          setShippingLabel(
+            result.blocked
+              ? result.label
+              : result.fee === 0
+              ? `Frete GRÁTIS${bairro ? ` para ${bairro}` : ""}`
+              : `Frete para ${bairro || "seu endereço"}: R$ ${result.fee.toFixed(2)}`
+          );
+          setShippingBlocked(result.blocked);
+        } else {
+          // Fallback to legacy fields
+          if (distanceKm !== null && establishment.base_fee != null) {
+            const extraKm = Math.max(0, distanceKm - (establishment.km_included || 0));
+            const fee = (establishment.base_fee || 0) + extraKm * (establishment.km_extra_price || 0);
+            setShippingFee(Math.round(fee * 100) / 100);
+            setShippingLabel(`Frete para ${bairro || "seu endereço"}: R$ ${(Math.round(fee * 100) / 100).toFixed(2)}`);
+          }
+          setShippingBlocked(false);
         }
       }
     } catch {
@@ -443,8 +478,21 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Entrega</span>
-                  <span>{shippingFee > 0 ? formatPrice(shippingFee) : "Calcular via CEP"}</span>
+                  {shippingBlocked ? (
+                    <span className="text-destructive text-xs font-medium">{shippingLabel}</span>
+                  ) : shippingLabel ? (
+                    <span className={shippingFee === 0 ? "text-green-500 font-semibold" : ""}>
+                      {shippingFee === 0 ? "GRÁTIS" : formatPrice(shippingFee)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs">Calcular via CEP</span>
+                  )}
                 </div>
+                {shippingLabel && !shippingBlocked && (
+                  <p className={`text-xs ${shippingFee === 0 ? "text-green-500" : "text-muted-foreground"}`}>
+                    {shippingLabel}
+                  </p>
+                )}
                 <Separator />
                 <div className="flex justify-between font-semibold text-base pt-1">
                   <span>Total</span>
@@ -469,7 +517,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
           ) : (
             <Button
               onClick={handleSubmit}
-              disabled={!customerName || !customerPhone || !addressText || submitting}
+              disabled={!customerName || !customerPhone || !addressText || submitting || shippingBlocked}
               className="w-full h-12 text-base font-semibold"
             >
               {submitting ? "Finalizando..." : `Finalizar pedido ${formatPrice(total)}`}
