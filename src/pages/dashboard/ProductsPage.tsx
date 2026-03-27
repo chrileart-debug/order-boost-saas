@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, ImageIcon, Package, Layers } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImageCropper from "@/components/ImageCropper";
@@ -19,8 +20,9 @@ import ImageCropper from "@/components/ImageCropper";
 /* ─── types ─── */
 interface Category { id: string; name: string; order_index: number; establishment_id: string }
 interface Product { id: string; name: string; description: string | null; price: number; category_id: string; image_url: string | null; is_available: boolean; order_index: number }
-interface OptionGroup { id: string; name: string; min_selection: number; max_selection: number; establishment_id: string }
-interface Option { id: string; group_id: string; name: string; price: number; is_available: boolean }
+interface OptionGroup { id: string; name: string; min_selection: number; max_selection: number; establishment_id: string; selection_type: string }
+interface LibraryItem { id: string; establishment_id: string; name: string; description: string; price: number; is_available: boolean }
+interface GroupItem { id: string; group_id: string; item_id: string; max_quantity: number; sort_order: number }
 
 const ProductsPage = () => {
   const { establishment } = useEstablishment();
@@ -42,16 +44,24 @@ const ProductsPage = () => {
   const [prodImageBlob, setProdImageBlob] = useState<Blob | null>(null);
   const [savingProd, setSavingProd] = useState(false);
 
-  /* modifier library */
+  /* modifier groups */
   const [allGroups, setAllGroups] = useState<OptionGroup[]>([]);
-  const [allOptions, setAllOptions] = useState<Option[]>([]);
 
-  /* modifier library sheet */
+  /* item library */
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
+  const [groupItemLinks, setGroupItemLinks] = useState<GroupItem[]>([]);
+
+  /* item library sheet */
+  const [itemSheet, setItemSheet] = useState(false);
+  const [editingItem, setEditingItem] = useState<LibraryItem | null>(null);
+  const [itemForm, setItemForm] = useState({ name: "", description: "", price: "0" });
+
+  /* group sheet */
   const [libSheet, setLibSheet] = useState(false);
   const [editingGroup, setEditingGroup] = useState<OptionGroup | null>(null);
-  const [groupForm, setGroupForm] = useState({ name: "", min: "0", max: "1" });
-  const [newOptionName, setNewOptionName] = useState("");
-  const [newOptionPrice, setNewOptionPrice] = useState("0");
+  const [groupForm, setGroupForm] = useState({ name: "", min: "0", max: "1", selectionType: "selection" });
+  const [groupItemMaxQty, setGroupItemMaxQty] = useState<Record<string, string>>({});
+  const [itemSearch, setItemSearch] = useState("");
 
   /* linking modifiers to product */
   const [linkedGroupIds, setLinkedGroupIds] = useState<string[]>([]);
@@ -60,22 +70,31 @@ const ProductsPage = () => {
   const fetchData = useCallback(async () => {
     if (!establishment) return;
     setLoading(true);
-    const { data: cats } = await supabase.from("categories").select("*").eq("establishment_id", establishment.id).order("order_index");
-    setCategories(cats || []);
-    if (cats && cats.length > 0) {
+    const [catsRes, groupsRes, itemsRes, giRes] = await Promise.all([
+      supabase.from("categories").select("*").eq("establishment_id", establishment.id).order("order_index"),
+      supabase.from("product_option_groups").select("*").eq("establishment_id", establishment.id).order("created_at"),
+      supabase.from("item_library").select("*").eq("establishment_id", establishment.id).order("name"),
+      supabase.from("group_items").select("*"),
+    ]);
+
+    const cats = catsRes.data || [];
+    setCategories(cats);
+
+    if (cats.length > 0) {
       const { data: prods } = await supabase.from("products").select("*").in("category_id", cats.map(c => c.id)).order("order_index");
       setProducts(prods || []);
     } else {
       setProducts([]);
     }
-    const { data: groups } = await supabase.from("product_option_groups").select("*").eq("establishment_id", establishment.id).order("created_at");
-    setAllGroups((groups || []) as OptionGroup[]);
-    if (groups && groups.length > 0) {
-      const { data: opts } = await supabase.from("product_options").select("*").in("group_id", groups.map(g => g.id)).order("created_at");
-      setAllOptions((opts || []) as Option[]);
-    } else {
-      setAllOptions([]);
-    }
+
+    const groups = (groupsRes.data || []) as OptionGroup[];
+    setAllGroups(groups);
+    setLibraryItems((itemsRes.data || []) as LibraryItem[]);
+
+    // Filter group_items to only those belonging to our groups
+    const groupIds = groups.map(g => g.id);
+    setGroupItemLinks(((giRes.data || []) as GroupItem[]).filter(gi => groupIds.includes(gi.group_id)));
+
     setLoading(false);
   }, [establishment]);
 
@@ -177,36 +196,114 @@ const ProductsPage = () => {
     setProducts(prev => prev.map(p => p.id === prod.id ? { ...p, is_available: newVal } : p));
   };
 
-  /* ─── modifier library CRUD ─── */
+  /* ═══════════════════════════════════════════════ */
+  /*           ITEM LIBRARY CRUD                     */
+  /* ═══════════════════════════════════════════════ */
+  const openNewItem = () => {
+    setEditingItem(null);
+    setItemForm({ name: "", description: "", price: "0" });
+    setItemSheet(true);
+  };
+
+  const openEditItem = (item: LibraryItem) => {
+    setEditingItem(item);
+    setItemForm({ name: item.name, description: item.description || "", price: String(item.price) });
+    setItemSheet(true);
+  };
+
+  const saveItem = async () => {
+    if (!establishment || !itemForm.name.trim()) return;
+    const payload = { name: itemForm.name, description: itemForm.description, price: parseFloat(itemForm.price) || 0, establishment_id: establishment.id };
+    if (editingItem) {
+      await supabase.from("item_library").update(payload).eq("id", editingItem.id);
+    } else {
+      await supabase.from("item_library").insert(payload);
+    }
+    setItemSheet(false);
+    fetchData();
+    toast({ title: editingItem ? "Item atualizado" : "Item criado" });
+  };
+
+  const deleteItem = async (id: string) => {
+    // Remove from all groups first
+    await supabase.from("group_items").delete().eq("item_id", id);
+    await supabase.from("item_library").delete().eq("id", id);
+    fetchData();
+    toast({ title: "Item removido da biblioteca e de todos os grupos" });
+  };
+
+  const toggleItemAvailability = async (item: LibraryItem) => {
+    const newVal = !item.is_available;
+    await supabase.from("item_library").update({ is_available: newVal }).eq("id", item.id);
+    setLibraryItems(prev => prev.map(i => i.id === item.id ? { ...i, is_available: newVal } : i));
+    toast({ title: newVal ? `${item.name} ativado` : `${item.name} pausado em todos os cardápios` });
+  };
+
+  /* ═══════════════════════════════════════════════ */
+  /*           GROUP CRUD                            */
+  /* ═══════════════════════════════════════════════ */
   const openNewGroup = () => {
     setEditingGroup(null);
-    setGroupForm({ name: "", min: "0", max: "1" });
-    setNewOptionName(""); setNewOptionPrice("0");
+    setGroupForm({ name: "", min: "0", max: "1", selectionType: "selection" });
+    setGroupItemMaxQty({});
+    setItemSearch("");
     setLibSheet(true);
   };
 
   const openEditGroup = (group: OptionGroup) => {
     setEditingGroup(group);
-    setGroupForm({ name: group.name, min: String(group.min_selection), max: String(group.max_selection) });
-    setNewOptionName(""); setNewOptionPrice("0");
+    setGroupForm({ name: group.name, min: String(group.min_selection), max: String(group.max_selection), selectionType: group.selection_type || "selection" });
+    // Load max quantities for items in this group
+    const mqMap: Record<string, string> = {};
+    groupItemLinks.filter(gi => gi.group_id === group.id).forEach(gi => { mqMap[gi.item_id] = String(gi.max_quantity); });
+    setGroupItemMaxQty(mqMap);
+    setItemSearch("");
     setLibSheet(true);
   };
 
   const saveGroup = async () => {
     if (!establishment || !groupForm.name.trim()) return;
-    const payload = { name: groupForm.name, min_selection: parseInt(groupForm.min) || 0, max_selection: parseInt(groupForm.max) || 1, establishment_id: establishment.id };
+    const payload = {
+      name: groupForm.name,
+      min_selection: parseInt(groupForm.min) || 0,
+      max_selection: parseInt(groupForm.max) || 1,
+      selection_type: groupForm.selectionType,
+      establishment_id: establishment.id,
+    };
+
+    let groupId = editingGroup?.id;
     if (editingGroup) {
       await supabase.from("product_option_groups").update(payload).eq("id", editingGroup.id);
     } else {
       const { data } = await supabase.from("product_option_groups").insert(payload).select().single();
-      if (data) setEditingGroup(data as OptionGroup);
+      if (data) {
+        groupId = data.id;
+        setEditingGroup(data as OptionGroup);
+      }
     }
+
+    if (groupId) {
+      // Sync group_items: delete old, insert new
+      await supabase.from("group_items").delete().eq("group_id", groupId);
+      const itemIds = Object.keys(groupItemMaxQty);
+      if (itemIds.length > 0) {
+        await supabase.from("group_items").insert(
+          itemIds.map((itemId, i) => ({
+            group_id: groupId!,
+            item_id: itemId,
+            max_quantity: parseInt(groupItemMaxQty[itemId]) || 1,
+            sort_order: i,
+          }))
+        );
+      }
+    }
+
     fetchData();
     toast({ title: editingGroup ? "Grupo atualizado" : "Grupo criado" });
   };
 
   const deleteGroup = async (id: string) => {
-    await supabase.from("product_options").delete().eq("group_id", id);
+    await supabase.from("group_items").delete().eq("group_id", id);
     await supabase.from("product_modifiers").delete().eq("group_id", id);
     await supabase.from("product_option_groups").delete().eq("id", id);
     setLibSheet(false);
@@ -214,23 +311,17 @@ const ProductsPage = () => {
     toast({ title: "Grupo excluído e desvinculado de todos os produtos" });
   };
 
-  const addOption = async (groupId: string) => {
-    if (!newOptionName.trim()) return;
-    const { data } = await supabase.from("product_options").insert({ group_id: groupId, name: newOptionName, price: parseFloat(newOptionPrice) || 0 }).select().single();
-    if (data) setAllOptions(prev => [...prev, data as Option]);
-    setNewOptionName(""); setNewOptionPrice("0");
-  };
+  const isItemInGroup = (itemId: string) => itemId in groupItemMaxQty;
 
-  const deleteOption = async (id: string) => {
-    await supabase.from("product_options").delete().eq("id", id);
-    setAllOptions(prev => prev.filter(o => o.id !== id));
-  };
-
-  const toggleOptionAvailability = async (opt: Option) => {
-    const newVal = !opt.is_available;
-    await supabase.from("product_options").update({ is_available: newVal }).eq("id", opt.id);
-    setAllOptions(prev => prev.map(o => o.id === opt.id ? { ...o, is_available: newVal } : o));
-    toast({ title: newVal ? `${opt.name} ativado` : `${opt.name} desativado em todos os cardápios` });
+  const toggleItemInGroup = (itemId: string) => {
+    setGroupItemMaxQty(prev => {
+      if (itemId in prev) {
+        const next = { ...prev };
+        delete next[itemId];
+        return next;
+      }
+      return { ...prev, [itemId]: "1" };
+    });
   };
 
   const toggleGroupLink = (groupId: string) => {
@@ -247,15 +338,16 @@ const ProductsPage = () => {
     </div>
   );
 
+  const filteredLibItems = libraryItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()));
+
   return (
     <div className="space-y-6 animate-fade-in">
       <Tabs defaultValue="products">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <TabsList>
             <TabsTrigger value="products">Produtos</TabsTrigger>
-            <TabsTrigger value="modifiers">
-              <Layers className="w-4 h-4 mr-1" /> Complementos
-            </TabsTrigger>
+            <TabsTrigger value="modifiers"><Layers className="w-4 h-4 mr-1" /> Complementos</TabsTrigger>
+            <TabsTrigger value="library"><BookOpen className="w-4 h-4 mr-1" /> Biblioteca</TabsTrigger>
           </TabsList>
         </div>
 
@@ -339,12 +431,12 @@ const ProductsPage = () => {
           })}
         </TabsContent>
 
-        {/* ═══════════ TAB: COMPLEMENTOS ═══════════ */}
+        {/* ═══════════ TAB: COMPLEMENTOS (GRUPOS) ═══════════ */}
         <TabsContent value="modifiers" className="space-y-6 mt-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Biblioteca de Complementos</h1>
-              <p className="text-sm text-muted-foreground mt-1">Crie grupos reutilizáveis e vincule-os a vários produtos.</p>
+              <h1 className="text-2xl font-bold text-foreground">Grupos de Complementos</h1>
+              <p className="text-sm text-muted-foreground mt-1">Crie grupos reutilizáveis com itens da sua Biblioteca.</p>
             </div>
             <Button size="sm" onClick={openNewGroup}>
               <Plus className="w-4 h-4 mr-1" /> Novo Grupo
@@ -354,13 +446,17 @@ const ProductsPage = () => {
           {allGroups.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
               <Layers className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhum grupo de complemento criado.</p>
+              <p className="text-muted-foreground">Nenhum grupo criado.</p>
               <Button className="mt-4" onClick={openNewGroup}><Plus className="w-4 h-4 mr-1" /> Criar primeiro grupo</Button>
             </div>
           ) : (
             <div className="space-y-4">
               {allGroups.map(group => {
-                const groupOpts = allOptions.filter(o => o.group_id === group.id);
+                const gLinks = groupItemLinks.filter(gi => gi.group_id === group.id);
+                const itemNames = gLinks.map(gi => {
+                  const item = libraryItems.find(i => i.id === gi.item_id);
+                  return item?.name || "?";
+                });
                 return (
                   <div key={group.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
@@ -368,9 +464,12 @@ const ProductsPage = () => {
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-foreground">{group.name}</h3>
                           {group.min_selection > 0 && <Badge variant="destructive" className="text-[10px]">Obrigatório</Badge>}
+                          <Badge variant="outline" className="text-[10px]">
+                            {group.selection_type === "quantity" ? "Contador +/-" : "Seleção"}
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Mín: {group.min_selection} · Máx: {group.max_selection} · {groupOpts.length} {groupOpts.length === 1 ? "opção" : "opções"}
+                          Mín: {group.min_selection} · Máx: {group.max_selection} · {gLinks.length} {gLinks.length === 1 ? "item" : "itens"}
                         </p>
                       </div>
                       <div className="flex gap-1">
@@ -382,27 +481,61 @@ const ProductsPage = () => {
                         </Button>
                       </div>
                     </div>
-
-                    {groupOpts.length > 0 && (
-                      <div className="space-y-1">
-                        {groupOpts.map(opt => (
-                          <div key={opt.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
-                            <div className="flex items-center gap-3">
-                              <Switch checked={opt.is_available} onCheckedChange={() => toggleOptionAvailability(opt)} />
-                              <span className={`text-sm ${opt.is_available ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
-                                {opt.name}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm text-muted-foreground">+ R$ {Number(opt.price).toFixed(2)}</span>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteOption(opt.id)}>
-                                <Trash2 className="w-3 h-3 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                    {itemNames.length > 0 && (
+                      <p className="text-xs text-muted-foreground">{itemNames.join(", ")}</p>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ═══════════ TAB: BIBLIOTECA DE ITENS ═══════════ */}
+        <TabsContent value="library" className="space-y-6 mt-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Biblioteca de Itens</h1>
+              <p className="text-sm text-muted-foreground mt-1">Cadastre seus ingredientes e insumos uma única vez. Altere o preço aqui e ele reflete em todos os grupos.</p>
+            </div>
+            <Button size="sm" onClick={openNewItem}>
+              <Plus className="w-4 h-4 mr-1" /> Novo Item
+            </Button>
+          </div>
+
+          {libraryItems.length === 0 ? (
+            <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
+              <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhum item cadastrado na biblioteca.</p>
+              <Button className="mt-4" onClick={openNewItem}><Plus className="w-4 h-4 mr-1" /> Criar primeiro item</Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {libraryItems.map(item => {
+                const usedInGroups = allGroups.filter(g => groupItemLinks.some(gi => gi.group_id === g.id && gi.item_id === item.id));
+                return (
+                  <div key={item.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <Switch checked={item.is_available} onCheckedChange={() => toggleItemAvailability(item)} />
+                      <div className="min-w-0">
+                        <span className={`font-medium text-sm ${item.is_available ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                          {item.name}
+                        </span>
+                        {item.description && <p className="text-xs text-muted-foreground truncate">{item.description}</p>}
+                        {usedInGroups.length > 0 && (
+                          <p className="text-xs text-muted-foreground">Usado em: {usedInGroups.map(g => g.name).join(", ")}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-sm font-semibold text-primary">R$ {Number(item.price).toFixed(2)}</span>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditItem(item)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteItem(item.id)}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
@@ -460,7 +593,8 @@ const ProductsPage = () => {
               ) : (
                 <div className="space-y-2">
                   {allGroups.map(g => {
-                    const opts = allOptions.filter(o => o.group_id === g.id);
+                    const gLinks = groupItemLinks.filter(gi => gi.group_id === g.id);
+                    const itemNames = gLinks.map(gi => libraryItems.find(i => i.id === gi.item_id)?.name).filter(Boolean);
                     const linked = linkedGroupIds.includes(g.id);
                     return (
                       <div key={g.id} className={`border rounded-lg p-3 transition-colors cursor-pointer ${linked ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => toggleGroupLink(g.id)}>
@@ -469,10 +603,10 @@ const ProductsPage = () => {
                           <div className="flex-1 min-w-0">
                             <span className="font-medium text-foreground text-sm">{g.name}</span>
                             <p className="text-xs text-muted-foreground">
-                              Mín: {g.min_selection} · Máx: {g.max_selection}
+                              {g.selection_type === "quantity" ? "Contador" : "Seleção"} · Mín: {g.min_selection} · Máx: {g.max_selection}
                               {g.min_selection > 0 && <Badge variant="destructive" className="ml-2 text-[10px]">Obrig.</Badge>}
                             </p>
-                            {opts.length > 0 && <p className="text-xs text-muted-foreground mt-0.5">{opts.map(o => o.name).join(", ")}</p>}
+                            {itemNames.length > 0 && <p className="text-xs text-muted-foreground mt-0.5">{itemNames.join(", ")}</p>}
                           </div>
                         </div>
                       </div>
@@ -489,7 +623,36 @@ const ProductsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* ─── modifier library sheet ─── */}
+      {/* ─── item library sheet ─── */}
+      <Sheet open={itemSheet} onOpenChange={setItemSheet}>
+        <SheetContent className="overflow-y-auto sm:max-w-md w-full">
+          <SheetHeader><SheetTitle>{editingItem ? "Editar" : "Novo"} Item da Biblioteca</SheetTitle></SheetHeader>
+          <div className="space-y-5 mt-6">
+            <div className="space-y-2">
+              <Label>Nome *</Label>
+              <Input value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })} placeholder="Ex: Nutella" />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input value={itemForm.description} onChange={e => setItemForm({ ...itemForm, description: e.target.value })} placeholder="Descrição opcional" />
+            </div>
+            <div className="space-y-2">
+              <Label>Preço adicional (R$)</Label>
+              <Input type="number" step="0.01" min="0" value={itemForm.price} onChange={e => setItemForm({ ...itemForm, price: e.target.value })} placeholder="0.00" />
+            </div>
+            <Button onClick={saveItem} className="w-full" disabled={!itemForm.name.trim()}>
+              {editingItem ? "Atualizar Item" : "Criar Item"}
+            </Button>
+            {editingItem && (
+              <Button variant="destructive" className="w-full" onClick={() => { deleteItem(editingItem.id); setItemSheet(false); }}>
+                <Trash2 className="w-4 h-4 mr-1" /> Excluir Item
+              </Button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ─── group sheet ─── */}
       <Sheet open={libSheet} onOpenChange={setLibSheet}>
         <SheetContent className="overflow-y-auto sm:max-w-lg w-full">
           <SheetHeader><SheetTitle>{editingGroup ? "Editar" : "Novo"} Grupo de Complementos</SheetTitle></SheetHeader>
@@ -498,6 +661,18 @@ const ProductsPage = () => {
               <Label>Nome do Grupo *</Label>
               <Input value={groupForm.name} onChange={e => setGroupForm({ ...groupForm, name: e.target.value })} placeholder="Ex: Escolha o Recheio" />
             </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de seleção</Label>
+              <Select value={groupForm.selectionType} onValueChange={v => setGroupForm({ ...groupForm, selectionType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="selection">Seleção (checkbox/radio)</SelectItem>
+                  <SelectItem value="quantity">Quantidade (contador +/-)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Mín. seleção</Label>
@@ -508,40 +683,58 @@ const ProductsPage = () => {
                 <Input type="number" min="1" value={groupForm.max} onChange={e => setGroupForm({ ...groupForm, max: e.target.value })} />
               </div>
             </div>
+
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-foreground text-sm">Itens da Biblioteca</h3>
+                <Button variant="outline" size="sm" onClick={() => { setLibSheet(false); openNewItem(); }}>
+                  <Plus className="w-3 h-3 mr-1" /> Novo Item
+                </Button>
+              </div>
+
+              {libraryItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Crie itens na aba Biblioteca primeiro.</p>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={itemSearch} onChange={e => setItemSearch(e.target.value)} placeholder="Buscar item..." className="pl-9 h-9" />
+                  </div>
+                  <div className="space-y-1 max-h-60 overflow-y-auto">
+                    {filteredLibItems.map(item => {
+                      const inGroup = isItemInGroup(item.id);
+                      return (
+                        <div key={item.id} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${inGroup ? 'bg-primary/5' : 'hover:bg-muted/50'}`}>
+                          <Checkbox checked={inGroup} onCheckedChange={() => toggleItemInGroup(item.id)} />
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm text-foreground">{item.name}</span>
+                            <span className="text-xs text-muted-foreground ml-2">R$ {Number(item.price).toFixed(2)}</span>
+                          </div>
+                          {inGroup && groupForm.selectionType === "quantity" && (
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Label className="text-xs text-muted-foreground">Máx:</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={groupItemMaxQty[item.id] || "1"}
+                                onChange={e => setGroupItemMaxQty(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                className="w-14 h-7 text-xs"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
             <Button onClick={saveGroup} className="w-full" disabled={!groupForm.name.trim()}>
               {editingGroup ? "Atualizar Grupo" : "Criar Grupo"}
             </Button>
-
-            {editingGroup && (
-              <div className="space-y-3 border-t border-border pt-4">
-                <h3 className="font-semibold text-foreground text-sm">Opções deste grupo</h3>
-                {allOptions.filter(o => o.group_id === editingGroup.id).map(opt => (
-                  <div key={opt.id} className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <Switch checked={opt.is_available} onCheckedChange={() => toggleOptionAvailability(opt)} />
-                      <span className={`text-sm ${opt.is_available ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{opt.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">+ R$ {Number(opt.price).toFixed(2)}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => deleteOption(opt.id)}>
-                        <Trash2 className="w-3 h-3 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Nome</Label>
-                    <Input value={newOptionName} onChange={e => setNewOptionName(e.target.value)} placeholder="Ex: Nutella" className="h-8 text-sm" />
-                  </div>
-                  <div className="w-24 space-y-1">
-                    <Label className="text-xs">Preço</Label>
-                    <Input type="number" step="0.01" min="0" value={newOptionPrice} onChange={e => setNewOptionPrice(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <Button size="sm" className="h-8" onClick={() => addOption(editingGroup.id)}><Plus className="w-3 h-3" /></Button>
-                </div>
-              </div>
-            )}
 
             {editingGroup && (
               <Button variant="destructive" className="w-full" onClick={() => deleteGroup(editingGroup.id)}>
