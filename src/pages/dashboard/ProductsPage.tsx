@@ -28,6 +28,7 @@ const ProductsPage = () => {
   const { establishment } = useEstablishment();
   const { toast } = useToast();
 
+  const [activeTab, setActiveTab] = useState("products");
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
