@@ -230,20 +230,27 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
                             </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => setItemQty(gi.id, group.id, -1, gi.max_quantity, group.max_selection || 99)}
+                                onClick={() => setItemQty(gi.id, group.id, -1, 0, group.max_selection || 99)}
                                 disabled={qty === 0}
                                 className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-accent disabled:opacity-30"
                               >
                                 <Minus className="h-3 w-3" />
                               </button>
                               <span className="text-sm font-semibold w-5 text-center">{qty}</span>
-                              <button
-                                onClick={() => setItemQty(gi.id, group.id, 1, gi.max_quantity, group.max_selection || 99)}
-                                disabled={qty >= gi.max_quantity}
-                                className="w-7 h-7 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 disabled:opacity-30"
-                              >
-                                <Plus className="h-3 w-3" />
-                              </button>
+                              {(() => {
+                                const groupGiIds = groupItems.filter(g => g.group_id === group.id).map(g => g.id);
+                                const groupTotal = groupGiIds.reduce((s, id) => s + (quantities[id] || 0), 0);
+                                const atGroupMax = groupTotal >= (group.max_selection || 99);
+                                return (
+                                  <button
+                                    onClick={() => setItemQty(gi.id, group.id, 1, 0, group.max_selection || 99)}
+                                    disabled={atGroupMax}
+                                    className="w-7 h-7 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 disabled:opacity-30"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </div>
                         );
