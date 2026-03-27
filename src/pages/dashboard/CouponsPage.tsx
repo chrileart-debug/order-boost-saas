@@ -18,6 +18,7 @@ const CouponsPage = () => {
   const [establishment, setEstablishment] = useState<any>(null);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [performanceData, setPerformanceData] = useState<Array<{ code: string; usos: number }>>([]);
+  const [usageMap, setUsageMap] = useState<Record<string, number>>({});
   const [loadingPerformance, setLoadingPerformance] = useState(false);
   const [dialog, setDialog] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<any>(null);
@@ -46,12 +47,20 @@ const CouponsPage = () => {
       if (error) throw error;
 
       const usageByCode = new Map<string, number>();
+      const usageById = new Map<string, number>();
       for (const row of (data || []) as any[]) {
         const coupon = Array.isArray(row.coupons) ? row.coupons[0] : row.coupons;
         const code = coupon?.code;
         if (!code) continue;
         usageByCode.set(code, (usageByCode.get(code) || 0) + 1);
+        const couponId = row.coupon_id;
+        if (couponId) usageById.set(couponId, (usageById.get(couponId) || 0) + 1);
       }
+
+      // Build a map of coupon_id -> count for the cards
+      const idMap: Record<string, number> = {};
+      usageById.forEach((count, id) => { idMap[id] = count; });
+      setUsageMap(idMap);
 
       const grouped = Array.from(usageByCode.entries())
         .map(([code, usos]) => ({ code, usos }))
@@ -219,7 +228,7 @@ const CouponsPage = () => {
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>Mín: {formatPrice(Number(c.min_purchase || 0))}</span>
-                    <span>{Number(c.usage_count || 0)} usos</span>
+                    <span>{usageMap[c.id] || 0} usos</span>
                   </div>
 
                   <div className="flex gap-2">
