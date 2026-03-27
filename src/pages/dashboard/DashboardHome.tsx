@@ -1,55 +1,41 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Package, DollarSign, Store } from "lucide-react";
 
 const DashboardHome = () => {
   const { user } = useAuth();
-  const [establishment, setEstablishment] = useState<any>(null);
+  const { establishment, refresh } = useEstablishment();
   const [stats, setStats] = useState({ orders: 0, products: 0, revenue: 0 });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    const fetchData = async () => {
-      const { data: est } = await supabase
-        .from("establishments")
-        .select("*")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      setEstablishment(est);
+    if (!establishment) return;
+    const fetchStats = async () => {
+      setLoadingStats(true);
+      const [{ count: ordersCount }, categoriesRes] = await Promise.all([
+        supabase.from("orders").select("*", { count: "exact", head: true }).eq("establishment_id", establishment.id),
+        supabase.from("categories").select("id").eq("establishment_id", establishment.id),
+      ]);
 
-      if (est) {
-        const { count: ordersCount } = await supabase
-          .from("orders")
-          .select("*", { count: "exact", head: true })
-          .eq("establishment_id", est.id);
+      const catIds = categoriesRes.data?.map(c => c.id) || [];
+      const [productsRes, revenueRes] = await Promise.all([
+        catIds.length > 0
+          ? supabase.from("products").select("id").in("category_id", catIds)
+          : Promise.resolve({ data: [] }),
+        supabase.from("orders").select("total_price").eq("establishment_id", establishment.id).eq("status", "completed"),
+      ]);
 
-        const { data: products } = await supabase
-          .from("products")
-          .select("id, category_id")
-          .in("category_id", (
-            await supabase.from("categories").select("id").eq("establishment_id", est.id)
-          ).data?.map(c => c.id) || []);
-
-        const { data: orders } = await supabase
-          .from("orders")
-          .select("total_price")
-          .eq("establishment_id", est.id)
-          .eq("status", "completed");
-
-        const revenue = orders?.reduce((sum, o) => sum + Number(o.total_price || 0), 0) || 0;
-
-        setStats({
-          orders: ordersCount || 0,
-          products: products?.length || 0,
-          revenue,
-        });
-      }
+      const revenue = revenueRes.data?.reduce((sum, o) => sum + Number(o.total_price || 0), 0) || 0;
+      setStats({ orders: ordersCount || 0, products: productsRes.data?.length || 0, revenue });
+      setLoadingStats(false);
     };
-    fetchData();
-  }, [user]);
+    fetchStats();
+  }, [establishment]);
 
   const toggleStore = async () => {
     if (!establishment) return;
@@ -57,7 +43,7 @@ const DashboardHome = () => {
       .from("establishments")
       .update({ is_open: !establishment.is_open })
       .eq("id", establishment.id);
-    if (!error) setEstablishment({ ...establishment, is_open: !establishment.is_open });
+    if (!error) await refresh();
   };
 
   const statCards = [
@@ -71,7 +57,7 @@ const DashboardHome = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Olá{establishment ? `, ${establishment.name}` : ""}! 👋
+            Olá, {establishment?.name || ""}! 👋
           </h1>
           <p className="text-muted-foreground">Visão geral do seu negócio</p>
         </div>
@@ -83,19 +69,6 @@ const DashboardHome = () => {
         )}
       </div>
 
-      {!establishment && (
-        <Card className="border-dashed border-2 border-primary/30">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Store className="w-12 h-12 text-primary/50 mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">Configure seu estabelecimento</h3>
-            <p className="text-muted-foreground text-center mb-4">Complete o cadastro para começar a receber pedidos.</p>
-            <Button variant="hero" asChild>
-              <a href="/dashboard/settings">Configurar agora</a>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-4 md:grid-cols-3">
         {statCards.map((stat) => (
           <Card key={stat.title}>
@@ -104,7 +77,11 @@ const DashboardHome = () => {
               <stat.icon className={`w-5 h-5 ${stat.color}`} />
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              {loadingStats ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+              )}
             </CardContent>
           </Card>
         ))}
