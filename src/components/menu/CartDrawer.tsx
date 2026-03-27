@@ -380,7 +380,17 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                   value={cep}
                   onValueChange={(v) => {
                     setCep(v);
-                    if (v.replace(/\D/g, "").length === 8) lookupCep(v);
+                    const digits = v.replace(/\D/g, "");
+                    if (digits.length < 8) {
+                      setShippingFee(0);
+                      setShippingLabel("");
+                      setShippingBlocked(false);
+                      setAddressText("");
+                      setCustomerLat(null);
+                      setCustomerLng(null);
+                    } else if (digits.length === 8) {
+                      lookupCep(v);
+                    }
                   }}
                   mask="cep"
                   placeholder="00000-000"
