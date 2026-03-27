@@ -38,8 +38,10 @@ export function resolveShipping(
   // 1) Check CEP-specific rules (free or fixed_zip)
   const cepRules = active.filter((r) => r.type === "free" || r.type === "fixed_zip");
   for (const rule of cepRules) {
-    if (rule.min_cep && rule.max_cep && customerCepDigits) {
-      if (customerCepDigits >= rule.min_cep && customerCepDigits <= rule.max_cep) {
+    const minCep = (rule.min_cep || "").replace(/\D/g, "");
+    const maxCep = (rule.max_cep || "").replace(/\D/g, "");
+    if (minCep && maxCep && customerCepDigits) {
+      if (customerCepDigits >= minCep && customerCepDigits <= maxCep) {
         if (rule.type === "free") {
           return { fee: 0, label: rule.name || "Frete GRÁTIS", blocked: false };
         }
