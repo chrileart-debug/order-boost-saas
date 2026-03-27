@@ -411,25 +411,24 @@ const ProductsPage = () => {
                 {catProducts.length === 0 && <p className="text-sm text-muted-foreground pl-1">Nenhum produto nesta categoria.</p>}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {catProducts.map(prod => (
-                    <div key={prod.id} className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-                      <div className="aspect-square bg-muted relative">
+                    <div key={prod.id} className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow flex flex-row">
+                      <div className="w-24 h-24 min-w-[6rem] bg-muted relative">
                         {prod.image_url ? <img src={prod.image_url} alt={prod.name} className="w-full h-full object-cover" /> : (
-                          <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-10 h-10 text-muted-foreground/40" /></div>
+                          <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-8 h-8 text-muted-foreground/40" /></div>
                         )}
                         {!prod.is_available && (
-                          <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary">Indisponível</Badge></div>
+                          <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary" className="text-[10px]">Off</Badge></div>
                         )}
                       </div>
-                      <div className="p-3 space-y-2">
+                      <div className="p-3 flex-1 min-w-0 flex flex-col justify-between">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <h3 className="font-medium text-foreground truncate">{prod.name}</h3>
-                            {prod.description && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{prod.description}</p>}
+                            {prod.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{prod.description}</p>}
                           </div>
                           <span className="text-primary font-bold text-sm whitespace-nowrap">R$ {Number(prod.price).toFixed(2)}</span>
                         </div>
-                        <Separator />
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between mt-1">
                           <div className="flex items-center gap-2">
                             <Switch checked={prod.is_available} onCheckedChange={() => toggleAvailability(prod)} />
                             <span className="text-xs text-muted-foreground">{prod.is_available ? "Ativo" : "Inativo"}</span>
