@@ -15,8 +15,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const CouponsPage = () => {
   const { user } = useAuth();
+  const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
-  const [establishment, setEstablishment] = useState<any>(null);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [performanceData, setPerformanceData] = useState<Array<{ code: string; usos: number }>>([]);
   const [usageMap, setUsageMap] = useState<Record<string, number>>({});
