@@ -1,0 +1,1 @@
+ALTER TABLE public.product_options ADD COLUMN IF NOT EXISTS is_available boolean NOT NULL DEFAULT true;
