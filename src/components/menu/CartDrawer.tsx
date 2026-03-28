@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import MaskedInput from "@/components/MaskedInput";
 import { unmaskPhone } from "@/lib/masks";
+import { getCustomer, saveCustomer } from "@/lib/customer";
 
 interface Props {
   open: boolean;
@@ -78,6 +79,12 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       setShippingLabel("");
       setShippingBlocked(false);
       setShippingFee(0);
+      // Pre-fill customer data from localStorage
+      const saved = getCustomer();
+      if (saved) {
+        if (!customerName) setCustomerName(saved.name);
+        if (!customerPhone) setCustomerPhone(saved.phone);
+      }
       // Fetch delivery rules for this establishment
       if (establishment?.id) {
         supabase
@@ -311,6 +318,8 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
 
       clearCart();
       onCartChange();
+      // Save customer identity for "Meus Pedidos"
+      saveCustomer({ phone: unmaskPhone(customerPhone), name: customerName });
       onOpenChange(false);
       navigate(`/pedido/${order.id}`);
     } catch (err: any) {

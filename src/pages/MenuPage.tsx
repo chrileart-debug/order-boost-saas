@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductModal from "@/components/menu/ProductModal";
 import CartDrawer from "@/components/menu/CartDrawer";
+import MyOrdersTab from "@/components/menu/MyOrdersTab";
 import { getCart } from "@/lib/cart";
+import { getCustomer } from "@/lib/customer";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -19,6 +21,7 @@ const MenuPage = () => {
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<"menu" | "orders">("menu");
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const navRef = useRef<HTMLDivElement>(null);
 
@@ -131,6 +134,40 @@ const MenuPage = () => {
         </div>
       </div>
 
+      {/* Tab switcher */}
+      {getCustomer() && (
+        <div className="px-4 md:px-8 flex gap-1 border-b border-border">
+          <button
+            onClick={() => setActiveTab("menu")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "menu"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Cardápio
+          </button>
+          <button
+            onClick={() => setActiveTab("orders")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === "orders"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" /> Meus Pedidos
+          </button>
+        </div>
+      )}
+
+      {activeTab === "orders" && establishment ? (
+        <MyOrdersTab
+          slug={slug!}
+          establishmentId={establishment.id}
+          onCartChange={refreshCartCount}
+        />
+      ) : (
+      <>
       {/* Sticky category nav */}
       <div
         ref={navRef}
@@ -195,6 +232,8 @@ const MenuPage = () => {
           );
         })}
       </div>
+      </>
+      )}
 
       {/* Cart FAB */}
       {cartCount > 0 && (
