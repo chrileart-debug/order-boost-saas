@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingBag, ClipboardList } from "lucide-react";
+import { ShoppingBag, ClipboardList, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductModal from "@/components/menu/ProductModal";
@@ -10,6 +10,7 @@ import MyOrdersTab from "@/components/menu/MyOrdersTab";
 import { getCart } from "@/lib/cart";
 import { getCustomer } from "@/lib/customer";
 import { pullCartFromCloud, pushCartToCloud } from "@/lib/cartSync";
+import { checkStoreStatus, type StoreStatusResult } from "@/lib/storeStatus";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -23,6 +24,7 @@ const MenuPage = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [activeTab, setActiveTab] = useState<"menu" | "orders">("menu");
+  const [storeStatus, setStoreStatus] = useState<StoreStatusResult | null>(null);
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const navRef = useRef<HTMLDivElement>(null);
 
