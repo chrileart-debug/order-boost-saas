@@ -26,9 +26,9 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,webp,woff2}"],
+        importScripts: ["/sw-push.js"],
         runtimeCaching: [
           {
-            // Cache Supabase storage assets (logos, product images)
             urlPattern: /^https:\/\/vneumrbaohyzmuhibwzc\.supabase\.co\/storage\//,
             handler: "CacheFirst",
             options: {
@@ -37,7 +37,6 @@ export default defineConfig(({ mode }) => ({
             },
           },
           {
-            // Cache Supabase API calls (menu data) with network-first
             urlPattern: /^https:\/\/vneumrbaohyzmuhibwzc\.supabase\.co\/rest\//,
             handler: "NetworkFirst",
             options: {
