@@ -22,9 +22,11 @@ interface Props {
   slug: string;
   establishment: any;
   onCartChange: () => void;
+  storeClosed?: boolean;
+  storeClosedMessage?: string;
 }
 
-const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: Props) => {
+const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, storeClosed, storeClosedMessage }: Props) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [cart, setCart] = useState<Cart | null>(null);
@@ -564,13 +566,20 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
               </Button>
             </div>
           ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={!customerName || !customerPhone || !addressText || submitting || shippingBlocked}
-              className="w-full h-12 text-base font-semibold"
-            >
-              {submitting ? "Finalizando..." : `Finalizar pedido ${formatPrice(total)}`}
-            </Button>
+            <div className="space-y-2">
+              {storeClosed && (
+                <p className="text-xs text-destructive font-medium text-center">
+                  {storeClosedMessage || "Loja fechada no momento."}
+                </p>
+              )}
+              <Button
+                onClick={handleSubmit}
+                disabled={!customerName || !customerPhone || !addressText || submitting || shippingBlocked || !!storeClosed}
+                className="w-full h-12 text-base font-semibold"
+              >
+                {submitting ? "Finalizando..." : `Finalizar pedido ${formatPrice(total)}`}
+              </Button>
+            </div>
           )}
         </div>
       </SheetContent>

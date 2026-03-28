@@ -288,6 +288,8 @@ const MenuPage = () => {
         slug={slug!}
         establishment={establishment}
         onCartChange={refreshCartCount}
+        storeClosed={storeStatus ? !storeStatus.isOpen : false}
+        storeClosedMessage={storeStatus?.message || ""}
       />
     </div>
   );
