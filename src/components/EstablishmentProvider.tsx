@@ -34,11 +34,7 @@ export const EstablishmentProvider = ({ children }: { children: React.ReactNode 
       .select("*")
       .eq("owner_id", user.id)
       .maybeSingle();
-    // Only update state if data actually changed
-    setEstablishment(prev => {
-      if (prev && data && prev.id === data.id && prev.updated_at === data.updated_at) return prev;
-      return data;
-    });
+    setEstablishment(data);
     setLoading(false);
   }, [user]);
 
