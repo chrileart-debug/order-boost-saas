@@ -11,6 +11,8 @@ import { getCart } from "@/lib/cart";
 import { getCustomer } from "@/lib/customer";
 import { pullCartFromCloud, pushCartToCloud } from "@/lib/cartSync";
 import { checkStoreStatus, type StoreStatusResult } from "@/lib/storeStatus";
+import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
+import { trackEvent } from "@/lib/eventLayer";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -62,6 +64,12 @@ const MenuPage = () => {
       }
       setEstablishment(est);
       setStoreStatus(checkStoreStatus(est));
+
+      // Set dynamic manifest for PWA install
+      setDynamicManifest({ name: est.name, logo_url: est.logo_url, slug });
+
+      // Track menu view
+      trackEvent("view_menu", { establishment_id: est.id });
 
       const { data: cats } = await supabase
         .from("categories")
@@ -276,6 +284,13 @@ const MenuPage = () => {
           onClose={() => setSelectedProduct(null)}
           onAdd={() => {
             refreshCartCount();
+            if (establishment) {
+              trackEvent("add_to_cart", {
+                establishment_id: establishment.id,
+                product_id: selectedProduct.id,
+                product_name: selectedProduct.name,
+              });
+            }
             setSelectedProduct(null);
           }}
         />

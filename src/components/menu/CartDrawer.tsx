@@ -15,6 +15,7 @@ import MaskedInput from "@/components/MaskedInput";
 import { unmaskPhone } from "@/lib/masks";
 import { getCustomer, saveCustomer } from "@/lib/customer";
 import { pushCartToCloud, clearCloudCart } from "@/lib/cartSync";
+import { trackEvent } from "@/lib/eventLayer";
 
 interface Props {
   open: boolean;
@@ -323,6 +324,11 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
 
       clearCart();
       onCartChange();
+      // Track complete order event
+      trackEvent("complete_order", {
+        establishment_id: establishment.id,
+        order_id: order.id,
+      });
       // Save customer identity for "Meus Pedidos"
       const cleanPhone = unmaskPhone(customerPhone);
       saveCustomer({ phone: cleanPhone, name: customerName });
