@@ -101,13 +101,15 @@ const OrdersPage = () => {
         <title>Pedido #${order.id.slice(0, 6)}</title>
         <style>
           @page { margin: 2mm; size: 80mm auto; }
+          @media print { html, body { width: 80mm; } }
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Courier New', monospace; font-size: 12px; width: 76mm; padding: 2mm; }
+          body { font-family: 'Courier New', monospace; font-size: 13px; width: 76mm; max-width: 80mm; padding: 2mm; margin: 0 auto; }
           .center { text-align: center; }
           .bold { font-weight: bold; }
           .sep { border-top: 1px dashed #000; margin: 6px 0; }
           .row { display: flex; justify-content: space-between; }
           .section { margin-bottom: 6px; }
+          .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; }
         </style>
       </head>
       <body>
