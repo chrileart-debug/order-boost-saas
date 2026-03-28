@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag } from "lucide-react";
+import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX } from "lucide-react";
 
 const statusConfig = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning/10 text-warning" },
@@ -34,42 +34,134 @@ const OrdersPage = () => {
   const [establishment, setEstablishment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+
+  /* ─── Audio setup ─── */
+  const unlockAudio = useCallback(() => {
+    if (audioUnlocked || !establishment?.notification_sound_url) return;
+    const audio = new Audio(establishment.notification_sound_url);
+    audio.volume = 0;
+    audio.play().then(() => {
+      audio.pause();
+      audio.volume = 1;
+      audio.currentTime = 0;
+      audioRef.current = audio;
+      setAudioUnlocked(true);
+    }).catch(() => {});
+  }, [audioUnlocked, establishment?.notification_sound_url]);
 
   useEffect(() => {
-    if (!user) return;
-    const fetchOrders = async () => {
-      setLoading(true);
-      const { data: est } = await supabase.from("establishments").select("*").eq("owner_id", user.id).maybeSingle();
-      setEstablishment(est);
-      if (est) {
-        const { data } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("establishment_id", est.id)
-          .order("created_at", { ascending: false });
-        const ordersList = data || [];
-        setOrders(ordersList);
+    if (!establishment?.notification_sound_url) return;
+    // Pre-create audio element
+    audioRef.current = new Audio(establishment.notification_sound_url);
+    // Unlock on first user interaction
+    const handler = () => unlockAudio();
+    document.addEventListener("click", handler, { once: false });
+    document.addEventListener("keydown", handler, { once: false });
+    return () => {
+      document.removeEventListener("click", handler);
+      document.removeEventListener("keydown", handler);
+    };
+  }, [establishment?.notification_sound_url, unlockAudio]);
 
-        // Fetch items for all orders
-        if (ordersList.length > 0) {
-          const ids = ordersList.map((o: any) => o.id);
+  const playNotificationSound = useCallback(() => {
+    if (!soundEnabled || !audioRef.current) return;
+    const audio = audioRef.current;
+    audio.currentTime = 0;
+    audio.volume = 1;
+    audio.play().catch(() => {});
+  }, [soundEnabled]);
+
+  /* ─── Fetch orders ─── */
+  const fetchOrders = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data: est } = await supabase.from("establishments").select("*").eq("owner_id", user.id).maybeSingle();
+    setEstablishment(est);
+    if (est) {
+      const { data } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("establishment_id", est.id)
+        .order("created_at", { ascending: false });
+      const ordersList = data || [];
+      setOrders(ordersList);
+
+      if (ordersList.length > 0) {
+        const ids = ordersList.map((o: any) => o.id);
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("*, order_item_options(*)")
+          .in("order_id", ids);
+
+        const grouped: Record<string, OrderItem[]> = {};
+        (items || []).forEach((item: any) => {
+          if (!grouped[item.order_id]) grouped[item.order_id] = [];
+          grouped[item.order_id].push(item);
+        });
+        setOrderItems(grouped);
+      }
+    }
+    setLoading(false);
+    return est;
+  }, [user]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  /* ─── Realtime subscription ─── */
+  useEffect(() => {
+    if (!establishment?.id) return;
+
+    const channel = supabase
+      .channel(`orders-realtime-${establishment.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "orders",
+          filter: `establishment_id=eq.${establishment.id}`,
+        },
+        async (payload) => {
+          const newOrder = payload.new as any;
+          if (newOrder.status === "pending") {
+            playNotificationSound();
+          }
+          // Refresh orders list
+          setOrders(prev => [newOrder, ...prev]);
+          // Fetch items for the new order
           const { data: items } = await supabase
             .from("order_items")
             .select("*, order_item_options(*)")
-            .in("order_id", ids);
-
-          const grouped: Record<string, OrderItem[]> = {};
-          (items || []).forEach((item: any) => {
-            if (!grouped[item.order_id]) grouped[item.order_id] = [];
-            grouped[item.order_id].push(item);
-          });
-          setOrderItems(grouped);
+            .eq("order_id", newOrder.id);
+          if (items && items.length > 0) {
+            setOrderItems(prev => ({ ...prev, [newOrder.id]: items }));
+          }
         }
-      }
-      setLoading(false);
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `establishment_id=eq.${establishment.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    fetchOrders();
-  }, [user]);
+  }, [establishment?.id, playNotificationSound]);
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
@@ -281,7 +373,18 @@ const OrdersPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
+        <Button
+          variant={soundEnabled ? "outline" : "ghost"}
+          size="sm"
+          onClick={() => { unlockAudio(); setSoundEnabled(prev => !prev); }}
+          className="gap-1.5"
+        >
+          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+          <span className="hidden sm:inline">{soundEnabled ? "Som ativado" : "Som desativado"}</span>
+        </Button>
+      </div>
       <Tabs defaultValue="pending">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
