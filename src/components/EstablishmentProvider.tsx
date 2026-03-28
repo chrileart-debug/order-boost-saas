@@ -27,13 +27,18 @@ export const EstablishmentProvider = ({ children }: { children: React.ReactNode 
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Only show loading on initial fetch, not on refetches
+    setLoading(prev => establishment === null ? true : prev);
     const { data } = await supabase
       .from("establishments")
       .select("*")
       .eq("owner_id", user.id)
       .maybeSingle();
-    setEstablishment(data);
+    // Only update state if data actually changed
+    setEstablishment(prev => {
+      if (prev && data && prev.id === data.id && prev.updated_at === data.updated_at) return prev;
+      return data;
+    });
     setLoading(false);
   }, [user]);
 
