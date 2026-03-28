@@ -85,9 +85,9 @@ const OrdersPage = () => {
     const itemsHtml = items.map(item => {
       const opts = (item.order_item_options || []).map(o => o.option_name).join(", ");
       return `
-        <div style="margin-bottom:4px;">
-          <span>${item.quantity}x ${item.product_name}</span>
-          ${opts ? `<div style="padding-left:12px;font-size:11px;color:#555;">+ ${opts}</div>` : ""}
+        <div style="margin-bottom:6px;font-size:14px;">
+          <span><b>${item.quantity}x</b> ${item.product_name}</span>
+          ${opts ? `<div style="padding-left:14px;font-size:12px;color:#555;">+ ${opts}</div>` : ""}
         </div>`;
     }).join("");
 
