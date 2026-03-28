@@ -386,6 +386,7 @@ export type Database = {
           id: string
           lat: number | null
           lng: number | null
+          observations: string | null
           payment_method: string | null
           shipping_fee: number | null
           status: string
@@ -404,6 +405,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lng?: number | null
+          observations?: string | null
           payment_method?: string | null
           shipping_fee?: number | null
           status?: string
@@ -422,6 +424,7 @@ export type Database = {
           id?: string
           lat?: number | null
           lng?: number | null
+          observations?: string | null
           payment_method?: string | null
           shipping_fee?: number | null
           status?: string
