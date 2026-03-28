@@ -85,9 +85,9 @@ const OrdersPage = () => {
     const itemsHtml = items.map(item => {
       const opts = (item.order_item_options || []).map(o => o.option_name).join(", ");
       return `
-        <div style="margin-bottom:4px;">
-          <span>${item.quantity}x ${item.product_name}</span>
-          ${opts ? `<div style="padding-left:12px;font-size:11px;color:#555;">+ ${opts}</div>` : ""}
+        <div style="margin-bottom:6px;font-size:14px;">
+          <span><b>${item.quantity}x</b> ${item.product_name}</span>
+          ${opts ? `<div style="padding-left:14px;font-size:12px;color:#555;">+ ${opts}</div>` : ""}
         </div>`;
     }).join("");
 
@@ -101,13 +101,15 @@ const OrdersPage = () => {
         <title>Pedido #${order.id.slice(0, 6)}</title>
         <style>
           @page { margin: 2mm; size: 80mm auto; }
+          @media print { html, body { width: 80mm; } }
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Courier New', monospace; font-size: 12px; width: 76mm; padding: 2mm; }
+          body { font-family: 'Courier New', monospace; font-size: 13px; width: 76mm; max-width: 80mm; padding: 2mm; margin: 0 auto; }
           .center { text-align: center; }
           .bold { font-weight: bold; }
           .sep { border-top: 1px dashed #000; margin: 6px 0; }
           .row { display: flex; justify-content: space-between; }
           .section { margin-bottom: 6px; }
+          .total-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -115,7 +117,7 @@ const OrdersPage = () => {
         <div class="center" style="font-size:11px;margin-bottom:2px;">${dateStr}</div>
         <div class="center" style="font-size:11px;">${order.customer_name}${order.customer_phone ? " • " + order.customer_phone : ""}</div>
         <div class="sep"></div>
-        <div class="section bold">ITENS:</div>
+        <div class="section bold" style="font-size:15px;">ITENS:</div>
         ${itemsHtml}
         <div class="sep"></div>
         ${order.address_text ? `<div class="section"><span class="bold">ENTREGA:</span><br/>${order.address_text}</div><div class="sep"></div>` : ""}
@@ -125,7 +127,7 @@ const OrdersPage = () => {
         <div class="row"><span>Frete</span><span>${formatPrice(order.shipping_fee || 0)}</span></div>
         ${Number(order.discount) > 0 ? `<div class="row"><span>Desconto${order.coupon_code ? " (" + order.coupon_code + ")" : ""}</span><span>-${formatPrice(order.discount)}</span></div>` : ""}
         <div class="sep"></div>
-        <div class="row bold" style="font-size:14px;"><span>TOTAL</span><span>${formatPrice(order.total_price || 0)}</span></div>
+        <div class="total-row"><span>TOTAL</span><span>${formatPrice(order.total_price || 0)}</span></div>
         <div class="sep"></div>
         <div class="center" style="margin-top:8px;font-size:10px;">*** Obrigado! ***</div>
         <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}</script>
