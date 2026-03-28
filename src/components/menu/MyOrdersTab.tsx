@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getCustomer } from "@/lib/customer";
 import { addToCart, clearCart, type CartItem } from "@/lib/cart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, ChefHat, Truck, CheckCircle2, RotateCcw, Eye } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Clock, ChefHat, Truck, CheckCircle2, RotateCcw, Eye, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Props {
