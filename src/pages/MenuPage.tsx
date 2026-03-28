@@ -9,6 +9,7 @@ import CartDrawer from "@/components/menu/CartDrawer";
 import MyOrdersTab from "@/components/menu/MyOrdersTab";
 import { getCart } from "@/lib/cart";
 import { getCustomer } from "@/lib/customer";
+import { pullCartFromCloud, pushCartToCloud } from "@/lib/cartSync";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -32,7 +33,14 @@ const MenuPage = () => {
 
   useEffect(() => {
     refreshCartCount();
-  }, [refreshCartCount]);
+    // Try to pull cart from cloud if customer is identified and local cart is empty
+    const customer = getCustomer();
+    if (customer?.phone && slug) {
+      pullCartFromCloud(customer.phone, slug).then((count) => {
+        if (count > 0) refreshCartCount();
+      });
+    }
+  }, [refreshCartCount, slug]);
 
   useEffect(() => {
     if (!slug) return;
@@ -235,18 +243,19 @@ const MenuPage = () => {
       </>
       )}
 
-      {/* Cart FAB */}
-      {cartCount > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-96 z-30">
-          <Button
-            onClick={() => setCartOpen(true)}
-            className="w-full h-14 text-base font-semibold shadow-lg gap-2"
-          >
-            <ShoppingBag className="h-5 w-5" />
-            Ver sacola ({cartCount} {cartCount === 1 ? "item" : "itens"})
-          </Button>
-        </div>
-      )}
+      {/* Cart FAB — always visible */}
+      <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 md:w-96 z-30">
+        <Button
+          onClick={() => setCartOpen(true)}
+          className="w-full h-14 text-base font-semibold shadow-lg gap-2"
+          variant={cartCount > 0 ? "default" : "outline"}
+        >
+          <ShoppingBag className="h-5 w-5" />
+          {cartCount > 0
+            ? `Ver sacola (${cartCount} ${cartCount === 1 ? "item" : "itens"})`
+            : "Sacola vazia"}
+        </Button>
+      </div>
 
       {/* Product Modal */}
       {selectedProduct && (

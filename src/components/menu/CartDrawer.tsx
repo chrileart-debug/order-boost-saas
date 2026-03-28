@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import MaskedInput from "@/components/MaskedInput";
 import { unmaskPhone } from "@/lib/masks";
 import { getCustomer, saveCustomer } from "@/lib/customer";
+import { pushCartToCloud, clearCloudCart } from "@/lib/cartSync";
 
 interface Props {
   open: boolean;
@@ -107,11 +108,13 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
   const handleRemove = (i: number) => {
     removeFromCart(i);
     refreshCart();
+    pushCartToCloud(slug);
   };
 
   const handleQty = (i: number, q: number) => {
     updateCartItemQuantity(i, q);
     refreshCart();
+    pushCartToCloud(slug);
   };
 
   const lookupCep = async (value: string) => {
@@ -319,7 +322,10 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
       clearCart();
       onCartChange();
       // Save customer identity for "Meus Pedidos"
-      saveCustomer({ phone: unmaskPhone(customerPhone), name: customerName });
+      const cleanPhone = unmaskPhone(customerPhone);
+      saveCustomer({ phone: cleanPhone, name: customerName });
+      // Clear cloud cart after order
+      clearCloudCart(cleanPhone, slug);
       onOpenChange(false);
       navigate(`/pedido/${order.id}`);
     } catch (err: any) {

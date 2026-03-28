@@ -129,6 +129,33 @@ export type Database = {
           },
         ]
       }
+      customer_carts: {
+        Row: {
+          created_at: string
+          establishment_slug: string
+          id: string
+          items: Json
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_slug: string
+          id?: string
+          items?: Json
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          establishment_slug?: string
+          id?: string
+          items?: Json
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       delivery_rules: {
         Row: {
           created_at: string

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Minus, Plus } from "lucide-react";
 import { addToCart, type CartItemOption } from "@/lib/cart";
+import { pushCartToCloud } from "@/lib/cartSync";
 
 interface Props {
   product: any;
@@ -178,6 +179,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
       options: selectedOptions,
       notes: notes.trim() || undefined,
     });
+    pushCartToCloud(slug);
     onAdd();
   };
 
