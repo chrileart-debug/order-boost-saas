@@ -397,27 +397,15 @@ const OrdersPage = () => {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
         <div className="flex items-center gap-2">
-          {!audioUnlocked && (
-            <Button
-              size="sm"
-              onClick={unlockAudio}
-              className="gap-1.5 animate-pulse"
-            >
-              <Volume2 className="h-4 w-4" />
-              Ativar Sons
-            </Button>
-          )}
-          {audioUnlocked && (
-            <Button
-              variant={soundEnabled ? "outline" : "ghost"}
-              size="sm"
-              onClick={() => setSoundEnabled(prev => !prev)}
-              className="gap-1.5"
-            >
-              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
-              <span className="hidden sm:inline">{soundEnabled ? "Som ativado" : "Som desativado"}</span>
-            </Button>
-          )}
+          <Button
+            variant={soundEnabled ? "outline" : "ghost"}
+            size="sm"
+            onClick={() => { unlockAudio(); setSoundEnabled(prev => !prev); }}
+            className="gap-1.5"
+          >
+            {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+            <span className="hidden sm:inline">{soundEnabled ? "Som ativado" : "Som desativado"}</span>
+          </Button>
         </div>
       </div>
       <Tabs defaultValue="pending">
