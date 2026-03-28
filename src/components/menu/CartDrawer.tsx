@@ -364,6 +364,9 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                         {item.options.map((o) => o.quantity > 1 ? `${o.quantity}x ${o.name}` : o.name).join(", ")}
                       </p>
                     )}
+                    {item.notes && (
+                      <p className="text-xs text-muted-foreground italic truncate">📝 {item.notes}</p>
+                    )}
                     <p className="text-sm font-semibold text-primary mt-0.5">
                       {formatPrice((item.basePrice + item.options.reduce((s, o) => s + o.price * (o.quantity || 1), 0)) * item.quantity)}
                     </p>
