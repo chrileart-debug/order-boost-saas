@@ -14,6 +14,7 @@ import { maskPhone, unmask, maskCep, maskCnpj } from "@/lib/masks";
 import OperatingHoursSection from "@/components/settings/OperatingHoursSection";
 import { type OperatingHours } from "@/lib/storeStatus";
 import { Clock } from "lucide-react";
+import PushNotificationSettings from "@/components/settings/PushNotificationSettings";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
@@ -33,6 +34,7 @@ const SettingsPage = () => {
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
+  const [pushNotifyStatuses, setPushNotifyStatuses] = useState<string[]>(["preparing", "shipping", "completed"]);
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +55,9 @@ const SettingsPage = () => {
     });
     if (establishment.operating_hours) {
       setOperatingHours(establishment.operating_hours as OperatingHours);
+    }
+    if (establishment.push_notify_statuses) {
+      setPushNotifyStatuses(establishment.push_notify_statuses as string[]);
     }
     if (establishment.address && typeof establishment.address === "object" && !Array.isArray(establishment.address)) {
       const addr = establishment.address as Record<string, string>;
@@ -119,6 +124,7 @@ const SettingsPage = () => {
       address: fullAddress,
       owner_id: user.id,
       operating_hours: operatingHours,
+      push_notify_statuses: pushNotifyStatuses,
     };
 
     try {
@@ -250,6 +256,15 @@ const SettingsPage = () => {
           <Button onClick={saveEstablishment} disabled={savingEst}>{savingEst ? "Salvando..." : "Salvar Horários"}</Button>
         </CardContent>
       </Card>
+
+      {establishment && user && (
+        <PushNotificationSettings
+          establishmentId={establishment.id}
+          userId={user.id}
+          pushNotifyStatuses={pushNotifyStatuses}
+          onStatusesChange={setPushNotifyStatuses}
+        />
+      )}
     </div>
   );
 };

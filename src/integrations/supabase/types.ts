@@ -221,6 +221,7 @@ export type Database = {
           onboarding_completed: boolean | null
           operating_hours: Json | null
           owner_id: string
+          push_notify_statuses: Json | null
           slug: string
           updated_at: string
           whatsapp: string | null
@@ -244,6 +245,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           operating_hours?: Json | null
           owner_id: string
+          push_notify_statuses?: Json | null
           slug: string
           updated_at?: string
           whatsapp?: string | null
@@ -267,6 +269,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           operating_hours?: Json | null
           owner_id?: string
+          push_notify_statuses?: Json | null
           slug?: string
           updated_at?: string
           whatsapp?: string | null
@@ -642,6 +645,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          endpoint: string
+          establishment_id: string | null
+          id: string
+          keys_auth: string
+          keys_p256dh: string
+          phone: string | null
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          establishment_id?: string | null
+          id?: string
+          keys_auth: string
+          keys_p256dh: string
+          phone?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          establishment_id?: string | null
+          id?: string
+          keys_auth?: string
+          keys_p256dh?: string
+          phone?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

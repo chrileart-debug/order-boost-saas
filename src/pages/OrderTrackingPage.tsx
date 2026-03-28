@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2 } from "lucide-react";
 import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
+import CustomerPushPrompt from "@/components/pwa/CustomerPushPrompt";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
@@ -99,6 +100,16 @@ const OrderTrackingPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Push Notification Prompt */}
+        {order.customer_phone && establishment && (
+          <CustomerPushPrompt
+            phone={order.customer_phone}
+            establishmentId={order.establishment_id}
+            storeName={establishment.name}
+            logoUrl={establishment.logo_url}
+          />
+        )}
 
         {/* Progress */}
         <Card>
