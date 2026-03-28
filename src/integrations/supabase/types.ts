@@ -217,6 +217,7 @@ export type Database = {
           logo_url: string | null
           name: string
           niche: string | null
+          notification_sound_url: string | null
           onboarding_completed: boolean | null
           operating_hours: Json | null
           owner_id: string
@@ -239,6 +240,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           niche?: string | null
+          notification_sound_url?: string | null
           onboarding_completed?: boolean | null
           operating_hours?: Json | null
           owner_id: string
@@ -261,6 +263,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           niche?: string | null
+          notification_sound_url?: string | null
           onboarding_completed?: boolean | null
           operating_hours?: Json | null
           owner_id?: string
