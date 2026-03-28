@@ -24,11 +24,12 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
 };
 
 const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [orderItems, setOrderItems] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
+  const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
+  const [establishment, setEstablishment] = useState<any>(null);
   const customer = getCustomer();
 
   useEffect(() => {
@@ -39,18 +40,25 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
 
     const phone = customer.phone.replace(/\D/g, "");
     const load = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("establishment_id", establishmentId)
-        .eq("customer_phone", phone)
-        .order("created_at", { ascending: false })
-        .limit(6);
+      const [{ data }, { data: est }] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("*")
+          .eq("establishment_id", establishmentId)
+          .eq("customer_phone", phone)
+          .order("created_at", { ascending: false })
+          .limit(6),
+        supabase
+          .from("establishments")
+          .select("name, whatsapp, logo_url")
+          .eq("id", establishmentId)
+          .maybeSingle(),
+      ]);
 
       const fetched = data || [];
       setOrders(fetched);
+      setEstablishment(est);
 
-      // Load items for all orders
       if (fetched.length > 0) {
         const { data: items } = await supabase
           .from("order_items")
@@ -68,7 +76,6 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     };
     load();
 
-    // Realtime for active orders
     const channel = supabase
       .channel("my-orders")
       .on("postgres_changes", {
@@ -93,9 +100,7 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     const items = orderItems[orderId];
     if (!items || items.length === 0) return;
 
-    // Clear current cart for this slug
     clearCart();
-
     items.forEach((item: any) => {
       const cartItem: CartItem = {
         productId: item.product_id || "",
@@ -116,6 +121,21 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     onCartChange();
     toast({ title: "Itens adicionados à sacola!" });
   };
+
+  const sendWhatsApp = (order: any) => {
+    if (!establishment?.whatsapp || !order) return;
+    const phone = establishment.whatsapp.replace(/\D/g, "");
+    const items = orderItems[order.id] || [];
+    const itemsText = items
+      .map((i: any) => `${i.quantity}x ${i.product_name} - ${formatPrice(i.unit_price * i.quantity)}`)
+      .join("\n");
+    const msg = `🛒 *Pedido #${order.id.slice(0, 6)}*\n\n${itemsText}\n\n📍 ${order.address_text}\n💰 Total: ${formatPrice(order.total_price)}\n💳 ${order.payment_method}`;
+    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const trackingOrder = trackingOrderId ? orders.find((o) => o.id === trackingOrderId) : null;
+  const trackingItems = trackingOrderId ? (orderItems[trackingOrderId] || []) : [];
+  const trackingStatus = trackingOrder ? (statusConfig[trackingOrder.status] || statusConfig.pending) : null;
 
   if (!customer?.phone) {
     return (
@@ -172,14 +192,13 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigate(`/pedido/${activeOrder.id}`)}
+                    onClick={() => setTrackingOrderId(activeOrder.id)}
                     className="gap-1"
                   >
                     <Eye className="h-3.5 w-3.5" /> Acompanhar
                   </Button>
                 </div>
 
-                {/* Progress bar */}
                 <div className="flex gap-1">
                   {Object.keys(statusConfig).map((key, i) => {
                     const currentIdx = Object.keys(statusConfig).indexOf(activeOrder.status);
@@ -231,14 +250,24 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
                           {formatPrice(Number(order.total_price || 0))}
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleReorder(order.id)}
-                        className="gap-1 shrink-0 ml-2"
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" /> Pedir novamente
-                      </Button>
+                      <div className="flex gap-1.5 shrink-0 ml-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setTrackingOrderId(order.id)}
+                          className="gap-1 px-2"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReorder(order.id)}
+                          className="gap-1"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" /> Pedir novamente
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -247,6 +276,110 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
           </div>
         </div>
       )}
+
+      {/* Tracking Modal */}
+      <Dialog open={!!trackingOrderId} onOpenChange={(open) => !open && setTrackingOrderId(null)}>
+        <DialogContent className="max-w-lg p-0 gap-0 max-h-[90vh] overflow-y-auto">
+          {trackingOrder && trackingStatus && (() => {
+            const StatusIcon = trackingStatus.icon;
+            return (
+              <div className="space-y-4 p-6">
+                {/* Status header */}
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${trackingStatus.color}`}>
+                    <StatusIcon className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground">{trackingStatus.label}</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Pedido #{trackingOrder.id.slice(0, 6).toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Progress steps */}
+                <div className="flex justify-between px-2">
+                  {Object.entries(statusConfig).map(([key, cfg], i) => {
+                    const keys = Object.keys(statusConfig);
+                    const currentIdx = keys.indexOf(trackingOrder.status);
+                    const done = i <= currentIdx;
+                    const Icon = cfg.icon;
+                    return (
+                      <div key={key} className="flex flex-col items-center gap-1 flex-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className={`text-[10px] ${done ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Separator />
+
+                {/* Items */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Itens do pedido</h3>
+                  {trackingItems.map((item: any) => (
+                    <div key={item.id}>
+                      <div className="flex justify-between">
+                        <span className="text-sm">{item.quantity}x {item.product_name}</span>
+                        <span className="text-sm font-medium">{formatPrice(item.unit_price * item.quantity)}</span>
+                      </div>
+                      {item.order_item_options?.length > 0 && (
+                        <p className="text-xs text-muted-foreground pl-4">
+                          {item.order_item_options.map((o: any) => o.option_name).join(", ")}
+                        </p>
+                      )}
+                      {item.notes && (
+                        <p className="text-xs italic text-muted-foreground pl-4">📝 {item.notes}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <Separator />
+
+                {/* Financial summary */}
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>{formatPrice(trackingOrder.subtotal || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Entrega</span>
+                    <span>{formatPrice(trackingOrder.shipping_fee || 0)}</span>
+                  </div>
+                  {Number(trackingOrder.discount) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Desconto</span>
+                      <span className="text-green-600">-{formatPrice(trackingOrder.discount)}</span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-base">
+                    <span>Total</span>
+                    <span>{formatPrice(trackingOrder.total_price || 0)}</span>
+                  </div>
+                </div>
+
+                {/* WhatsApp */}
+                {establishment?.whatsapp && (
+                  <Button
+                    onClick={() => sendWhatsApp(trackingOrder)}
+                    className="w-full h-12 text-base font-semibold gap-2 bg-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,40%)] text-white"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                    Enviar pedido via WhatsApp
+                  </Button>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
