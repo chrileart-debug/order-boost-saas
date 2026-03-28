@@ -61,6 +61,7 @@ const MenuPage = () => {
         return;
       }
       setEstablishment(est);
+      setStoreStatus(checkStoreStatus(est));
 
       const { data: cats } = await supabase
         .from("categories")
@@ -138,11 +139,19 @@ const MenuPage = () => {
           {establishment.niche && (
             <span className="text-sm text-muted-foreground">{establishment.niche}</span>
           )}
-          <Badge variant={establishment.is_open ? "default" : "secondary"} className="text-xs">
-            {establishment.is_open ? "Aberto" : "Fechado"}
+          <Badge variant={storeStatus?.isOpen ? "default" : "secondary"} className="text-xs">
+            {storeStatus?.isOpen ? "Aberto" : "Fechado"}
           </Badge>
         </div>
       </div>
+
+      {/* Closed banner */}
+      {storeStatus && !storeStatus.isOpen && (
+        <div className="mx-4 md:mx-8 mt-2 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive font-medium">{storeStatus.message}</p>
+        </div>
+      )}
 
       {/* Tab switcher */}
       {getCustomer() && (
