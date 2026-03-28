@@ -179,6 +179,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
       options: selectedOptions,
       notes: notes.trim() || undefined,
     });
+    pushCartToCloud(slug);
     onAdd();
   };
 
