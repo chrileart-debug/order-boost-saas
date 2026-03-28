@@ -236,7 +236,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
                             </div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => setItemQty(gi.id, group.id, -1, 0, group.max_selection || 99)}
+                                onClick={() => setItemQty(gi.id, group.id, -1, gi.max_quantity, group.max_selection || 99)}
                                 disabled={qty === 0}
                                 className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-accent disabled:opacity-30"
                               >
@@ -247,10 +247,11 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
                                 const groupGiIds = groupItems.filter(g => g.group_id === group.id).map(g => g.id);
                                 const groupTotal = groupGiIds.reduce((s, id) => s + (quantities[id] || 0), 0);
                                 const atGroupMax = groupTotal >= (group.max_selection || 99);
+                                const atItemMax = gi.max_quantity > 0 && qty >= gi.max_quantity;
                                 return (
                                   <button
-                                    onClick={() => setItemQty(gi.id, group.id, 1, 0, group.max_selection || 99)}
-                                    disabled={atGroupMax}
+                                    onClick={() => setItemQty(gi.id, group.id, 1, gi.max_quantity, group.max_selection || 99)}
+                                    disabled={atGroupMax || atItemMax}
                                     className="w-7 h-7 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 disabled:opacity-30"
                                   >
                                     <Plus className="h-3 w-3" />
