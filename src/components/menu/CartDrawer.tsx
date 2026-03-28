@@ -318,6 +318,8 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
 
       clearCart();
       onCartChange();
+      // Save customer identity for "Meus Pedidos"
+      saveCustomer({ phone: unmaskPhone(customerPhone), name: customerName });
       onOpenChange(false);
       navigate(`/pedido/${order.id}`);
     } catch (err: any) {
