@@ -187,6 +187,14 @@ const OrdersPage = () => {
   const updateStatus = async (orderId: string, newStatus: string) => {
     await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    // Trigger push notification to customer
+    try {
+      await supabase.functions.invoke("send-push-notification", {
+        body: { order_id: orderId, new_status: newStatus },
+      });
+    } catch (err) {
+      console.error("[Push] Erro ao enviar notificação:", err);
+    }
   };
 
   const nextStatus: Record<string, string> = { pending: "preparing", preparing: "shipping", shipping: "completed" };
