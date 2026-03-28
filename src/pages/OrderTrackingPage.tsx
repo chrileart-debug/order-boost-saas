@@ -101,6 +101,16 @@ const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
+        {/* Push Notification Prompt */}
+        {order.customer_phone && establishment && (
+          <CustomerPushPrompt
+            phone={order.customer_phone}
+            establishmentId={order.establishment_id}
+            storeName={establishment.name}
+            logoUrl={establishment.logo_url}
+          />
+        )}
+
         {/* Progress */}
         <Card>
           <CardContent className="pt-6">
