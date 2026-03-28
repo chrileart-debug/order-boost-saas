@@ -117,7 +117,7 @@ const OrdersPage = () => {
         <div class="center" style="font-size:11px;margin-bottom:2px;">${dateStr}</div>
         <div class="center" style="font-size:11px;">${order.customer_name}${order.customer_phone ? " • " + order.customer_phone : ""}</div>
         <div class="sep"></div>
-        <div class="section bold">ITENS:</div>
+        <div class="section bold" style="font-size:15px;">ITENS:</div>
         ${itemsHtml}
         <div class="sep"></div>
         ${order.address_text ? `<div class="section"><span class="bold">ENTREGA:</span><br/>${order.address_text}</div><div class="sep"></div>` : ""}
