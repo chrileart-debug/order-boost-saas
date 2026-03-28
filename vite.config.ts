@@ -21,7 +21,8 @@ export default defineConfig(({ mode }) => ({
       devOptions: {
         enabled: false,
       },
-      manifest: false, // We use our own static + dynamic manifests
+      manifest: false,
+      injectManifest: undefined,
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,jpg,webp,woff2}"],
