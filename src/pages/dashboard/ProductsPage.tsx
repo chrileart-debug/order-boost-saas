@@ -287,11 +287,11 @@ const ProductsPage = () => {
 
   const saveGroup = async () => {
     if (!establishment || !groupForm.name.trim()) return;
-    const isQuantity = groupForm.selectionType === "quantity";
+    const isSelection = groupForm.selectionType === "selection";
     const payload = {
       name: groupForm.name,
-      min_selection: isQuantity ? (parseInt(groupForm.min) || 0) : 0,
-      max_selection: isQuantity ? (parseInt(groupForm.max) || 1) : 1,
+      min_selection: isSelection ? (parseInt(groupForm.min) || 0) : 0,
+      max_selection: isSelection ? (parseInt(groupForm.max) || 1) : 99,
       selection_type: groupForm.selectionType,
       establishment_id: establishment.id,
     };
@@ -690,7 +690,7 @@ const ProductsPage = () => {
 
             <div className="space-y-2">
               <Label>Tipo de seleção</Label>
-              <Select value={groupForm.selectionType} onValueChange={v => setGroupForm({ ...groupForm, selectionType: v })}>
+              <Select value={groupForm.selectionType} onValueChange={v => setGroupForm({ ...groupForm, selectionType: v, ...(v === "quantity" ? { min: "0", max: "99" } : { min: "0", max: "1" }) })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="selection">Seleção (checkbox/radio)</SelectItem>
@@ -699,7 +699,7 @@ const ProductsPage = () => {
               </Select>
             </div>
 
-            {groupForm.selectionType === "quantity" && (
+            {groupForm.selectionType === "selection" && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Mín. seleção</Label>
