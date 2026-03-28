@@ -231,7 +231,8 @@ const MenuPage = () => {
             </div>
           );
         })}
-      </div>
+      </>
+      )}
 
       {/* Cart FAB */}
       {cartCount > 0 && (
