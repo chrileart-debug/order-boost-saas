@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Package, DollarSign, Store } from "lucide-react";
+import AdminInstallBanner from "@/components/pwa/AdminInstallBanner";
 
 const DashboardHome = () => {
   const { user } = useAuth();
@@ -54,6 +55,7 @@ const DashboardHome = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <AdminInstallBanner />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">

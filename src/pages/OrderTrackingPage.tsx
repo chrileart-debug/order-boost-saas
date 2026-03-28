@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2 } from "lucide-react";
+import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
@@ -152,6 +153,11 @@ const OrderTrackingPage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* PWA Install */}
+        {establishment && (
+          <OrderSuccessInstallCard storeName={establishment.name} logoUrl={establishment.logo_url} />
+        )}
 
         {/* WhatsApp */}
         {establishment?.whatsapp && (
