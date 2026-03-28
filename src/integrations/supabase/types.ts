@@ -218,6 +218,7 @@ export type Database = {
           name: string
           niche: string | null
           onboarding_completed: boolean | null
+          operating_hours: Json | null
           owner_id: string
           slug: string
           updated_at: string
@@ -239,6 +240,7 @@ export type Database = {
           name: string
           niche?: string | null
           onboarding_completed?: boolean | null
+          operating_hours?: Json | null
           owner_id: string
           slug: string
           updated_at?: string
@@ -260,6 +262,7 @@ export type Database = {
           name?: string
           niche?: string | null
           onboarding_completed?: boolean | null
+          operating_hours?: Json | null
           owner_id?: string
           slug?: string
           updated_at?: string
