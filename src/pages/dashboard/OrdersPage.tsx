@@ -127,7 +127,7 @@ const OrdersPage = () => {
         <div class="row"><span>Frete</span><span>${formatPrice(order.shipping_fee || 0)}</span></div>
         ${Number(order.discount) > 0 ? `<div class="row"><span>Desconto${order.coupon_code ? " (" + order.coupon_code + ")" : ""}</span><span>-${formatPrice(order.discount)}</span></div>` : ""}
         <div class="sep"></div>
-        <div class="row bold" style="font-size:14px;"><span>TOTAL</span><span>${formatPrice(order.total_price || 0)}</span></div>
+        <div class="total-row"><span>TOTAL</span><span>${formatPrice(order.total_price || 0)}</span></div>
         <div class="sep"></div>
         <div class="center" style="margin-top:8px;font-size:10px;">*** Obrigado! ***</div>
         <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}</script>
