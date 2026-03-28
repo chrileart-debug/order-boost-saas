@@ -40,23 +40,30 @@ const OrdersPage = () => {
 
   /* ─── Audio setup ─── */
   const unlockAudio = useCallback(() => {
-    if (audioUnlocked || !establishment?.notification_sound_url) return;
-    const audio = new Audio(establishment.notification_sound_url);
-    audio.volume = 0;
+    if (audioUnlocked) return;
+    const url = establishment?.notification_sound_url;
+    if (!url) {
+      console.warn("[Audio] Nenhuma URL de som configurada no estabelecimento.");
+      return;
+    }
+    console.log("[Audio] Tentando desbloquear áudio com URL:", url);
+    const audio = new Audio(url);
+    audio.volume = 0.01;
     audio.play().then(() => {
       audio.pause();
       audio.volume = 1;
       audio.currentTime = 0;
       audioRef.current = audio;
       setAudioUnlocked(true);
-    }).catch(() => {});
+      console.log("[Audio] ✅ Áudio desbloqueado com sucesso!");
+    }).catch((err) => {
+      console.error("[Audio] ❌ Falha ao desbloquear áudio:", err);
+    });
   }, [audioUnlocked, establishment?.notification_sound_url]);
 
   useEffect(() => {
     if (!establishment?.notification_sound_url) return;
-    // Pre-create audio element
     audioRef.current = new Audio(establishment.notification_sound_url);
-    // Unlock on first user interaction
     const handler = () => unlockAudio();
     document.addEventListener("click", handler, { once: false });
     document.addEventListener("keydown", handler, { once: false });
@@ -67,12 +74,26 @@ const OrdersPage = () => {
   }, [establishment?.notification_sound_url, unlockAudio]);
 
   const playNotificationSound = useCallback(() => {
-    if (!soundEnabled || !audioRef.current) return;
+    if (!soundEnabled) {
+      console.log("[Audio] Som desativado pelo usuário.");
+      return;
+    }
+    if (!audioRef.current) {
+      console.warn("[Audio] Elemento de áudio não inicializado.");
+      return;
+    }
+    if (!audioUnlocked) {
+      console.warn("[Audio] Áudio ainda não desbloqueado. Clique no botão 'Ativar Sons'.");
+      return;
+    }
+    console.log("[Audio] 🔔 Tocando som de notificação...");
     const audio = audioRef.current;
     audio.currentTime = 0;
     audio.volume = 1;
-    audio.play().catch(() => {});
-  }, [soundEnabled]);
+    audio.play().catch((err) => {
+      console.error("[Audio] Erro ao tocar som:", err);
+    });
+  }, [soundEnabled, audioUnlocked]);
 
   /* ─── Fetch orders ─── */
   const fetchOrders = useCallback(async () => {
@@ -128,12 +149,14 @@ const OrdersPage = () => {
         },
         async (payload) => {
           const newOrder = payload.new as any;
+          console.log("[Realtime] 📥 Novo pedido recebido:", { id: newOrder.id, status: newOrder.status });
           if (newOrder.status === "pending") {
+            console.log("[Realtime] ✅ Status é 'pending' — disparando som...");
             playNotificationSound();
+          } else {
+            console.log("[Realtime] Status não é 'pending', ignorando som. Status:", newOrder.status);
           }
-          // Refresh orders list
           setOrders(prev => [newOrder, ...prev]);
-          // Fetch items for the new order
           const { data: items } = await supabase
             .from("order_items")
             .select("*, order_item_options(*)")
@@ -375,15 +398,29 @@ const OrdersPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Pedidos</h1>
-        <Button
-          variant={soundEnabled ? "outline" : "ghost"}
-          size="sm"
-          onClick={() => { unlockAudio(); setSoundEnabled(prev => !prev); }}
-          className="gap-1.5"
-        >
-          {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
-          <span className="hidden sm:inline">{soundEnabled ? "Som ativado" : "Som desativado"}</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {!audioUnlocked && (
+            <Button
+              size="sm"
+              onClick={unlockAudio}
+              className="gap-1.5 animate-pulse"
+            >
+              <Volume2 className="h-4 w-4" />
+              Ativar Sons
+            </Button>
+          )}
+          {audioUnlocked && (
+            <Button
+              variant={soundEnabled ? "outline" : "ghost"}
+              size="sm"
+              onClick={() => setSoundEnabled(prev => !prev)}
+              className="gap-1.5"
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+              <span className="hidden sm:inline">{soundEnabled ? "Som ativado" : "Som desativado"}</span>
+            </Button>
+          )}
+        </div>
       </div>
       <Tabs defaultValue="pending">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
