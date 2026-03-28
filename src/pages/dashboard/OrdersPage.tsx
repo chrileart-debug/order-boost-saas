@@ -137,49 +137,47 @@ const OrdersPage = () => {
   useEffect(() => {
     if (!establishment?.id) return;
 
+    console.log("[Realtime] 🔌 Inscrevendo canal para establishment:", establishment.id);
+
     const channel = supabase
       .channel(`orders-realtime-${establishment.id}`)
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "orders",
           filter: `establishment_id=eq.${establishment.id}`,
         },
         async (payload) => {
-          const newOrder = payload.new as any;
-          console.log("[Realtime] 📥 Novo pedido recebido:", { id: newOrder.id, status: newOrder.status });
-          if (newOrder.status === "pending") {
-            console.log("[Realtime] ✅ Status é 'pending' — disparando som...");
-            playNotificationSound();
-          } else {
-            console.log("[Realtime] Status não é 'pending', ignorando som. Status:", newOrder.status);
-          }
-          setOrders(prev => [newOrder, ...prev]);
-          const { data: items } = await supabase
-            .from("order_items")
-            .select("*, order_item_options(*)")
-            .eq("order_id", newOrder.id);
-          if (items && items.length > 0) {
-            setOrderItems(prev => ({ ...prev, [newOrder.id]: items }));
+          console.log("[Realtime] 🔔 Evento recebido!", payload);
+          console.log("[Realtime] Tipo do evento:", payload.eventType);
+
+          if (payload.eventType === "INSERT") {
+            const newOrder = payload.new as any;
+            console.log("[Realtime] 📥 Novo pedido:", { id: newOrder.id, status: newOrder.status });
+            if (newOrder.status === "pending") {
+              console.log("[Realtime] ✅ Status é 'pending' — disparando som...");
+              playNotificationSound();
+            }
+            setOrders(prev => [newOrder, ...prev]);
+            const { data: items } = await supabase
+              .from("order_items")
+              .select("*, order_item_options(*)")
+              .eq("order_id", newOrder.id);
+            if (items && items.length > 0) {
+              setOrderItems(prev => ({ ...prev, [newOrder.id]: items }));
+            }
+          } else if (payload.eventType === "UPDATE") {
+            const updated = payload.new as any;
+            console.log("[Realtime] ✏️ Pedido atualizado:", { id: updated.id, status: updated.status });
+            setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
           }
         }
       )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `establishment_id=eq.${establishment.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as any;
-          setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
-        }
-      )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[Realtime] 📡 Status da inscrição:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
