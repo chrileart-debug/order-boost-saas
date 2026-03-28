@@ -13,6 +13,7 @@ import { pullCartFromCloud, pushCartToCloud } from "@/lib/cartSync";
 import { checkStoreStatus, type StoreStatusResult } from "@/lib/storeStatus";
 import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 import { trackEvent } from "@/lib/eventLayer";
+import MenuInstallBanner from "@/components/pwa/MenuInstallBanner";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -152,6 +153,9 @@ const MenuPage = () => {
           </Badge>
         </div>
       </div>
+
+      {/* PWA Install Banner */}
+      <MenuInstallBanner storeName={establishment.name} logoUrl={establishment.logo_url} />
 
       {/* Closed banner */}
       {storeStatus && !storeStatus.isOpen && (
