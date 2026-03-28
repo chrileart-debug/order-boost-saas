@@ -40,23 +40,30 @@ const OrdersPage = () => {
 
   /* ─── Audio setup ─── */
   const unlockAudio = useCallback(() => {
-    if (audioUnlocked || !establishment?.notification_sound_url) return;
-    const audio = new Audio(establishment.notification_sound_url);
-    audio.volume = 0;
+    if (audioUnlocked) return;
+    const url = establishment?.notification_sound_url;
+    if (!url) {
+      console.warn("[Audio] Nenhuma URL de som configurada no estabelecimento.");
+      return;
+    }
+    console.log("[Audio] Tentando desbloquear áudio com URL:", url);
+    const audio = new Audio(url);
+    audio.volume = 0.01;
     audio.play().then(() => {
       audio.pause();
       audio.volume = 1;
       audio.currentTime = 0;
       audioRef.current = audio;
       setAudioUnlocked(true);
-    }).catch(() => {});
+      console.log("[Audio] ✅ Áudio desbloqueado com sucesso!");
+    }).catch((err) => {
+      console.error("[Audio] ❌ Falha ao desbloquear áudio:", err);
+    });
   }, [audioUnlocked, establishment?.notification_sound_url]);
 
   useEffect(() => {
     if (!establishment?.notification_sound_url) return;
-    // Pre-create audio element
     audioRef.current = new Audio(establishment.notification_sound_url);
-    // Unlock on first user interaction
     const handler = () => unlockAudio();
     document.addEventListener("click", handler, { once: false });
     document.addEventListener("keydown", handler, { once: false });
@@ -67,12 +74,26 @@ const OrdersPage = () => {
   }, [establishment?.notification_sound_url, unlockAudio]);
 
   const playNotificationSound = useCallback(() => {
-    if (!soundEnabled || !audioRef.current) return;
+    if (!soundEnabled) {
+      console.log("[Audio] Som desativado pelo usuário.");
+      return;
+    }
+    if (!audioRef.current) {
+      console.warn("[Audio] Elemento de áudio não inicializado.");
+      return;
+    }
+    if (!audioUnlocked) {
+      console.warn("[Audio] Áudio ainda não desbloqueado. Clique no botão 'Ativar Sons'.");
+      return;
+    }
+    console.log("[Audio] 🔔 Tocando som de notificação...");
     const audio = audioRef.current;
     audio.currentTime = 0;
     audio.volume = 1;
-    audio.play().catch(() => {});
-  }, [soundEnabled]);
+    audio.play().catch((err) => {
+      console.error("[Audio] Erro ao tocar som:", err);
+    });
+  }, [soundEnabled, audioUnlocked]);
 
   /* ─── Fetch orders ─── */
   const fetchOrders = useCallback(async () => {
