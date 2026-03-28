@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import {
@@ -58,19 +59,30 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 space-y-2">
+      <SidebarFooter className={cn("space-y-1", collapsed ? "p-1" : "p-3")}>
         {establishment?.slug && (
           <Button
             variant="outline"
             size="sm"
-            className="w-full justify-start gap-2 text-primary border-primary/30 hover:bg-primary/10"
+            className={cn(
+              "w-full gap-2 text-primary border-primary/30 hover:bg-primary/10",
+              collapsed ? "justify-center p-0 h-8 w-8 mx-auto border-0" : "justify-start"
+            )}
             onClick={() => window.open(`/cardapio/${establishment.slug}`, "_blank")}
           >
             <ExternalLink className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Ver Minha Loja</span>}
           </Button>
         )}
-        <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground" onClick={signOut}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "w-full gap-2 text-muted-foreground hover:text-foreground",
+            collapsed ? "justify-center p-0 h-8 w-8 mx-auto" : "justify-start"
+          )}
+          onClick={signOut}
+        >
           <LogOut className="h-4 w-4 shrink-0" />
           {!collapsed && <span>Sair</span>}
         </Button>
