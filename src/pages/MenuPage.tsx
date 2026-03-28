@@ -134,6 +134,40 @@ const MenuPage = () => {
         </div>
       </div>
 
+      {/* Tab switcher */}
+      {getCustomer() && (
+        <div className="px-4 md:px-8 flex gap-1 border-b border-border">
+          <button
+            onClick={() => setActiveTab("menu")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "menu"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Cardápio
+          </button>
+          <button
+            onClick={() => setActiveTab("orders")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === "orders"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" /> Meus Pedidos
+          </button>
+        </div>
+      )}
+
+      {activeTab === "orders" && establishment ? (
+        <MyOrdersTab
+          slug={slug!}
+          establishmentId={establishment.id}
+          onCartChange={refreshCartCount}
+        />
+      ) : (
+      <>
       {/* Sticky category nav */}
       <div
         ref={navRef}
