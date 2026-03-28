@@ -23,6 +23,7 @@ interface OrderItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  notes?: string;
   order_item_options?: { option_name: string; option_price: number }[];
 }
 
@@ -88,6 +89,7 @@ const OrdersPage = () => {
         <div style="margin-bottom:6px;font-size:14px;">
           <span><b>${item.quantity}x</b> ${item.product_name}</span>
           ${opts ? `<div style="padding-left:14px;font-size:12px;color:#555;">+ ${opts}</div>` : ""}
+          ${item.notes ? `<div style="padding-left:14px;font-size:11px;font-style:italic;color:#666;">OBS: ${item.notes}</div>` : ""}
         </div>`;
     }).join("");
 
@@ -186,18 +188,23 @@ const OrdersPage = () => {
                     <p className="text-sm text-muted-foreground italic">Carregando itens...</p>
                   ) : (
                     items.map(item => (
-                      <div key={item.id} className="flex justify-between text-sm">
-                        <div>
-                          <span className="text-foreground">{item.quantity}x {item.product_name}</span>
-                          {item.order_item_options && item.order_item_options.length > 0 && (
-                            <p className="text-xs text-muted-foreground pl-3">
-                              + {item.order_item_options.map(o => o.option_name).join(", ")}
-                            </p>
-                          )}
+                      <div key={item.id} className="text-sm">
+                        <div className="flex justify-between">
+                          <div>
+                            <span className="text-foreground">{item.quantity}x {item.product_name}</span>
+                            {item.order_item_options && item.order_item_options.length > 0 && (
+                              <p className="text-xs text-muted-foreground pl-3">
+                                + {item.order_item_options.map(o => o.option_name).join(", ")}
+                              </p>
+                            )}
+                            {item.notes && (
+                              <p className="text-xs italic text-muted-foreground pl-3">📝 {item.notes}</p>
+                            )}
+                          </div>
+                          <span className="text-foreground font-medium whitespace-nowrap ml-2">
+                            {formatPrice(item.unit_price * item.quantity)}
+                          </span>
                         </div>
-                        <span className="text-foreground font-medium whitespace-nowrap ml-2">
-                          {formatPrice(item.unit_price * item.quantity)}
-                        </span>
                       </div>
                     ))
                   )}

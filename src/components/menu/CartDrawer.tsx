@@ -288,7 +288,8 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
             product_name: item.productName,
             quantity: item.quantity,
             unit_price: item.basePrice,
-          })
+            notes: item.notes || "",
+          } as any)
           .select("id")
           .single();
 
@@ -363,6 +364,9 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                       <p className="text-xs text-muted-foreground truncate">
                         {item.options.map((o) => o.quantity > 1 ? `${o.quantity}x ${o.name}` : o.name).join(", ")}
                       </p>
+                    )}
+                    {item.notes && (
+                      <p className="text-xs text-muted-foreground italic truncate">📝 {item.notes}</p>
                     )}
                     <p className="text-sm font-semibold text-primary mt-0.5">
                       {formatPrice((item.basePrice + item.options.reduce((s, o) => s + o.price * (o.quantity || 1), 0)) * item.quantity)}

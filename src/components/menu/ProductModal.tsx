@@ -41,6 +41,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   // For quantity type: quantity per group_item id
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -175,6 +176,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
       basePrice: product.price,
       quantity,
       options: selectedOptions,
+      notes: notes.trim() || undefined,
     });
     onAdd();
   };
@@ -302,6 +304,19 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
               );
             })
           )}
+
+          {/* Observations */}
+          <div className="space-y-1">
+            <Label className="text-sm text-muted-foreground">Alguma observação?</Label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: Tirar alface, sem cebola, ponto da carne, etc..."
+              maxLength={140}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px] resize-none"
+            />
+            <p className="text-[10px] text-muted-foreground text-right">{notes.length}/140</p>
+          </div>
 
           <div className="flex items-center justify-between pt-2">
             <div className="flex items-center gap-3">
