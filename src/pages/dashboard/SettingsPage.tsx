@@ -11,6 +11,9 @@ import { Store, User } from "lucide-react";
 import ImageCropper from "@/components/ImageCropper";
 import MaskedInput from "@/components/MaskedInput";
 import { maskPhone, unmask, maskCep, maskCnpj } from "@/lib/masks";
+import OperatingHoursSection from "@/components/settings/OperatingHoursSection";
+import { type OperatingHours } from "@/lib/storeStatus";
+import { Clock } from "lucide-react";
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
@@ -29,6 +32,7 @@ const SettingsPage = () => {
   const [savingEst, setSavingEst] = useState(false);
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
+  const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -47,6 +51,9 @@ const SettingsPage = () => {
       whatsapp: maskPhone(establishment.whatsapp || ""),
       cnpj: maskCnpj(establishment.cnpj || ""),
     });
+    if (establishment.operating_hours) {
+      setOperatingHours(establishment.operating_hours as OperatingHours);
+    }
     if (establishment.address && typeof establishment.address === "object" && !Array.isArray(establishment.address)) {
       const addr = establishment.address as Record<string, string>;
       setAddress(addr);
@@ -111,6 +118,7 @@ const SettingsPage = () => {
       cnpj: unmask(estForm.cnpj),
       address: fullAddress,
       owner_id: user.id,
+      operating_hours: operatingHours,
     };
 
     try {
@@ -227,6 +235,19 @@ const SettingsPage = () => {
           </div>
 
           <Button onClick={saveEstablishment} disabled={savingEst}>{savingEst ? "Salvando..." : "Salvar Estabelecimento"}</Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" /> Horário de Funcionamento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Configure os horários de abertura e fechamento para cada dia da semana. O cardápio será bloqueado automaticamente fora desses horários.
+          </p>
+          <OperatingHoursSection value={operatingHours} onChange={setOperatingHours} />
+          <Button onClick={saveEstablishment} disabled={savingEst}>{savingEst ? "Salvando..." : "Salvar Horários"}</Button>
         </CardContent>
       </Card>
     </div>
