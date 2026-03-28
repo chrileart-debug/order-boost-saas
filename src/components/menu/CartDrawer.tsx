@@ -328,7 +328,6 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
       trackEvent("complete_order", {
         establishment_id: establishment.id,
         order_id: order.id,
-        total: order.total_price,
       });
       // Save customer identity for "Meus Pedidos"
       const cleanPhone = unmaskPhone(customerPhone);
