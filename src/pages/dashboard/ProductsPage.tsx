@@ -70,13 +70,14 @@ const ProductsPage = () => {
   const [linkedGroupIds, setLinkedGroupIds] = useState<string[]>([]);
 
   /* ─── fetch ─── */
+  const estId = establishment?.id;
   const fetchData = useCallback(async (silent = false) => {
-    if (!establishment) return;
+    if (!estId) return;
     if (!silent) setLoading(true);
     const [catsRes, groupsRes, itemsRes, giRes] = await Promise.all([
-      supabase.from("categories").select("*").eq("establishment_id", establishment.id).order("order_index"),
-      supabase.from("product_option_groups").select("*").eq("establishment_id", establishment.id).order("created_at"),
-      supabase.from("item_library").select("*").eq("establishment_id", establishment.id).order("name"),
+      supabase.from("categories").select("*").eq("establishment_id", estId).order("order_index"),
+      supabase.from("product_option_groups").select("*").eq("establishment_id", estId).order("created_at"),
+      supabase.from("item_library").select("*").eq("establishment_id", estId).order("name"),
       supabase.from("group_items").select("*"),
     ]);
 
@@ -98,7 +99,7 @@ const ProductsPage = () => {
     setGroupItemLinks(((giRes.data || []) as GroupItem[]).filter(gi => groupIds.includes(gi.group_id)));
 
     if (!silent) setLoading(false);
-  }, [establishment]);
+  }, [estId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
