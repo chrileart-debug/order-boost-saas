@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingBag, ClipboardList } from "lucide-react";
+import { ShoppingBag, ClipboardList, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import ProductModal from "@/components/menu/ProductModal";
@@ -10,6 +10,7 @@ import MyOrdersTab from "@/components/menu/MyOrdersTab";
 import { getCart } from "@/lib/cart";
 import { getCustomer } from "@/lib/customer";
 import { pullCartFromCloud, pushCartToCloud } from "@/lib/cartSync";
+import { checkStoreStatus, type StoreStatusResult } from "@/lib/storeStatus";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -23,6 +24,7 @@ const MenuPage = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [activeTab, setActiveTab] = useState<"menu" | "orders">("menu");
+  const [storeStatus, setStoreStatus] = useState<StoreStatusResult | null>(null);
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const navRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +61,7 @@ const MenuPage = () => {
         return;
       }
       setEstablishment(est);
+      setStoreStatus(checkStoreStatus(est));
 
       const { data: cats } = await supabase
         .from("categories")
@@ -136,11 +139,19 @@ const MenuPage = () => {
           {establishment.niche && (
             <span className="text-sm text-muted-foreground">{establishment.niche}</span>
           )}
-          <Badge variant={establishment.is_open ? "default" : "secondary"} className="text-xs">
-            {establishment.is_open ? "Aberto" : "Fechado"}
+          <Badge variant={storeStatus?.isOpen ? "default" : "secondary"} className="text-xs">
+            {storeStatus?.isOpen ? "Aberto" : "Fechado"}
           </Badge>
         </div>
       </div>
+
+      {/* Closed banner */}
+      {storeStatus && !storeStatus.isOpen && (
+        <div className="mx-4 md:mx-8 mt-2 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-destructive shrink-0" />
+          <p className="text-sm text-destructive font-medium">{storeStatus.message}</p>
+        </div>
+      )}
 
       {/* Tab switcher */}
       {getCustomer() && (
@@ -277,6 +288,8 @@ const MenuPage = () => {
         slug={slug!}
         establishment={establishment}
         onCartChange={refreshCartCount}
+        storeClosed={storeStatus ? !storeStatus.isOpen : false}
+        storeClosedMessage={storeStatus?.message || ""}
       />
     </div>
   );
