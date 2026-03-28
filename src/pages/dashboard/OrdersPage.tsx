@@ -23,6 +23,7 @@ interface OrderItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  notes?: string;
   order_item_options?: { option_name: string; option_price: number }[];
 }
 

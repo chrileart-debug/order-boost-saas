@@ -288,7 +288,8 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
             product_name: item.productName,
             quantity: item.quantity,
             unit_price: item.basePrice,
-          })
+            notes: item.notes || "",
+          } as any)
           .select("id")
           .single();
 
