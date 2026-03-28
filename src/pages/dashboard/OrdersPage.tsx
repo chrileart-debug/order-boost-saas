@@ -121,6 +121,7 @@ const OrdersPage = () => {
         ${itemsHtml}
         <div class="sep"></div>
         ${order.address_text ? `<div class="section"><span class="bold">ENTREGA:</span><br/>${order.address_text}</div><div class="sep"></div>` : ""}
+        ${order.observations ? `<div class="section"><span class="bold">OBS:</span><br/>${order.observations}</div><div class="sep"></div>` : ""}
         <div class="section"><span class="bold">PAGAMENTO:</span> ${order.payment_method || "—"}</div>
         <div class="sep"></div>
         <div class="row"><span>Subtotal</span><span>${formatPrice(order.subtotal || 0)}</span></div>
@@ -204,8 +205,8 @@ const OrdersPage = () => {
 
                 <Separator />
 
-                {/* Address & Payment */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                {/* Address, Payment & Observations */}
+                <div className="space-y-2 text-sm">
                   {order.address_text && (
                     <div className="flex gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
@@ -216,6 +217,12 @@ const OrdersPage = () => {
                     <div className="flex items-center gap-2">
                       <CreditCard className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="text-foreground">{order.payment_method}</span>
+                    </div>
+                  )}
+                  {order.observations && (
+                    <div className="bg-muted/50 border border-border rounded-lg p-3 mt-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Observação do cliente</p>
+                      <p className="text-sm text-foreground">{order.observations}</p>
                     </div>
                   )}
                 </div>

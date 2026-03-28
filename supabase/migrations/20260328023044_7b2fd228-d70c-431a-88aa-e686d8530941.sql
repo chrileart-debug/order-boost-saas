@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN observations text DEFAULT '';

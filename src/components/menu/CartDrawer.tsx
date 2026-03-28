@@ -41,6 +41,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
   const [loadingCep, setLoadingCep] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("pix");
+  const [observations, setObservations] = useState("");
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -249,8 +250,9 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
           total_price: total,
           payment_method: paymentMethod,
           coupon_code: appliedCoupon?.code || null,
+          observations: observations.trim() || null,
           status: "pending",
-        })
+        } as any)
         .select("id")
         .single();
 
@@ -432,6 +434,19 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange }: P
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* ─── Observações ─── */}
+              <Separator />
+              <div>
+                <Label>Observação do pedido</Label>
+                <textarea
+                  value={observations}
+                  onChange={(e) => setObservations(e.target.value)}
+                  placeholder="Ex: Sem açúcar, entregar na portaria, tocar o interfone..."
+                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 mt-1 min-h-[72px] resize-none"
+                  maxLength={500}
+                />
               </div>
 
               {/* ─── Cupom ─── */}
