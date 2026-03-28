@@ -320,31 +320,30 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
             <p className="text-[10px] text-muted-foreground text-right">{notes.length}/140</p>
           </div>
 
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-3 pt-2">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-8 h-8 rounded-full border border-border flex items-center justify-center hover:bg-accent"
+                className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-accent"
               >
                 <Minus className="h-4 w-4" />
               </button>
               <span className="font-semibold text-lg w-6 text-center">{quantity}</span>
               <button
                 onClick={() => setQuantity(quantity + 1)}
-                className="w-8 h-8 rounded-full border border-border flex items-center justify-center hover:bg-accent"
+                className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-accent"
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
+            <Button
+              onClick={handleAdd}
+              disabled={!isValid}
+              className="flex-1 h-11 text-base font-semibold"
+            >
+              Adicionar {formatPrice(totalPrice)}
+            </Button>
           </div>
-
-          <Button
-            onClick={handleAdd}
-            disabled={!isValid}
-            className="w-full h-12 text-base font-semibold"
-          >
-            Adicionar {formatPrice(totalPrice)}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
