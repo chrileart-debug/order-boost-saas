@@ -242,7 +242,9 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
                               >
                                 <Minus className="h-3 w-3" />
                               </button>
-                              <span className="text-sm font-semibold w-5 text-center">{qty}</span>
+                              <span className="text-sm font-semibold w-8 text-center">
+                                {gi.max_quantity > 0 ? `${qty}/${gi.max_quantity}` : qty}
+                              </span>
                               {(() => {
                                 const groupGiIds = groupItems.filter(g => g.group_id === group.id).map(g => g.id);
                                 const groupTotal = groupGiIds.reduce((s, id) => s + (quantities[id] || 0), 0);
