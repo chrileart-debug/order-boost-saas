@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ShoppingBag, ClipboardList, Clock } from "lucide-react";
+import { ShoppingBag, ClipboardList, Clock, Bell, Download, Share } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import ProductModal from "@/components/menu/ProductModal";
 import CartDrawer from "@/components/menu/CartDrawer";
 import MyOrdersTab from "@/components/menu/MyOrdersTab";
@@ -14,6 +21,8 @@ import { checkStoreStatus, type StoreStatusResult } from "@/lib/storeStatus";
 import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 import { trackEvent } from "@/lib/eventLayer";
 import MenuInstallBanner from "@/components/pwa/MenuInstallBanner";
+import PushConsentModal, { shouldShowPushConsent } from "@/components/pwa/PushConsentModal";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 const MenuPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -30,6 +39,11 @@ const MenuPage = () => {
   const [storeStatus, setStoreStatus] = useState<StoreStatusResult | null>(null);
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const navRef = useRef<HTMLDivElement>(null);
+  const [pushModalOpen, setPushModalOpen] = useState(false);
+  const [iosInstructionsOpen, setIosInstructionsOpen] = useState(false);
+  const { canInstall, install, isIos } = usePwaInstall();
+  const isStandalone = typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true);
+  const showNotifButton = isStandalone && typeof Notification !== "undefined" && Notification.permission !== "granted";
 
   const refreshCartCount = useCallback(() => {
     const cart = getCart();
@@ -77,6 +91,12 @@ const MenuPage = () => {
 
       // Track menu view
       trackEvent("view_menu", { establishment_id: est.id });
+
+      // Show push consent in standalone mode
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+      if (standalone && shouldShowPushConsent()) {
+        setTimeout(() => setPushModalOpen(true), 3000);
+      }
 
       const { data: cats } = await supabase
         .from("categories")
@@ -162,6 +182,42 @@ const MenuPage = () => {
 
       {/* PWA Install Banner */}
       <MenuInstallBanner storeName={establishment.name} logoUrl={establishment.logo_url} />
+
+      {/* Manual install button (when banner was dismissed but user hasn't installed) */}
+      {!isStandalone && (canInstall || isIos) && (
+        <div className="mx-4 md:mx-8 mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 text-xs h-9"
+            onClick={() => {
+              if (isIos) {
+                setIosInstructionsOpen(true);
+              } else {
+                install();
+              }
+            }}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Adicionar à Tela Inicial
+          </Button>
+        </div>
+      )}
+
+      {/* Manual notification button (standalone only) */}
+      {showNotifButton && establishment && (
+        <div className="mx-4 md:mx-8 mt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full gap-2 text-xs h-9 text-muted-foreground"
+            onClick={() => setPushModalOpen(true)}
+          >
+            <Bell className="h-3.5 w-3.5" />
+            Ativar Notificações
+          </Button>
+        </div>
+      )}
 
       {/* Closed banner */}
       {storeStatus && !storeStatus.isOpen && (
@@ -316,6 +372,36 @@ const MenuPage = () => {
         storeClosed={storeStatus ? !storeStatus.isOpen : false}
         storeClosedMessage={storeStatus?.message || ""}
       />
+
+      {/* Push Consent Modal (standalone) */}
+      {establishment && getCustomer()?.phone && (
+        <PushConsentModal
+          open={pushModalOpen}
+          onOpenChange={setPushModalOpen}
+          phone={getCustomer()!.phone!}
+          establishmentId={establishment.id}
+          storeName={establishment.name}
+          logoUrl={establishment.logo_url}
+        />
+      )}
+
+      {/* iOS Install Instructions Dialog */}
+      <Dialog open={iosInstructionsOpen} onOpenChange={setIosInstructionsOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm rounded-2xl">
+          <DialogHeader className="items-center text-center space-y-2">
+            <Share className="h-8 w-8 text-primary" />
+            <DialogTitle className="text-base">Instalar no seu dispositivo</DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              1. Toque no ícone de <strong>Compartilhar</strong> (ícone de quadrado com seta).<br />
+              2. Selecione <strong>"Adicionar à Tela de Início"</strong>.<br />
+              3. Toque em <strong>"Adicionar"</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <Button variant="outline" className="w-full mt-2" onClick={() => setIosInstructionsOpen(false)}>
+            Entendi
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
