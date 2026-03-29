@@ -163,7 +163,7 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     );
   }
 
-  const activeOrder = orders.find((o) => ["pending", "preparing", "shipping"].includes(o.status));
+  const activeOrders = orders.filter((o) => ["pending", "preparing", "shipping"].includes(o.status));
   const pastOrders = orders.filter((o) => o.status === "completed").slice(0, 5);
 
   return (
