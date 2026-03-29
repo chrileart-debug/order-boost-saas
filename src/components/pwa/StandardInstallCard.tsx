@@ -86,20 +86,14 @@ const StandardInstallCard = ({ storeName, logoUrl, slug }: Props) => {
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
-          {isIos ? (
-            <button onClick={() => setShowInstructions(true)}>
-              <Share className="h-5 w-5 text-primary" />
-            </button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={handleInstall}
-              className="text-xs h-8 px-3 gap-1"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Instalar
-            </Button>
-          )}
+          <Button
+            size="sm"
+            onClick={handleInstall}
+            className="text-xs h-8 px-3 gap-1"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Instalar
+          </Button>
           <button
             onClick={handleDismiss}
             className="w-7 h-7 flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
