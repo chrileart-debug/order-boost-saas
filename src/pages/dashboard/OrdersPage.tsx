@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX } from "lucide-react";
+import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX, AlertTriangle, X } from "lucide-react";
 
 const statusConfig = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning/10 text-warning" },
@@ -184,16 +184,33 @@ const OrdersPage = () => {
     };
   }, [establishment?.id, playNotificationSound]);
 
+  const [pushError, setPushError] = useState<string | null>(null);
+
   const updateStatus = async (orderId: string, newStatus: string) => {
-    await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+    setPushError(null);
+    const { error: dbError } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+    if (dbError) {
+      const msg = `Erro ao atualizar status: ${dbError.message}`;
+      console.error("[Push]", msg);
+      setPushError(msg);
+      return;
+    }
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    // Trigger push notification to customer
     try {
-      await supabase.functions.invoke("send-push-notification", {
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
         body: { order_id: orderId, new_status: newStatus },
       });
-    } catch (err) {
-      console.error("[Push] Erro ao enviar notificação:", err);
+      if (error) {
+        const msg = `Falha ao enviar push: ${error.message}`;
+        console.error("[Push]", msg, error);
+        setPushError(msg);
+      } else {
+        console.log("[Push] ✅ Notificação enviada:", data);
+      }
+    } catch (err: any) {
+      const msg = `Erro de rede ao enviar push: ${err?.message || err}`;
+      console.error("[Push]", msg);
+      setPushError(msg);
     }
   };
 
@@ -416,6 +433,13 @@ const OrdersPage = () => {
           </Button>
         </div>
       </div>
+      {pushError && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{pushError}</span>
+          <button onClick={() => setPushError(null)}><X className="h-4 w-4" /></button>
+        </div>
+      )}
       <Tabs defaultValue="pending">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
