@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2 } from "lucide-react";
 import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
-import CustomerPushPrompt from "@/components/pwa/CustomerPushPrompt";
+import PushConsentModal, { shouldShowPushConsent } from "@/components/pwa/PushConsentModal";
+import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
@@ -22,6 +23,7 @@ const OrderTrackingPage = () => {
   const [items, setItems] = useState<any[]>([]);
   const [establishment, setEstablishment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pushModalOpen, setPushModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -32,11 +34,19 @@ const OrderTrackingPage = () => {
 
       const [{ data: its }, { data: est }] = await Promise.all([
         supabase.from("order_items").select("*, order_item_options(*)").eq("order_id", id),
-        supabase.from("establishments").select("name, whatsapp, logo_url").eq("id", o.establishment_id).maybeSingle(),
+        supabase.from("establishments").select("name, whatsapp, logo_url, slug").eq("id", o.establishment_id).maybeSingle(),
       ]);
       setItems(its || []);
       setEstablishment(est);
       setLoading(false);
+      // Set dynamic manifest for PWA branding
+      if (est) {
+        setDynamicManifest({ name: est.name, logo_url: est.logo_url, slug: est.slug });
+      }
+      // Show push consent modal after order loads
+      if (shouldShowPushConsent()) {
+        setTimeout(() => setPushModalOpen(true), 1500);
+      }
     };
     load();
 
@@ -48,7 +58,7 @@ const OrderTrackingPage = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); removeDynamicManifest(); };
   }, [id]);
 
   const formatPrice = (v: number) =>
@@ -101,9 +111,11 @@ const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
-        {/* Push Notification Prompt */}
+        {/* Push Consent Modal */}
         {order.customer_phone && establishment && (
-          <CustomerPushPrompt
+          <PushConsentModal
+            open={pushModalOpen}
+            onOpenChange={setPushModalOpen}
             phone={order.customer_phone}
             establishmentId={order.establishment_id}
             storeName={establishment.name}
