@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX } from "lucide-react";
+import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX, AlertTriangle, X } from "lucide-react";
 
 const statusConfig = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning/10 text-warning" },
@@ -433,6 +433,13 @@ const OrdersPage = () => {
           </Button>
         </div>
       </div>
+      {pushError && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span className="flex-1">{pushError}</span>
+          <button onClick={() => setPushError(null)}><X className="h-4 w-4" /></button>
+        </div>
+      )}
       <Tabs defaultValue="pending">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
