@@ -158,9 +158,20 @@ async function buildVapidJwt(aud: string, sub: string, privateKeyB64: string): P
   const input = new TextEncoder().encode(`${header}.${payload}`);
 
   const rawKey = base64urlDecode(privateKeyB64);
+
+  // Extract x, y from the VAPID public key (uncompressed 65-byte format)
+  const vapidPubBytes = base64urlDecode(Deno.env.get("VAPID_PUBLIC_KEY")!);
+  const jwk = {
+    kty: "EC",
+    crv: "P-256",
+    d: base64urlEncode(rawKey),
+    x: base64urlEncode(vapidPubBytes.slice(1, 33)),
+    y: base64urlEncode(vapidPubBytes.slice(33, 65)),
+  };
+
   const key = await crypto.subtle.importKey(
-    "pkcs8",
-    rawKey,
+    "jwk",
+    jwk,
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["sign"]
