@@ -65,7 +65,6 @@ async function hkdfDerive(
   info: Uint8Array,
   length: number
 ): Promise<Uint8Array> {
-  // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM) — salt is key, IKM is data
   const saltKey = await crypto.subtle.importKey(
     "raw",
     salt.length ? salt : new Uint8Array(32),
@@ -74,7 +73,6 @@ async function hkdfDerive(
     ["sign"]
   );
   const prk = new Uint8Array(await crypto.subtle.sign("HMAC", saltKey, ikm));
-  // HKDF-Expand: OKM = HMAC-SHA256(PRK, info || 0x01)
   const prkKey = await crypto.subtle.importKey("raw", prk, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const infoWithCounter = concatBuffers(info, new Uint8Array([1]));
   const okm = new Uint8Array(await crypto.subtle.sign("HMAC", prkKey, infoWithCounter));
@@ -88,7 +86,6 @@ async function encryptPayload(
   const clientPublicKeyBytes = base64urlDecode(subscriptionKeys.p256dh);
   const authSecret = base64urlDecode(subscriptionKeys.auth);
 
-  // Generate local ECDH key pair
   const localKeyPair = await crypto.subtle.generateKey(
     { name: "ECDH", namedCurve: "P-256" },
     true,
@@ -98,7 +95,6 @@ async function encryptPayload(
     await crypto.subtle.exportKey("raw", localKeyPair.publicKey)
   );
 
-  // Import client public key
   const clientPublicKey = await crypto.subtle.importKey(
     "raw",
     clientPublicKeyBytes,
@@ -107,7 +103,6 @@ async function encryptPayload(
     []
   );
 
-  // ECDH shared secret
   const sharedSecret = new Uint8Array(
     await crypto.subtle.deriveBits(
       { name: "ECDH", public: clientPublicKey },
@@ -116,10 +111,8 @@ async function encryptPayload(
     )
   );
 
-  // Salt (random 16 bytes)
   const salt = crypto.getRandomValues(new Uint8Array(16));
 
-  // HKDF to derive encryption key and nonce
   const authInfo = new TextEncoder().encode("Content-Encoding: auth\0");
   const prk = await hkdfDerive(authSecret, sharedSecret, authInfo, 32);
 
@@ -129,7 +122,6 @@ async function encryptPayload(
   const nonceInfo = await createInfo("nonce", clientPublicKeyBytes, localPublicKey);
   const nonce = await hkdfDerive(salt, prk, nonceInfo, 12);
 
-  // Encrypt with AES-128-GCM
   const paddingLength = 0;
   const paddedPayload = concatBuffers(
     new Uint8Array([paddingLength >> 8, paddingLength & 0xff]),
@@ -165,7 +157,6 @@ async function buildVapidJwt(aud: string, sub: string, privateKeyB64: string): P
   );
   const input = new TextEncoder().encode(`${header}.${payload}`);
 
-  // Import the private key (PKCS8 format from base64url)
   const rawKey = base64urlDecode(privateKeyB64);
   const key = await crypto.subtle.importKey(
     "pkcs8",
@@ -177,7 +168,6 @@ async function buildVapidJwt(aud: string, sub: string, privateKeyB64: string): P
 
   const signature = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, input));
 
-  // Convert DER signature to raw r||s format (64 bytes)
   const r_s = derToRaw(signature);
   const sigB64 = base64urlEncode(r_s);
 
@@ -185,11 +175,8 @@ async function buildVapidJwt(aud: string, sub: string, privateKeyB64: string): P
 }
 
 function derToRaw(sig: Uint8Array): Uint8Array {
-  // If already 64 bytes, it's raw format
   if (sig.length === 64) return sig;
-
-  // Parse DER: 0x30 <len> 0x02 <rLen> <r> 0x02 <sLen> <s>
-  if (sig[0] !== 0x30) return sig; // not DER, return as-is
+  if (sig[0] !== 0x30) return sig;
 
   let offset = 2;
   const rLen = sig[offset + 1];
@@ -198,13 +185,42 @@ function derToRaw(sig: Uint8Array): Uint8Array {
   const sLen = sig[offset + 1];
   const s = sig.slice(offset + 2, offset + 2 + sLen);
 
-  // Pad/trim to 32 bytes each
   const rPadded = new Uint8Array(32);
   const sPadded = new Uint8Array(32);
   rPadded.set(r.length > 32 ? r.slice(r.length - 32) : r, 32 - Math.min(r.length, 32));
   sPadded.set(s.length > 32 ? s.slice(s.length - 32) : s, 32 - Math.min(s.length, 32));
 
   return concatBuffers(rPadded, sPadded);
+}
+
+/* ─── Extract order_id and new_status from any payload format ─── */
+
+function parsePayload(body: any): { order_id: string; new_status: string } | null {
+  // Format 1: Direct call — { order_id, new_status }
+  if (body.order_id && body.new_status) {
+    return { order_id: body.order_id, new_status: body.new_status };
+  }
+
+  // Format 2: Supabase Database Webhook — { type: "UPDATE", record: { id, status, ... }, old_record: { ... } }
+  if (body.type === "UPDATE" && body.record) {
+    const record = body.record;
+    const oldRecord = body.old_record;
+
+    // Only trigger if status actually changed
+    if (oldRecord && record.status === oldRecord.status) {
+      console.log("[Push] Status unchanged, skipping notification");
+      return null;
+    }
+
+    return { order_id: record.id, new_status: record.status };
+  }
+
+  // Format 3: Supabase Database Webhook (alternate) — { type: "INSERT", record: { ... } }
+  if (body.type === "INSERT" && body.record) {
+    return { order_id: body.record.id, new_status: body.record.status };
+  }
+
+  return null;
 }
 
 /* ─── Main Handler ─── */
@@ -215,13 +231,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { order_id, new_status } = await req.json();
-    if (!order_id || !new_status) {
+    const body = await req.json();
+    console.log("[Push] Received payload:", JSON.stringify(body).slice(0, 500));
+
+    const parsed = parsePayload(body);
+
+    if (!parsed) {
       return new Response(
-        JSON.stringify({ error: "order_id and new_status required" }),
+        JSON.stringify({ error: "Could not extract order_id/new_status from payload. Status may be unchanged." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const { order_id, new_status } = parsed;
+    console.log(`[Push] Processing order=${order_id} status=${new_status}`);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -233,7 +256,7 @@ Deno.serve(async (req) => {
     // Get order details
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("*, establishments(name, push_notify_statuses)")
+      .select("*, establishments(name, push_notify_statuses, logo_url)")
       .eq("id", order_id)
       .maybeSingle();
 
@@ -249,6 +272,7 @@ Deno.serve(async (req) => {
     const est = order.establishments as any;
     const notifyStatuses = est?.push_notify_statuses || ["preparing", "shipping", "completed"];
     if (!notifyStatuses.includes(new_status)) {
+      console.log(`[Push] Status '${new_status}' not in notify list: ${JSON.stringify(notifyStatuses)}`);
       return new Response(
         JSON.stringify({ message: "Status not configured for notification" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -264,15 +288,17 @@ Deno.serve(async (req) => {
 
     const storeName = est?.name || "Loja";
     const title = `${storeName}`;
-    const body = `Pedido #${order_id.slice(0, 6).toUpperCase()} — ${statusLabels[new_status] || new_status}`;
+    const body2 = `Pedido #${order_id.slice(0, 6).toUpperCase()} — ${statusLabels[new_status] || new_status}`;
 
     const pushPayload = JSON.stringify({
       title,
-      body,
+      body: body2,
       icon: est?.logo_url || "/pwa-192x192.png",
       data: { url: `/pedido/${order_id}` },
       badge: "/pwa-192x192.png",
     });
+
+    console.log(`[Push] Notification: "${title}" - "${body2}" icon=${est?.logo_url || 'default'}`);
 
     // Get push subscriptions for this customer
     const { data: subs } = await supabase
@@ -291,10 +317,8 @@ Deno.serve(async (req) => {
         const url = new URL(sub.endpoint);
         const aud = `${url.protocol}//${url.host}`;
 
-        // Build VAPID authorization
         const jwt = await buildVapidJwt(aud, "mailto:contato@eprato.com", vapidPrivateKey);
 
-        // Encrypt payload using subscriber's keys
         const { encrypted, salt, localPublicKey } = await encryptPayload(pushPayload, {
           p256dh: sub.keys_p256dh,
           auth: sub.keys_auth,
