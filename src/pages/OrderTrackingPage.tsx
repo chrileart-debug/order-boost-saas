@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2, Package } from "lucide-react";
-import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
+
 import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
@@ -190,10 +190,6 @@ const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
-        {/* PWA Install */}
-        {establishment && (
-          <OrderSuccessInstallCard storeName={establishment.name} logoUrl={establishment.logo_url} />
-        )}
 
         {/* WhatsApp */}
         {establishment?.whatsapp && (
