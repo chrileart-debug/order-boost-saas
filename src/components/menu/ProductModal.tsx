@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -201,8 +202,26 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
           </DialogHeader>
 
           {loading ? (
-            <div className="flex justify-center py-4">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            <div className="space-y-5 py-2">
+              {[1, 2].map((i) => (
+                <div key={i} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <div className="space-y-2.5">
+                    {[1, 2].map((j) => (
+                      <div key={j} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-4 w-4 rounded" />
+                          <Skeleton className="h-4 w-28" />
+                        </div>
+                        <Skeleton className="h-4 w-14" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
             groups.map((group) => {
