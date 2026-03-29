@@ -252,11 +252,13 @@ const MenuPage = () => {
                       </p>
                     </div>
                     {product.image_url && (
-                      <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-20 h-20 rounded-lg object-cover shrink-0"
-                      />
+                      <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0">
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
                     )}
                   </button>
                 ))}
