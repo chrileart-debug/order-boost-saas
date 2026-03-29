@@ -7,6 +7,14 @@ interface BeforeInstallPromptEvent extends Event {
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
+// Capture the event globally ASAP — before any React component mounts
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e: Event) => {
+    e.preventDefault();
+    deferredPrompt = e as BeforeInstallPromptEvent;
+  });
+}
+
 /** Detect iOS Safari (not in standalone mode) */
 function isIosSafari(): boolean {
   const ua = navigator.userAgent;
