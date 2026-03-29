@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download, X, Share } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 const DISMISSED_KEY = "eprato_menu_install_dismissed";
 
 const MenuInstallBanner = ({ storeName, logoUrl }: Props) => {
-  const { canInstall, install } = usePwaInstall();
+  const { canInstall, install, isIos } = usePwaInstall();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
@@ -36,11 +36,17 @@ const MenuInstallBanner = ({ storeName, logoUrl }: Props) => {
       )}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground truncate">{storeName}</p>
-        <p className="text-xs text-muted-foreground">Instale para acesso rápido</p>
+        <p className="text-xs text-muted-foreground">
+          {isIos ? "Toque em compartilhar → Tela Início" : "Instale para acesso rápido"}
+        </p>
       </div>
-      <Button size="sm" variant="hero" onClick={install} className="shrink-0 text-xs h-8 px-3">
-        Instalar
-      </Button>
+      {isIos ? (
+        <Share className="h-5 w-5 text-primary shrink-0" />
+      ) : (
+        <Button size="sm" variant="hero" onClick={install} className="shrink-0 text-xs h-8 px-3">
+          Instalar
+        </Button>
+      )}
       <button onClick={handleDismiss} className="shrink-0 text-muted-foreground hover:text-foreground">
         <X className="h-4 w-4" />
       </button>

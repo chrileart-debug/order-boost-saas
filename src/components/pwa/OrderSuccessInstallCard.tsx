@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Download, Smartphone } from "lucide-react";
+import { Download, Smartphone, Share } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 }
 
 const OrderSuccessInstallCard = ({ storeName, logoUrl }: Props) => {
-  const { canInstall, install } = usePwaInstall();
+  const { canInstall, install, isIos } = usePwaInstall();
 
   if (!canInstall) return null;
 
@@ -30,11 +30,22 @@ const OrderSuccessInstallCard = ({ storeName, logoUrl }: Props) => {
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">Instale o app de {storeName}</p>
-          <p className="text-xs text-muted-foreground mt-1">Acompanhe seus pedidos futuros com um clique</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {isIos
+              ? "Toque no ícone de compartilhar e selecione \"Adicionar à Tela Início\""
+              : "Acompanhe seus pedidos futuros com um clique"}
+          </p>
         </div>
-        <Button onClick={install} className="w-full gap-2" variant="hero">
-          <Download className="h-4 w-4" /> Instalar App
-        </Button>
+        {isIos ? (
+          <div className="flex items-center gap-2 text-primary">
+            <Share className="h-5 w-5" />
+            <span className="text-sm font-medium">Compartilhar → Tela Início</span>
+          </div>
+        ) : (
+          <Button onClick={install} className="w-full gap-2" variant="hero">
+            <Download className="h-4 w-4" /> Instalar App
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

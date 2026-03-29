@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download, X, Share } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 
 const AdminInstallBanner = () => {
-  const { canInstall, install } = usePwaInstall();
+  const { canInstall, install, isIos } = usePwaInstall();
   const [dismissed, setDismissed] = useState(false);
 
   if (!canInstall || dismissed) return null;
@@ -17,13 +17,24 @@ const AdminInstallBanner = () => {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">Instale o Painel EPRATO</p>
-          <p className="text-xs text-muted-foreground">Receba alertas de novos pedidos em tempo real</p>
+          <p className="text-xs text-muted-foreground">
+            {isIos
+              ? "Toque no ícone de compartilhar e selecione \"Adicionar à Tela Início\""
+              : "Receba alertas de novos pedidos em tempo real"}
+          </p>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <Button size="sm" onClick={install} className="gap-1.5">
-          <Download className="h-3.5 w-3.5" /> Instalar
-        </Button>
+        {isIos ? (
+          <div className="flex items-center gap-1 text-primary">
+            <Share className="h-4 w-4" />
+            <span className="text-xs font-medium hidden sm:inline">Compartilhar → Tela Início</span>
+          </div>
+        ) : (
+          <Button size="sm" onClick={install} className="gap-1.5">
+            <Download className="h-3.5 w-3.5" /> Instalar
+          </Button>
+        )}
         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setDismissed(true)}>
           <X className="h-4 w-4" />
         </Button>
