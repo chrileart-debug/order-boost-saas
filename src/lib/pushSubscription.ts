@@ -4,7 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 
-const VAPID_PUBLIC_KEY = "BG6eowty0f2cpLfVAC6w6oLOapUt3VuPSXgpjbKwd3_cclmHiTwtgR1nL7WZJ2-4fFipSvAztf5CmITyuxRfJdQ";
+const VAPID_PUBLIC_KEY = "BJJouD_IMsDJ3tPMtfKYnfnVUOtFdQD5Fx2SoG0mHxIFI-7ztyyFNQAViB0zO53GbKveyu3zDBh8ogFFyOOz1z8";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -35,22 +35,27 @@ export async function subscribeToPush(opts: {
   if (permission !== "granted") return false;
 
   try {
+    console.log("[Push] Verificando Service Worker...");
     const reg = await navigator.serviceWorker.ready;
+    console.log("[Push] Service Worker ativo:", reg.active?.state, "scope:", reg.scope);
+
     let sub = await reg.pushManager.getSubscription();
+    console.log("[Push] Inscrição existente:", sub ? "sim" : "não");
 
     if (!sub) {
+      console.log("[Push] Criando nova inscrição com VAPID key...");
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY).buffer as ArrayBuffer,
       });
     }
 
-    console.log("[Push] Token de Push gerado:", JSON.stringify(sub.toJSON()));
+    console.log("[Push] ✅ Token de Push gerado:", JSON.stringify(sub.toJSON()));
 
     const keys = sub.toJSON().keys || {};
 
     // Upsert to Supabase
-    await supabase.from("push_subscriptions").upsert(
+    const { error: upsertError } = await supabase.from("push_subscriptions").upsert(
       {
         endpoint: sub.endpoint,
         keys_p256dh: keys.p256dh || "",
@@ -63,9 +68,16 @@ export async function subscribeToPush(opts: {
       { onConflict: "endpoint" }
     );
 
+    if (upsertError) {
+      console.error("[Push] Erro ao salvar no Supabase:", upsertError);
+      alert("Erro ao salvar inscrição push: " + upsertError.message);
+      return false;
+    }
+
     return true;
-  } catch (err) {
-    console.error("[Push] Erro ao inscrever:", err);
+  } catch (err: any) {
+    console.error("[Push] ❌ Erro ao inscrever:", err);
+    alert("Erro ao ativar notificações: " + (err?.message || String(err)));
     return false;
   }
 }
