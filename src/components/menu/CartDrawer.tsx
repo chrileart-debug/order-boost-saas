@@ -37,6 +37,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
   const [cep, setCep] = useState("");
   const [addressText, setAddressText] = useState("");
   const [numero, setNumero] = useState("");
+  const [complemento, setComplemento] = useState("");
   const [customerLat, setCustomerLat] = useState<number | null>(null);
   const [customerLng, setCustomerLng] = useState<number | null>(null);
   const [shippingFee, setShippingFee] = useState(0);
@@ -246,7 +247,9 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
     if (!cart || cart.items.length === 0) return;
     setSubmitting(true);
     try {
-      const fullAddress = numero ? `${addressText}, ${numero}` : addressText;
+      const fullAddress = complemento
+        ? `${addressText}, ${numero} - ${complemento}`
+        : `${addressText}, ${numero}`;
 
       const { data: order, error: orderError } = await supabase
         .from("orders")
@@ -440,9 +443,15 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
                     <Label>Endereço</Label>
                     <Input value={addressText} readOnly className="bg-muted" />
                   </div>
-                  <div>
-                    <Label>Número / Complemento</Label>
-                    <Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="123, Apto 4" />
+                   <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Número *</Label>
+                      <Input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="123" />
+                    </div>
+                    <div>
+                      <Label>Complemento</Label>
+                      <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} placeholder="Apto 4, Bloco B" />
+                    </div>
                   </div>
                 </>
               )}
@@ -583,7 +592,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
               )}
               <Button
                 onClick={handleSubmit}
-                disabled={!customerName || unmaskPhone(customerPhone).length < 11 || !addressText || submitting || shippingBlocked || !!storeClosed}
+                disabled={!customerName || unmaskPhone(customerPhone).length < 11 || !addressText || !numero.trim() || submitting || shippingBlocked || !!storeClosed}
                 className="w-full h-12 text-base font-semibold"
               >
                 {submitting ? "Finalizando..." : `Finalizar pedido ${formatPrice(total)}`}
