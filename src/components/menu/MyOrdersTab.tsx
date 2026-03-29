@@ -163,65 +163,71 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     );
   }
 
-  const activeOrder = orders.find((o) => ["pending", "preparing", "shipping"].includes(o.status));
+  const activeOrders = orders.filter((o) => ["pending", "preparing", "shipping"].includes(o.status));
   const pastOrders = orders.filter((o) => o.status === "completed").slice(0, 5);
 
   return (
     <div className="px-4 md:px-8 py-4 space-y-6">
-      {/* Active order */}
-      {activeOrder && (() => {
-        const st = statusConfig[activeOrder.status] || statusConfig.pending;
-        const Icon = st.icon;
-        return (
-          <div>
-            <h2 className="text-base font-semibold text-foreground mb-2">Pedido em andamento</h2>
-            <Card className="border-primary/30">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${st.color}`}>
-                      <Icon className="h-4 w-4" />
+      {/* Active orders */}
+      {activeOrders.length > 0 && (
+        <div>
+          <h2 className="text-base font-semibold text-foreground mb-2">
+            {activeOrders.length === 1 ? "Pedido em andamento" : "Pedidos em andamento"}
+          </h2>
+          <div className="space-y-3">
+            {activeOrders.map((activeOrder) => {
+              const st = statusConfig[activeOrder.status] || statusConfig.pending;
+              const Icon = st.icon;
+              return (
+                <Card key={activeOrder.id} className="border-primary/30">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${st.color}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm text-foreground">{st.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            #{activeOrder.id.slice(0, 6).toUpperCase()}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setTrackingOrderId(activeOrder.id)}
+                        className="gap-1"
+                      >
+                        <Eye className="h-3.5 w-3.5" /> Acompanhar
+                      </Button>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm text-foreground">{st.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        #{activeOrder.id.slice(0, 6).toUpperCase()}
-                      </p>
+
+                    <div className="flex gap-1">
+                      {Object.keys(statusConfig).map((key, i) => {
+                        const currentIdx = Object.keys(statusConfig).indexOf(activeOrder.status);
+                        return (
+                          <div
+                            key={key}
+                            className={`h-1.5 flex-1 rounded-full ${i <= currentIdx ? "bg-primary" : "bg-muted"}`}
+                          />
+                        );
+                      })}
                     </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setTrackingOrderId(activeOrder.id)}
-                    className="gap-1"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> Acompanhar
-                  </Button>
-                </div>
 
-                <div className="flex gap-1">
-                  {Object.keys(statusConfig).map((key, i) => {
-                    const currentIdx = Object.keys(statusConfig).indexOf(activeOrder.status);
-                    return (
-                      <div
-                        key={key}
-                        className={`h-1.5 flex-1 rounded-full ${i <= currentIdx ? "bg-primary" : "bg-muted"}`}
-                      />
-                    );
-                  })}
-                </div>
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {(orderItems[activeOrder.id] || []).length} item(s)
-                  </span>
-                  <span className="font-semibold">{formatPrice(Number(activeOrder.total_price || 0))}</span>
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {(orderItems[activeOrder.id] || []).length} item(s)
+                      </span>
+                      <span className="font-semibold">{formatPrice(Number(activeOrder.total_price || 0))}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* Past orders */}
       {pastOrders.length > 0 && (
