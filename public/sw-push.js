@@ -1,11 +1,17 @@
 // Push notification handler for Service Worker
-// This file is appended to the Workbox-generated SW
 
 self.addEventListener("push", (event) => {
-  let data = { title: "EPRATO", body: "Atualização do seu pedido" };
+  let data = { title: "Atualização do pedido", body: "Seu pedido foi atualizado!" };
   try {
     if (event.data) {
-      data = event.data.json();
+      const parsed = event.data.json();
+      // Never allow empty title/body
+      if (parsed.title) data.title = parsed.title;
+      if (parsed.body) data.body = parsed.body;
+      if (parsed.icon) data.icon = parsed.icon;
+      if (parsed.data) data.data = parsed.data;
+      if (parsed.tag) data.tag = parsed.tag;
+      if (parsed.badge) data.badge = parsed.badge;
     }
   } catch (e) {
     // fallback to defaults
@@ -14,10 +20,10 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body,
     icon: data.icon || "/pwa-192x192.png",
-    badge: "/pwa-192x192.png",
+    badge: data.badge || "/pwa-192x192.png",
     vibrate: [200, 100, 200],
     data: data.data || {},
-    tag: data.data?.orderId || data.tag || "eprato-default",
+    tag: data.data?.orderId ? `order-${data.data.orderId}` : (data.tag || "eprato-default"),
     renotify: true,
     actions: [{ action: "open", title: "Ver pedido" }],
   };

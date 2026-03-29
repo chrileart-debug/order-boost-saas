@@ -21,4 +21,17 @@ if (isPreviewHost || isInIframe) {
   });
 }
 
+// Inject static manifest only for admin/dashboard routes
+// Public menu routes will inject dynamic manifests via dynamicManifest.ts
+const path = window.location.pathname;
+const isPublicStore = path.match(/^\/[^/]+$/) && !["", "login", "signup", "onboarding", "dashboard"].includes(path.slice(1));
+const isOrderTracking = path.startsWith("/pedido/");
+
+if (!isPublicStore && !isOrderTracking) {
+  const link = document.createElement("link");
+  link.rel = "manifest";
+  link.href = "/manifest.json";
+  document.head.appendChild(link);
+}
+
 createRoot(document.getElementById("root")!).render(<App />);
