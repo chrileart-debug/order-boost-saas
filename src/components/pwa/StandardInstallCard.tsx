@@ -42,14 +42,17 @@ const StandardInstallCard = ({ storeName, logoUrl, slug }: Props) => {
   };
 
   const handleInstall = async () => {
-    if (canInstall && !isIos) {
-      const accepted = await install();
-      if (accepted) {
-        localStorage.setItem(dismissKey, "true");
-        setDismissed(true);
-      }
-    } else {
-      // No native prompt available — show manual instructions
+    if (isIos) {
+      setShowInstructions(true);
+      return;
+    }
+    // Try native prompt first
+    const accepted = await install();
+    if (accepted) {
+      localStorage.setItem(dismissKey, "true");
+      setDismissed(true);
+    } else if (!canInstall) {
+      // Native prompt not available — show manual instructions
       setShowInstructions(true);
     }
   };
