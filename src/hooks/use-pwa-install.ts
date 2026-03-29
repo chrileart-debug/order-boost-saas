@@ -7,19 +7,41 @@ interface BeforeInstallPromptEvent extends Event {
 
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
+/** Detect iOS Safari (not in standalone mode) */
+function isIosSafari(): boolean {
+  const ua = navigator.userAgent;
+  const isIos = /iP(hone|od|ad)/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|OPiOS|EdgiOS|Chrome/.test(ua);
+  return isIos && (isSafari || /GSA/.test(ua)); // GSA = Google Search App on iOS
+}
+
+function isStandalone(): boolean {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as any).standalone === true
+  );
+}
+
 export function usePwaInstall() {
   const [canInstall, setCanInstall] = useState(false);
+  const [isIos, setIsIos] = useState(false);
 
   useEffect(() => {
-    // Already have a stored prompt
-    if (deferredPrompt) {
+    if (isStandalone()) {
+      setCanInstall(false);
+      return;
+    }
+
+    // iOS Safari doesn't support beforeinstallprompt
+    if (isIosSafari()) {
+      setIsIos(true);
       setCanInstall(true);
       return;
     }
 
-    // Check if already installed (standalone mode)
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setCanInstall(false);
+    // Already have a stored prompt
+    if (deferredPrompt) {
+      setCanInstall(true);
       return;
     }
 
@@ -34,6 +56,9 @@ export function usePwaInstall() {
   }, []);
 
   const install = useCallback(async () => {
+    // On iOS, we can't programmatically install — show instructions
+    if (isIos) return false;
+
     if (!deferredPrompt) return false;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
@@ -42,7 +67,7 @@ export function usePwaInstall() {
       setCanInstall(false);
     }
     return outcome === "accepted";
-  }, []);
+  }, [isIos]);
 
-  return { canInstall, install };
+  return { canInstall, install, isIos };
 }
