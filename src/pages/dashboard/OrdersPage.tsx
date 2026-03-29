@@ -184,34 +184,13 @@ const OrdersPage = () => {
     };
   }, [establishment?.id, playNotificationSound]);
 
-  const [pushError, setPushError] = useState<string | null>(null);
-
   const updateStatus = async (orderId: string, newStatus: string) => {
-    setPushError(null);
     const { error: dbError } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
     if (dbError) {
-      const msg = `Erro ao atualizar status: ${dbError.message}`;
-      console.error("[Push]", msg);
-      setPushError(msg);
+      console.error("Erro ao atualizar status:", dbError.message);
       return;
     }
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    try {
-      const { data, error } = await supabase.functions.invoke("send-push-notification", {
-        body: { order_id: orderId, new_status: newStatus },
-      });
-      if (error) {
-        const msg = `Falha ao enviar push: ${error.message}`;
-        console.error("[Push]", msg, error);
-        setPushError(msg);
-      } else {
-        console.log("[Push] ✅ Notificação enviada:", data);
-      }
-    } catch (err: any) {
-      const msg = `Erro de rede ao enviar push: ${err?.message || err}`;
-      console.error("[Push]", msg);
-      setPushError(msg);
-    }
   };
 
   const nextStatus: Record<string, string> = { pending: "preparing", preparing: "shipping", shipping: "completed" };
@@ -433,13 +412,6 @@ const OrdersPage = () => {
           </Button>
         </div>
       </div>
-      {pushError && (
-        <div className="flex items-center gap-2 p-3 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-sm">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span className="flex-1">{pushError}</span>
-          <button onClick={() => setPushError(null)}><X className="h-4 w-4" /></button>
-        </div>
-      )}
       <Tabs defaultValue="pending">
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
