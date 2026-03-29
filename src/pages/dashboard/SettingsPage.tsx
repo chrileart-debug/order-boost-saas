@@ -146,6 +146,27 @@ const SettingsPage = () => {
     }
   };
 
+  const InstallSection = () => {
+    const { canInstall, install, isIos } = usePwaInstall();
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    if (isStandalone || (!canInstall && !isIos)) return null;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Download className="w-5 h-5 text-primary" /> Instalar Aplicativo</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">Instale o Gestor EPRATO para acesso rápido direto da tela inicial do seu celular.</p>
+          {isIos ? (
+            <p className="text-sm text-muted-foreground">Toque em <strong>Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong></p>
+          ) : (
+            <Button onClick={install} className="gap-2"><Download className="h-4 w-4" /> Instalar Aplicativo</Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-fade-in max-w-2xl">
       <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
