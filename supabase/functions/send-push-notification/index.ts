@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
     const pushPayload = JSON.stringify({
       title,
       body,
-      icon: "/pwa-192x192.png",
+      icon: est?.logo_url || "/pwa-192x192.png",
       data: { url: `/pedido/${order_id}` },
       badge: "/pwa-192x192.png",
     });
