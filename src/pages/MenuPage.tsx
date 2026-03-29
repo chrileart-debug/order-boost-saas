@@ -51,12 +51,18 @@ const MenuPage = () => {
     if (!slug) return;
     const load = async () => {
       setLoading(true);
-      const { data: est } = await supabase
+      const { data: est, error: estError } = await supabase
         .from("establishments")
         .select("*")
         .eq("slug", slug)
         .eq("onboarding_completed", true)
         .maybeSingle();
+
+      if (estError) {
+        console.error("[Menu] Erro ao buscar estabelecimento:", estError.message);
+        setLoading(false);
+        return;
+      }
 
       if (!est) {
         setNotFound(true);
