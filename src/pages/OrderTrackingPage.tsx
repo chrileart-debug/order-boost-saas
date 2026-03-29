@@ -105,6 +105,12 @@ const OrderTrackingPage = () => {
       {/* Store header */}
       {establishment && (
         <div className="bg-card border-b px-4 py-3 flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/${establishment.slug}`)}
+            className="shrink-0 w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5 text-foreground" />
+          </button>
           {establishment.logo_url ? (
             <img src={establishment.logo_url} alt={establishment.name} className="w-9 h-9 rounded-lg object-cover" />
           ) : (
