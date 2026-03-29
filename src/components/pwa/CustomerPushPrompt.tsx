@@ -11,13 +11,23 @@ interface Props {
   logoUrl?: string | null;
 }
 
+const DISMISS_KEY = "push_prompt_dismissed";
+
 const CustomerPushPrompt = ({ phone, establishmentId, storeName, logoUrl }: Props) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(DISMISS_KEY) === "true");
 
-  if (!isPushSupported() || subscribed || dismissed) return null;
+  // Hide if not supported, already subscribed, dismissed, or permission already granted
+  if (
+    !isPushSupported() ||
+    subscribed ||
+    dismissed ||
+    (typeof Notification !== "undefined" && Notification.permission === "granted")
+  ) {
+    return null;
+  }
 
   const handleSubscribe = async () => {
     setLoading(true);
@@ -29,6 +39,11 @@ const CustomerPushPrompt = ({ phone, establishmentId, storeName, logoUrl }: Prop
     } else {
       toast({ title: "Permissão negada", description: "Permita notificações nas configurações do navegador.", variant: "destructive" });
     }
+  };
+
+  const handleDismiss = () => {
+    localStorage.setItem(DISMISS_KEY, "true");
+    setDismissed(true);
   };
 
   return (
@@ -48,7 +63,7 @@ const CustomerPushPrompt = ({ phone, establishmentId, storeName, logoUrl }: Prop
         <Button size="sm" onClick={handleSubscribe} disabled={loading} className="gap-1.5">
           <Bell className="h-3.5 w-3.5" /> {loading ? "..." : "Ativar"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setDismissed(true)}>Não</Button>
+        <Button size="sm" variant="ghost" onClick={handleDismiss}>Não</Button>
       </div>
     </div>
   );

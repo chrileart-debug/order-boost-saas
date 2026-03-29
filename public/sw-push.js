@@ -17,6 +17,8 @@ self.addEventListener("push", (event) => {
     badge: "/pwa-192x192.png",
     vibrate: [200, 100, 200],
     data: data.data || {},
+    tag: data.data?.orderId || data.tag || "eprato-default",
+    renotify: true,
     actions: [{ action: "open", title: "Ver pedido" }],
   };
 

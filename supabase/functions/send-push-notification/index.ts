@@ -305,8 +305,9 @@ Deno.serve(async (req) => {
       title,
       body: body2,
       icon: est?.logo_url || "/pwa-192x192.png",
-      data: { url: `/pedido/${order_id}` },
+      data: { url: `/pedido/${order_id}`, orderId: order_id },
       badge: "/pwa-192x192.png",
+      tag: `order-${order_id}`,
     });
 
     console.log(`[Push] Notification: "${title}" - "${body2}" icon=${est?.logo_url || 'default'}`);
