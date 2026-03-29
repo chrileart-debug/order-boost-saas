@@ -207,13 +207,25 @@ const OrderTrackingPage = () => {
           />
         )}
 
-        {/* WhatsApp */}
-        {establishment?.whatsapp && (
-          <Button onClick={sendWhatsApp} className="w-full h-11 text-sm font-semibold gap-2 bg-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,40%)] text-[hsl(0,0%,100%)]">
-            <MessageCircle className="h-4 w-4" />
-            Enviar pedido via WhatsApp
-          </Button>
-        )}
+        {/* Actions */}
+        <div className="space-y-2">
+          {establishment?.slug && (
+            <Button
+              onClick={() => navigate(`/${establishment.slug}`)}
+              variant="outline"
+              className="w-full h-11 text-sm font-semibold gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Fazer novo pedido
+            </Button>
+          )}
+          {establishment?.whatsapp && (
+            <Button onClick={sendWhatsApp} className="w-full h-11 text-sm font-semibold gap-2 bg-[hsl(142,71%,45%)] hover:bg-[hsl(142,71%,40%)] text-[hsl(0,0%,100%)]">
+              <MessageCircle className="h-4 w-4" />
+              Enviar pedido via WhatsApp
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

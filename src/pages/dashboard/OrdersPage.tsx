@@ -155,12 +155,14 @@ const OrdersPage = () => {
 
           if (payload.eventType === "INSERT") {
             const newOrder = payload.new as any;
-            console.log("[Realtime] 📥 Novo pedido:", { id: newOrder.id, status: newOrder.status });
+            console.log("Novo pedido detectado via Realtime:", newOrder.id);
             if (newOrder.status === "pending") {
-              console.log("[Realtime] ✅ Status é 'pending' — disparando som...");
               playNotificationSound();
             }
-            setOrders(prev => [newOrder, ...prev]);
+            setOrders(prev => {
+              if (prev.some(o => o.id === newOrder.id)) return prev;
+              return [newOrder, ...prev];
+            });
             const { data: items } = await supabase
               .from("order_items")
               .select("*, order_item_options(*)")
