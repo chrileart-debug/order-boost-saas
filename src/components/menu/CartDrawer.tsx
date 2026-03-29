@@ -419,6 +419,9 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
               <div>
                 <Label>Telefone *</Label>
                 <MaskedInput value={customerPhone} onValueChange={setCustomerPhone} mask="phone" placeholder="(99) 99999-9999" />
+                {customerPhone && unmaskPhone(customerPhone).length < 11 && (
+                  <p className="text-xs text-destructive mt-1">Digite o DDD e o número completo (11 dígitos).</p>
+                )}
               </div>
               <Separator />
               <div>
@@ -580,7 +583,7 @@ const CartDrawer = ({ open, onOpenChange, slug, establishment, onCartChange, sto
               )}
               <Button
                 onClick={handleSubmit}
-                disabled={!customerName || !customerPhone || !addressText || submitting || shippingBlocked || !!storeClosed}
+                disabled={!customerName || unmaskPhone(customerPhone).length < 11 || !addressText || submitting || shippingBlocked || !!storeClosed}
                 className="w-full h-12 text-base font-semibold"
               >
                 {submitting ? "Finalizando..." : `Finalizar pedido ${formatPrice(total)}`}
