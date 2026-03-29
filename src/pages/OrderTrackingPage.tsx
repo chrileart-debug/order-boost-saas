@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2 } from "lucide-react";
 import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
-import CustomerPushPrompt from "@/components/pwa/CustomerPushPrompt";
+import PushConsentModal, { shouldShowPushConsent } from "@/components/pwa/PushConsentModal";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
@@ -22,6 +22,7 @@ const OrderTrackingPage = () => {
   const [items, setItems] = useState<any[]>([]);
   const [establishment, setEstablishment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pushModalOpen, setPushModalOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -37,6 +38,10 @@ const OrderTrackingPage = () => {
       setItems(its || []);
       setEstablishment(est);
       setLoading(false);
+      // Show push consent modal after order loads
+      if (shouldShowPushConsent()) {
+        setTimeout(() => setPushModalOpen(true), 1500);
+      }
     };
     load();
 
@@ -101,9 +106,11 @@ const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
-        {/* Push Notification Prompt */}
+        {/* Push Consent Modal */}
         {order.customer_phone && establishment && (
-          <CustomerPushPrompt
+          <PushConsentModal
+            open={pushModalOpen}
+            onOpenChange={setPushModalOpen}
             phone={order.customer_phone}
             establishmentId={order.establishment_id}
             storeName={establishment.name}
