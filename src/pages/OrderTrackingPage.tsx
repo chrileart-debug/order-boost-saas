@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2 } from "lucide-react";
 import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
 import PushConsentModal, { shouldShowPushConsent } from "@/components/pwa/PushConsentModal";
+import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
