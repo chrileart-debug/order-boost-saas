@@ -34,7 +34,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <AuthProvider>
           <EstablishmentProvider>
             <Routes>
@@ -43,7 +43,6 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pedido/:id" element={<OrderTrackingPage />} />
-              <Route path="/:slug" element={<MenuPage />} />
               <Route path="/dashboard" element={<DashboardLayout />}>
                 <Route index element={<DashboardHome />} />
                 <Route path="orders" element={<OrdersPage />} />
@@ -52,6 +51,7 @@ const App = () => (
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
+              <Route path="/:slug" element={<MenuPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </EstablishmentProvider>

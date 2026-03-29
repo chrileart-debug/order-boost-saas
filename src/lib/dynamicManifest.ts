@@ -3,6 +3,8 @@
  * Uses the establishment's logo and name so the PWA install shows the store's branding.
  */
 
+import { getAppBasePath, getPublicStorePath } from "@/lib/publicStoreUrl";
+
 let currentBlobUrl: string | null = null;
 
 export function setDynamicManifest(establishment: {
@@ -13,11 +15,14 @@ export function setDynamicManifest(establishment: {
   // Remove previous blob URL
   removeDynamicManifest();
 
+  const basePath = getAppBasePath();
+  const assetPath = (asset: string) => (basePath === "/" ? `/${asset}` : `${basePath}/${asset}`);
+
   const manifest = {
     name: establishment.name,
     short_name: establishment.name.substring(0, 12),
     description: `Cardápio digital de ${establishment.name}`,
-    start_url: `/${establishment.slug}`,
+    start_url: getPublicStorePath(establishment.slug),
     display: "standalone" as const,
     background_color: "#ffffff",
     theme_color: "#e11d48",
@@ -28,8 +33,8 @@ export function setDynamicManifest(establishment: {
           { src: establishment.logo_url, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ]
       : [
-          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: assetPath("pwa-192x192.png"), sizes: "192x192", type: "image/png" },
+          { src: assetPath("pwa-512x512.png"), sizes: "512x512", type: "image/png" },
         ],
   };
 

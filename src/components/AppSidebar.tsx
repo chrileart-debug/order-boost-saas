@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { getPublicStoreUrl } from "@/lib/publicStoreUrl";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
@@ -31,7 +31,6 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const { signOut } = useAuth();
   const { establishment } = useEstablishment();
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon">
@@ -68,7 +67,7 @@ export function AppSidebar() {
               "w-full gap-2 text-primary border-primary/30 hover:bg-primary/10",
               collapsed ? "justify-center p-0 h-8 w-8 mx-auto border-0" : "justify-start"
             )}
-            onClick={() => window.open(`/${establishment.slug}`, "_blank")}
+            onClick={() => window.open(getPublicStoreUrl(establishment.slug), "_blank")}
           >
             <ExternalLink className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Ver Minha Loja</span>}
