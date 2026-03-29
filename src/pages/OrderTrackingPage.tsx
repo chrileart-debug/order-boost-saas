@@ -58,7 +58,7 @@ const OrderTrackingPage = () => {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); removeDynamicManifest(); };
   }, [id]);
 
   const formatPrice = (v: number) =>
