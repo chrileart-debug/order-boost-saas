@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2, Package } from "lucide-react";
 import OrderSuccessInstallCard from "@/components/pwa/OrderSuccessInstallCard";
-import PushConsentModal, { shouldShowPushConsent } from "@/components/pwa/PushConsentModal";
 import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
@@ -23,7 +22,6 @@ const OrderTrackingPage = () => {
   const [items, setItems] = useState<any[]>([]);
   const [establishment, setEstablishment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [pushModalOpen, setPushModalOpen] = useState(false);
 
   // Redirect standalone PWA from stale order URL to menu
   useEffect(() => {
@@ -51,19 +49,12 @@ const OrderTrackingPage = () => {
       setEstablishment(est);
       setLoading(false);
 
-      // Set dynamic manifest for PWA branding
       if (est) {
         setDynamicManifest({ name: est.name, logo_url: est.logo_url, slug: est.slug });
-      }
-
-      // Show push consent modal after order loads
-      if (shouldShowPushConsent()) {
-        setTimeout(() => setPushModalOpen(true), 2000);
       }
     };
     load();
 
-    // Realtime
     const channel = supabase
       .channel(`order-${id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${id}` }, (payload) => {
@@ -143,7 +134,6 @@ const OrderTrackingPage = () => {
         <Card className="border-0 shadow-sm">
           <CardContent className="py-4">
             <div className="flex items-center justify-between relative">
-              {/* Connecting line */}
               <div className="absolute top-4 left-[16%] right-[16%] h-0.5 bg-muted" />
               <div
                 className="absolute top-4 left-[16%] h-0.5 bg-primary transition-all duration-500"
@@ -213,18 +203,6 @@ const OrderTrackingPage = () => {
           </Button>
         )}
       </div>
-
-      {/* Push Consent Modal */}
-      {order.customer_phone && establishment && (
-        <PushConsentModal
-          open={pushModalOpen}
-          onOpenChange={setPushModalOpen}
-          phone={order.customer_phone}
-          establishmentId={order.establishment_id}
-          storeName={establishment.name}
-          logoUrl={establishment.logo_url}
-        />
-      )}
     </div>
   );
 };
