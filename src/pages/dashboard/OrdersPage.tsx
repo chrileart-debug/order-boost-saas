@@ -184,16 +184,33 @@ const OrdersPage = () => {
     };
   }, [establishment?.id, playNotificationSound]);
 
+  const [pushError, setPushError] = useState<string | null>(null);
+
   const updateStatus = async (orderId: string, newStatus: string) => {
-    await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+    setPushError(null);
+    const { error: dbError } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+    if (dbError) {
+      const msg = `Erro ao atualizar status: ${dbError.message}`;
+      console.error("[Push]", msg);
+      setPushError(msg);
+      return;
+    }
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    // Trigger push notification to customer
     try {
-      await supabase.functions.invoke("send-push-notification", {
+      const { data, error } = await supabase.functions.invoke("send-push-notification", {
         body: { order_id: orderId, new_status: newStatus },
       });
-    } catch (err) {
-      console.error("[Push] Erro ao enviar notificação:", err);
+      if (error) {
+        const msg = `Falha ao enviar push: ${error.message}`;
+        console.error("[Push]", msg, error);
+        setPushError(msg);
+      } else {
+        console.log("[Push] ✅ Notificação enviada:", data);
+      }
+    } catch (err: any) {
+      const msg = `Erro de rede ao enviar push: ${err?.message || err}`;
+      console.error("[Push]", msg);
+      setPushError(msg);
     }
   };
 
