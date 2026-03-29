@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2, Package } from "lucide-react";
+import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2, Package, ArrowLeft } from "lucide-react";
 
 import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
 
