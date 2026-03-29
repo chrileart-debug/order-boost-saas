@@ -263,6 +263,7 @@ Deno.serve(async (req) => {
       body,
       icon: "/pwa-192x192.png",
       data: { url: `/pedido/${order_id}` },
+      badge: "/pwa-192x192.png",
     });
 
     // Get push subscriptions for this customer

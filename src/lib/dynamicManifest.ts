@@ -17,7 +17,7 @@ export function setDynamicManifest(establishment: {
     name: establishment.name,
     short_name: establishment.name.substring(0, 12),
     description: `Cardápio digital de ${establishment.name}`,
-    start_url: `/cardapio/${establishment.slug}`,
+    start_url: `/${establishment.slug}`,
     display: "standalone" as const,
     background_color: "#ffffff",
     theme_color: "#e11d48",

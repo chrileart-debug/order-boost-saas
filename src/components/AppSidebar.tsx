@@ -68,7 +68,7 @@ export function AppSidebar() {
               "w-full gap-2 text-primary border-primary/30 hover:bg-primary/10",
               collapsed ? "justify-center p-0 h-8 w-8 mx-auto border-0" : "justify-start"
             )}
-            onClick={() => window.open(`/cardapio/${establishment.slug}`, "_blank")}
+            onClick={() => window.open(`/${establishment.slug}`, "_blank")}
           >
             <ExternalLink className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Ver Minha Loja</span>}

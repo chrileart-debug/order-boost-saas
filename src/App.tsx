@@ -42,8 +42,8 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/cardapio/:slug" element={<MenuPage />} />
               <Route path="/pedido/:id" element={<OrderTrackingPage />} />
+              <Route path="/:slug" element={<MenuPage />} />
               <Route path="/dashboard" element={<DashboardLayout />}>
                 <Route index element={<DashboardHome />} />
                 <Route path="orders" element={<OrdersPage />} />
