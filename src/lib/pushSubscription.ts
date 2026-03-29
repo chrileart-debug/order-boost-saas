@@ -45,6 +45,8 @@ export async function subscribeToPush(opts: {
       });
     }
 
+    console.log("[Push] Token de Push gerado:", JSON.stringify(sub.toJSON()));
+
     const keys = sub.toJSON().keys || {};
 
     // Upsert to Supabase
