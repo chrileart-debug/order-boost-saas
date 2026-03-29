@@ -18,7 +18,9 @@ const MenuInstallBanner = ({ storeName, logoUrl }: Props) => {
     setDismissed(sessionStorage.getItem(DISMISSED_KEY) === "true");
   }, []);
 
-  if (!canInstall || dismissed) return null;
+  const isStandalone = typeof window !== "undefined" && (window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true);
+
+  if (!canInstall || dismissed || isStandalone) return null;
 
   const handleDismiss = () => {
     sessionStorage.setItem(DISMISSED_KEY, "true");
