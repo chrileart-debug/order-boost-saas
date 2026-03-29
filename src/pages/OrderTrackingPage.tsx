@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { MessageCircle, Clock, ChefHat, Truck, CheckCircle2, Package, ArrowLeft } from "lucide-react";
 
 import { setDynamicManifest, removeDynamicManifest } from "@/lib/dynamicManifest";
+import StandardInstallCard from "@/components/pwa/StandardInstallCard";
 
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
@@ -196,6 +197,15 @@ const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
+
+        {/* PWA Install Card */}
+        {establishment && (
+          <StandardInstallCard
+            storeName={establishment.name}
+            logoUrl={establishment.logo_url}
+            slug={establishment.slug}
+          />
+        )}
 
         {/* WhatsApp */}
         {establishment?.whatsapp && (
