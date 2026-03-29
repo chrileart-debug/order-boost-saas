@@ -322,9 +322,13 @@ Deno.serve(async (req) => {
 
     console.log(`[Push] Found ${subs?.length || 0} subscriptions for phone ${order.customer_phone}`);
 
+    // Deduplicate by endpoint to avoid sending multiple notifications to the same device
+    const uniqueSubs = [...new Map((subs || []).map((s: any) => [s.endpoint, s])).values()];
+    console.log(`[Push] Unique endpoints: ${uniqueSubs.length}`);
+
     const results: string[] = [];
 
-    for (const sub of subs || []) {
+    for (const sub of uniqueSubs) {
       try {
         const url = new URL(sub.endpoint);
         const aud = `${url.protocol}//${url.host}`;

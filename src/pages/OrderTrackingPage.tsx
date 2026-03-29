@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,23 @@ const statusConfig: Record<string, { label: string; icon: any; color: string }> 
 
 const OrderTrackingPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [establishment, setEstablishment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pushModalOpen, setPushModalOpen] = useState(false);
+
+  // Redirect standalone PWA from stale order URL to menu
+  useEffect(() => {
+    if (!establishment?.slug) return;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+    const isColdStart = !sessionStorage.getItem("pwa_navigated");
+    if (isStandalone && isColdStart) {
+      sessionStorage.setItem("pwa_navigated", "true");
+      navigate(`/${establishment.slug}`, { replace: true });
+    }
+  }, [establishment, navigate]);
 
   useEffect(() => {
     if (!id) return;

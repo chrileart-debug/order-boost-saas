@@ -22,7 +22,7 @@ export function setDynamicManifest(establishment: {
     name: establishment.name,
     short_name: establishment.name.substring(0, 12),
     description: `Cardápio digital de ${establishment.name}`,
-    start_url: getPublicStorePath(establishment.slug),
+    start_url: getPublicStorePath(establishment.slug) + "?source=pwa",
     display: "standalone" as const,
     background_color: "#ffffff",
     theme_color: "#e11d48",
