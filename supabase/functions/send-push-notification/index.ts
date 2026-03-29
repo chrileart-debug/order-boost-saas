@@ -65,8 +65,16 @@ async function hkdfDerive(
   info: Uint8Array,
   length: number
 ): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey("raw", ikm, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const prk = new Uint8Array(await crypto.subtle.sign("HMAC", key, salt.length ? salt : new Uint8Array(32)));
+  // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM) — salt is key, IKM is data
+  const saltKey = await crypto.subtle.importKey(
+    "raw",
+    salt.length ? salt : new Uint8Array(32),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const prk = new Uint8Array(await crypto.subtle.sign("HMAC", saltKey, ikm));
+  // HKDF-Expand: OKM = HMAC-SHA256(PRK, info || 0x01)
   const prkKey = await crypto.subtle.importKey("raw", prk, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const infoWithCounter = concatBuffers(info, new Uint8Array([1]));
   const okm = new Uint8Array(await crypto.subtle.sign("HMAC", prkKey, infoWithCounter));
@@ -261,8 +269,9 @@ Deno.serve(async (req) => {
     const pushPayload = JSON.stringify({
       title,
       body,
-      icon: "/pwa-192x192.png",
+      icon: est?.logo_url || "/pwa-192x192.png",
       data: { url: `/pedido/${order_id}` },
+      badge: "/pwa-192x192.png",
     });
 
     // Get push subscriptions for this customer
