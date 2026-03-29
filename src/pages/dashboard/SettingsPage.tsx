@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Store, User } from "lucide-react";
+import { Store, User, Download } from "lucide-react";
+import { usePwaInstall } from "@/hooks/use-pwa-install";
 import ImageCropper from "@/components/ImageCropper";
 import MaskedInput from "@/components/MaskedInput";
 import { maskPhone, unmask, maskCep, maskCnpj } from "@/lib/masks";
@@ -253,6 +254,7 @@ const SettingsPage = () => {
         </CardContent>
       </Card>
 
+      <InstallSection />
     </div>
   );
 };
