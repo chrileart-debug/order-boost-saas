@@ -190,10 +190,6 @@ const OrderTrackingPage = () => {
           </CardContent>
         </Card>
 
-        {/* PWA Install */}
-        {establishment && (
-          <OrderSuccessInstallCard storeName={establishment.name} logoUrl={establishment.logo_url} />
-        )}
 
         {/* WhatsApp */}
         {establishment?.whatsapp && (
