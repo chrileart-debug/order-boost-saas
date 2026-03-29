@@ -34,11 +34,15 @@ const OrderTrackingPage = () => {
 
       const [{ data: its }, { data: est }] = await Promise.all([
         supabase.from("order_items").select("*, order_item_options(*)").eq("order_id", id),
-        supabase.from("establishments").select("name, whatsapp, logo_url").eq("id", o.establishment_id).maybeSingle(),
+        supabase.from("establishments").select("name, whatsapp, logo_url, slug").eq("id", o.establishment_id).maybeSingle(),
       ]);
       setItems(its || []);
       setEstablishment(est);
       setLoading(false);
+      // Set dynamic manifest for PWA branding
+      if (est) {
+        setDynamicManifest({ name: est.name, logo_url: est.logo_url, slug: est.slug });
+      }
       // Show push consent modal after order loads
       if (shouldShowPushConsent()) {
         setTimeout(() => setPushModalOpen(true), 1500);
