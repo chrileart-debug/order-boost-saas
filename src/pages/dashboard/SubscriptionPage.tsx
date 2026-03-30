@@ -20,7 +20,7 @@ const plans = [
     price: "49,90",
     icon: Zap,
     color: "primary",
-    checkoutUrl: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=a366933173f3455abddf02656ed7228f",
+    checkoutUrl: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=470b0cdb7ab14d5baea63c2dfd6bb298",
     features: [
       "Cardápio digital completo",
       "Gestão de pedidos em tempo real",
