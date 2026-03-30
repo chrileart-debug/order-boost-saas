@@ -56,6 +56,11 @@ const ProductsPage = () => {
   const [comboItems, setComboItems] = useState<{ product_id: string; quantity: number }[]>([]);
   const [comboSearch, setComboSearch] = useState("");
 
+  /* quick-create product inside combo */
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickForm, setQuickForm] = useState({ name: "", price: "" });
+  const [savingQuick, setSavingQuick] = useState(false);
+
   /* modifier groups */
   const [allGroups, setAllGroups] = useState<OptionGroup[]>([]);
 
@@ -272,6 +277,28 @@ const ProductsPage = () => {
       if (existing.quantity <= 1) return prev.filter(ci => ci.product_id !== productId);
       return prev.map(ci => ci.product_id === productId ? { ...ci, quantity: ci.quantity - 1 } : ci);
     });
+  };
+
+  const quickCreateProduct = async () => {
+    if (!quickForm.name || !quickForm.price) return;
+    setSavingQuick(true);
+    try {
+      const categoryId = categories[0]?.id || (await ensureDefaultCategory());
+      const { data } = await supabase.from("products").insert({
+        name: quickForm.name,
+        price: parseFloat(quickForm.price),
+        category_id: categoryId,
+        order_index: products.length,
+      }).select().single();
+      if (data) {
+        setProducts(prev => [...prev, data as Product]);
+        toast({ title: "Produto criado" });
+      }
+      setQuickCreateOpen(false);
+      setQuickForm({ name: "", price: "" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally { setSavingQuick(false); }
   };
 
   const comboTotalIndividual = comboItems.reduce((sum, ci) => {
@@ -767,13 +794,23 @@ const ProductsPage = () => {
                   <h3 className="font-semibold text-foreground">Composição do Combo</h3>
                   <p className="text-xs text-muted-foreground">Selecione os produtos que fazem parte deste combo. O preço individual é usado apenas como referência.</p>
 
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
+                    </div>
+                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
+                      <Plus className="w-3 h-3 mr-1" /> Criar
+                    </Button>
                   </div>
 
                   {comboEligibleProducts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Crie produtos simples primeiro para adicioná-los ao combo.</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Nenhum produto disponível para adicionar ao combo.</p>
+                      <Button variant="outline" size="sm" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
+                        <Plus className="w-3 h-3 mr-1" /> Criar produto rápido
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-1 max-h-48 overflow-y-auto">
                       {filteredComboProducts.map(p => {
@@ -834,6 +871,27 @@ const ProductsPage = () => {
                       )}
                     </div>
                   )}
+                  {/* Quick-create product dialog */}
+                  <Dialog open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Criar produto rápido</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label>Nome *</Label>
+                          <Input value={quickForm.name} onChange={e => setQuickForm({ ...quickForm, name: e.target.value })} placeholder="Ex: Cookie de chocolate" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Preço (R$) *</Label>
+                          <Input type="number" step="0.01" min="0" value={quickForm.price} onChange={e => setQuickForm({ ...quickForm, price: e.target.value })} placeholder="0.00" />
+                        </div>
+                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full">
+                          {savingQuick ? "Criando..." : "Criar e voltar ao combo"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
 
