@@ -19,7 +19,7 @@ import ImageCropper from "@/components/ImageCropper";
 
 /* ─── types ─── */
 interface Category { id: string; name: string; order_index: number; establishment_id: string }
-interface Product { id: string; name: string; description: string | null; price: number; category_id: string; image_url: string | null; is_available: boolean; order_index: number }
+interface Product { id: string; name: string; description: string | null; price: number; category_id: string; image_url: string | null; is_available: boolean; order_index: number; is_promo: boolean; promo_price: number | null }
 interface OptionGroup { id: string; name: string; min_selection: number; max_selection: number; establishment_id: string; selection_type: string }
 interface LibraryItem { id: string; establishment_id: string; name: string; description: string; price: number; is_available: boolean }
 interface GroupItem { id: string; group_id: string; item_id: string; max_quantity: number; sort_order: number }
@@ -41,7 +41,7 @@ const ProductsPage = () => {
   /* product sheet */
   const [prodSheet, setProdSheet] = useState(false);
   const [editingProd, setEditingProd] = useState<Product | null>(null);
-  const [prodForm, setProdForm] = useState({ name: "", description: "", price: "", category_id: "" });
+  const [prodForm, setProdForm] = useState({ name: "", description: "", price: "", category_id: "", is_promo: false, promo_price: "" });
   const [prodImageBlob, setProdImageBlob] = useState<Blob | null>(null);
   const [prodImageRemoved, setProdImageRemoved] = useState(false);
   const [savingProd, setSavingProd] = useState(false);
@@ -139,13 +139,13 @@ const ProductsPage = () => {
   const openNewProduct = async () => {
     let defaultCatId = categories[0]?.id || "";
     if (!defaultCatId) { try { defaultCatId = await ensureDefaultCategory(); } catch { return; } }
-    setProdForm({ name: "", description: "", price: "", category_id: defaultCatId });
+    setProdForm({ name: "", description: "", price: "", category_id: defaultCatId, is_promo: false, promo_price: "" });
     setEditingProd(null); setProdImageBlob(null); setProdImageRemoved(false); setLinkedGroupIds([]);
     setProdSheet(true);
   };
 
   const openEditProduct = async (prod: Product) => {
-    setProdForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id });
+    setProdForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id, is_promo: prod.is_promo || false, promo_price: prod.promo_price != null ? String(prod.promo_price) : "" });
     setEditingProd(prod); setProdImageBlob(null); setProdImageRemoved(false);
     const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
     setLinkedGroupIds((mods || []).map((m: any) => m.group_id));
@@ -156,7 +156,7 @@ const ProductsPage = () => {
     if (!prodForm.name || !prodForm.price) return;
     setSavingProd(true);
     const categoryId = prodForm.category_id || (await ensureDefaultCategory());
-    const payload: any = { name: prodForm.name, description: prodForm.description || null, price: parseFloat(prodForm.price), category_id: categoryId };
+    const payload: any = { name: prodForm.name, description: prodForm.description || null, price: parseFloat(prodForm.price), category_id: categoryId, is_promo: prodForm.is_promo, promo_price: prodForm.is_promo && prodForm.promo_price ? parseFloat(prodForm.promo_price) : null };
     try {
       let productId = editingProd?.id;
       if (editingProd) {
@@ -429,6 +429,9 @@ const ProductsPage = () => {
                         {!prod.is_available && (
                           <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary" className="text-[10px]">Off</Badge></div>
                         )}
+                        {prod.is_promo && prod.is_available && (
+                          <Badge className="absolute top-1 left-1 text-[10px] bg-destructive text-destructive-foreground">OFERTA</Badge>
+                        )}
                       </div>
                       <div className="p-3 flex-1 min-w-0 flex flex-col justify-between">
                         <div className="flex items-start justify-between gap-2">
@@ -436,7 +439,16 @@ const ProductsPage = () => {
                             <h3 className="font-medium text-foreground truncate">{prod.name}</h3>
                             {prod.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{prod.description}</p>}
                           </div>
-                          <span className="text-primary font-bold text-sm whitespace-nowrap">R$ {Number(prod.price).toFixed(2)}</span>
+                          <div className="text-right shrink-0">
+                            {prod.is_promo && prod.promo_price != null ? (
+                              <>
+                                <span className="text-muted-foreground line-through text-xs block">R$ {Number(prod.price).toFixed(2)}</span>
+                                <span className="text-destructive font-bold text-sm">R$ {Number(prod.promo_price).toFixed(2)}</span>
+                              </>
+                            ) : (
+                              <span className="text-primary font-bold text-sm">R$ {Number(prod.price).toFixed(2)}</span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <div className="flex items-center gap-2">
@@ -607,6 +619,19 @@ const ProductsPage = () => {
             <div className="space-y-2">
               <Label>Preço (R$) *</Label>
               <Input type="number" step="0.01" min="0" value={prodForm.price} onChange={e => setProdForm({ ...prodForm, price: e.target.value })} placeholder="0.00" />
+            </div>
+
+            <div className="space-y-3 border border-border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <Label>Ativar Promoção</Label>
+                <Switch checked={prodForm.is_promo} onCheckedChange={v => setProdForm({ ...prodForm, is_promo: v })} />
+              </div>
+              {prodForm.is_promo && (
+                <div className="space-y-2">
+                  <Label>Preço de Oferta (R$) *</Label>
+                  <Input type="number" step="0.01" min="0" value={prodForm.promo_price} onChange={e => setProdForm({ ...prodForm, promo_price: e.target.value })} placeholder="0.00" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-3 border-t border-border pt-4">

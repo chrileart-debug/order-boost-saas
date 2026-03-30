@@ -586,9 +586,11 @@ export type Database = {
           id: string
           image_url: string | null
           is_available: boolean | null
+          is_promo: boolean
           name: string
           order_index: number | null
           price: number
+          promo_price: number | null
         }
         Insert: {
           category_id: string
@@ -597,9 +599,11 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          is_promo?: boolean
           name: string
           order_index?: number | null
           price?: number
+          promo_price?: number | null
         }
         Update: {
           category_id?: string
@@ -608,9 +612,11 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean | null
+          is_promo?: boolean
           name?: string
           order_index?: number | null
           price?: number
+          promo_price?: number | null
         }
         Relationships: [
           {
