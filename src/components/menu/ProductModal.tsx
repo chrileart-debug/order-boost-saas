@@ -35,6 +35,8 @@ interface GroupItemData {
   item_price: number;
 }
 
+interface ComboDetail { quantity: number; name: string }
+
 const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [groupItems, setGroupItems] = useState<GroupItemData[]>([]);
@@ -45,9 +47,22 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
+  const [comboDetails, setComboDetails] = useState<ComboDetail[]>([]);
 
   useEffect(() => {
     const load = async () => {
+      // Fetch combo items
+      const { data: comboData } = await supabase
+        .from("combo_items")
+        .select("quantity, child_product_id")
+        .eq("parent_product_id", product.id);
+      if (comboData && comboData.length > 0) {
+        const childIds = comboData.map((c: any) => c.child_product_id);
+        const { data: childProds } = await supabase.from("products").select("id, name").in("id", childIds);
+        const nameMap = new Map((childProds || []).map((p: any) => [p.id, p.name]));
+        setComboDetails(comboData.map((c: any) => ({ quantity: c.quantity, name: nameMap.get(c.child_product_id) || "?" })));
+      }
+
       // Fetch groups via product_modifiers junction table
       const { data: modifiers } = await supabase
         .from("product_modifiers")
@@ -174,9 +189,15 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const handleAdd = () => {
+    // Build product name with combo details for order snapshot
+    let productName = product.name;
+    if (comboDetails.length > 0) {
+      const comboDesc = comboDetails.map(c => `${c.quantity}x ${c.name}`).join(", ");
+      productName = `${product.name} (Itens: ${comboDesc})`;
+    }
     addToCart(slug, {
       productId: product.id,
-      productName: product.name,
+      productName,
       productImage: product.image_url,
       basePrice: effectiveBasePrice,
       quantity,
@@ -210,6 +231,16 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
                 <p className="text-lg font-semibold text-primary mt-2">{formatPrice(product.price)}</p>
               )}
             </DialogHeader>
+
+            {/* Combo composition display */}
+            {comboDetails.length > 0 && (
+              <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens do combo</p>
+                {comboDetails.map((c, i) => (
+                  <p key={i} className="text-sm text-foreground">{c.quantity}x {c.name}</p>
+                ))}
+              </div>
+            )}
 
             {loading ? (
               <div className="space-y-5 py-2">

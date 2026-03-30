@@ -46,6 +46,45 @@ export type Database = {
           },
         ]
       }
+      combo_items: {
+        Row: {
+          child_product_id: string
+          created_at: string
+          id: string
+          parent_product_id: string
+          quantity: number
+        }
+        Insert: {
+          child_product_id: string
+          created_at?: string
+          id?: string
+          parent_product_id: string
+          quantity?: number
+        }
+        Update: {
+          child_product_id?: string
+          created_at?: string
+          id?: string
+          parent_product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "combo_items_child_product_id_fkey"
+            columns: ["child_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "combo_items_parent_product_id_fkey"
+            columns: ["parent_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupon_usage_history: {
         Row: {
           coupon_id: string
