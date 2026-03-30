@@ -23,6 +23,7 @@ const menuItems = [
   { title: "Produtos", url: "/dashboard/products", icon: Package },
   { title: "Logística", url: "/dashboard/logistics", icon: Truck },
   { title: "Cupons", url: "/dashboard/coupons", icon: Ticket },
+  { title: "Assinatura", url: "/dashboard/subscription", icon: CreditCard },
   { title: "Configurações", url: "/dashboard/settings", icon: Settings },
 ];
 
