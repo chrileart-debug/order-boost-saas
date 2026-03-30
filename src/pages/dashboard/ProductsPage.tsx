@@ -927,9 +927,16 @@ const ProductsPage = () => {
                       {comboItems.map(ci => {
                         const p = products.find(pr => pr.id === ci.product_id);
                         return (
-                          <div key={ci.product_id} className="flex justify-between text-sm">
-                            <span className="text-foreground">{ci.quantity}x {p?.name || "?"}</span>
-                            <span className="text-muted-foreground">R$ {((p?.price || 0) * ci.quantity).toFixed(2)}</span>
+                          <div key={ci.product_id} className="flex items-center justify-between text-sm">
+                            <span className="text-foreground flex-1 min-w-0">{ci.quantity}x {p?.name || "?"}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-muted-foreground">R$ {((p?.price || 0) * ci.quantity).toFixed(2)}</span>
+                              {p && (
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openQuickEdit(p)}>
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
