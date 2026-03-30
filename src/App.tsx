@@ -16,6 +16,7 @@ import ProductsPage from "./pages/dashboard/ProductsPage";
 import LogisticsPage from "./pages/dashboard/LogisticsPage";
 import CouponsPage from "./pages/dashboard/CouponsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
+import SubscriptionPage from "./pages/dashboard/SubscriptionPage";
 import MenuPage from "./pages/MenuPage";
 import OrderTrackingPage from "./pages/OrderTrackingPage";
 import NotFound from "./pages/NotFound";
