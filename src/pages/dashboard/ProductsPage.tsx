@@ -56,10 +56,12 @@ const ProductsPage = () => {
   const [comboItems, setComboItems] = useState<{ product_id: string; quantity: number }[]>([]);
   const [comboSearch, setComboSearch] = useState("");
 
-  /* quick-create product inside combo */
+  /* quick-create/edit product inside combo */
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickEditingProd, setQuickEditingProd] = useState<Product | null>(null);
   const [quickForm, setQuickForm] = useState({ name: "", description: "", price: "", category_id: "", is_promo: false, promo_price: "" });
   const [quickImageBlob, setQuickImageBlob] = useState<Blob | null>(null);
+  const [quickImageRemoved, setQuickImageRemoved] = useState(false);
   const [quickLinkedGroupIds, setQuickLinkedGroupIds] = useState<string[]>([]);
   const [savingQuick, setSavingQuick] = useState(false);
 
@@ -285,7 +287,19 @@ const ProductsPage = () => {
     const defaultCat = categories[0]?.id || "";
     setQuickForm({ name: "", description: "", price: "", category_id: defaultCat, is_promo: false, promo_price: "" });
     setQuickImageBlob(null);
+    setQuickImageRemoved(false);
+    setQuickEditingProd(null);
     setQuickLinkedGroupIds([]);
+    setQuickCreateOpen(true);
+  };
+
+  const openQuickEdit = async (prod: Product) => {
+    setQuickForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id, is_promo: prod.is_promo || false, promo_price: prod.promo_price != null ? String(prod.promo_price) : "" });
+    setQuickImageBlob(null);
+    setQuickImageRemoved(false);
+    setQuickEditingProd(prod);
+    const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
+    setQuickLinkedGroupIds((mods || []).map((m: any) => m.group_id));
     setQuickCreateOpen(true);
   };
 
@@ -295,7 +309,7 @@ const ProductsPage = () => {
     setQuickLinkedGroupIds(prev => prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]);
   };
 
-  const quickCreateProduct = async () => {
+  const quickSaveProduct = async () => {
     if (!quickForm.name || !quickForm.price || quickPromoInvalid) return;
     setSavingQuick(true);
     try {
@@ -305,26 +319,58 @@ const ProductsPage = () => {
         description: quickForm.description || null,
         price: parseFloat(quickForm.price),
         category_id: categoryId,
-        order_index: products.length,
         is_promo: quickForm.is_promo,
         promo_price: quickForm.is_promo && quickForm.promo_price ? parseFloat(quickForm.promo_price) : null,
       };
-      const { data } = await supabase.from("products").insert(payload).select().single();
-      if (data) {
+
+      let productId: string;
+
+      if (quickEditingProd) {
+        // UPDATE existing product
+        await supabase.from("products").update(payload).eq("id", quickEditingProd.id);
+        productId = quickEditingProd.id;
+
         if (quickImageBlob) {
-          const path = `products/${data.id}.webp`;
+          const path = `products/${productId}.webp`;
           await supabase.storage.from("establishments").upload(path, quickImageBlob, { upsert: true, contentType: "image/webp" });
           const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
-          await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", data.id);
-          (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+          const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+          await supabase.from("products").update({ image_url: newUrl }).eq("id", productId);
+          payload.image_url = newUrl;
+        } else if (quickImageRemoved) {
+          const path = `products/${productId}.webp`;
+          await supabase.storage.from("establishments").remove([path]);
+          await supabase.from("products").update({ image_url: null }).eq("id", productId);
+          payload.image_url = null;
         }
+
+        // Update modifiers
+        await supabase.from("product_modifiers").delete().eq("product_id", productId);
         if (quickLinkedGroupIds.length > 0) {
-          await supabase.from("product_modifiers").insert(
-            quickLinkedGroupIds.map(gid => ({ product_id: data.id, group_id: gid }))
-          );
+          await supabase.from("product_modifiers").insert(quickLinkedGroupIds.map(gid => ({ product_id: productId, group_id: gid })));
         }
-        setProducts(prev => [...prev, data as Product]);
-        toast({ title: "Produto criado e disponível no combo" });
+
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...payload, image_url: payload.image_url ?? p.image_url } : p));
+        toast({ title: "Produto atualizado" });
+      } else {
+        // CREATE new product
+        payload.order_index = products.length;
+        const { data } = await supabase.from("products").insert(payload).select().single();
+        if (data) {
+          productId = data.id;
+          if (quickImageBlob) {
+            const path = `products/${productId}.webp`;
+            await supabase.storage.from("establishments").upload(path, quickImageBlob, { upsert: true, contentType: "image/webp" });
+            const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
+            await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", productId);
+            (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+          }
+          if (quickLinkedGroupIds.length > 0) {
+            await supabase.from("product_modifiers").insert(quickLinkedGroupIds.map(gid => ({ product_id: productId, group_id: gid })));
+          }
+          setProducts(prev => [...prev, data as Product]);
+          toast({ title: "Produto criado e disponível no combo" });
+        }
       }
       setQuickCreateOpen(false);
     } catch (err: any) {
@@ -881,9 +927,16 @@ const ProductsPage = () => {
                       {comboItems.map(ci => {
                         const p = products.find(pr => pr.id === ci.product_id);
                         return (
-                          <div key={ci.product_id} className="flex justify-between text-sm">
-                            <span className="text-foreground">{ci.quantity}x {p?.name || "?"}</span>
-                            <span className="text-muted-foreground">R$ {((p?.price || 0) * ci.quantity).toFixed(2)}</span>
+                          <div key={ci.product_id} className="flex items-center justify-between text-sm">
+                            <span className="text-foreground flex-1 min-w-0">{ci.quantity}x {p?.name || "?"}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-muted-foreground">R$ {((p?.price || 0) * ci.quantity).toFixed(2)}</span>
+                              {p && (
+                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => openQuickEdit(p)}>
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -906,10 +959,10 @@ const ProductsPage = () => {
                   <Sheet open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
                     <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]" overlayClassName="z-[55]">
                       <SheetHeader>
-                        <SheetTitle>Novo Produto (para o Combo)</SheetTitle>
+                        <SheetTitle>{quickEditingProd ? "Editar Produto" : "Novo Produto (para o Combo)"}</SheetTitle>
                       </SheetHeader>
                       <div className="space-y-5 mt-6">
-                        <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => setQuickImageBlob(null)} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
+                        <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => { setQuickImageRemoved(true); setQuickImageBlob(null); }} currentUrl={quickEditingProd?.image_url || undefined} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
                         <div className="space-y-2">
                           <Label>Categoria</Label>
                           <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={quickForm.category_id} onChange={e => setQuickForm({ ...quickForm, category_id: e.target.value })}>
@@ -975,8 +1028,8 @@ const ProductsPage = () => {
                           </div>
                         )}
 
-                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick || quickPromoInvalid} className="w-full h-11 text-base font-semibold">
-                          {savingQuick ? "Criando..." : "Criar Produto"}
+                        <Button onClick={quickSaveProduct} disabled={!quickForm.name || !quickForm.price || savingQuick || quickPromoInvalid} className="w-full h-11 text-base font-semibold">
+                          {savingQuick ? (quickEditingProd ? "Salvando..." : "Criando...") : (quickEditingProd ? "Salvar Alterações" : "Criar Produto")}
                         </Button>
                       </div>
                     </SheetContent>
