@@ -502,6 +502,9 @@ const ProductsPage = () => {
                         {prod.is_promo && prod.is_available && (
                           <Badge className="absolute top-1 left-1 text-[10px] bg-destructive text-destructive-foreground">OFERTA</Badge>
                         )}
+                        {comboProductIds.has(prod.id) && prod.is_available && (
+                          <Badge className={`absolute ${prod.is_promo ? 'bottom-1' : 'top-1'} left-1 text-[10px] bg-primary text-primary-foreground`}>COMBO</Badge>
+                        )}
                       </div>
                       <div className="p-3 flex-1 min-w-0 flex flex-col justify-between">
                         <div className="flex items-start justify-between gap-2">
