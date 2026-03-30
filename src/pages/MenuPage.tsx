@@ -20,6 +20,7 @@ const MenuPage = () => {
   const [establishment, setEstablishment] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [comboProductIds, setComboProductIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
