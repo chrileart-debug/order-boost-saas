@@ -20,6 +20,7 @@ const MenuPage = () => {
   const [establishment, setEstablishment] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [comboProductIds, setComboProductIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -90,7 +91,20 @@ const MenuPage = () => {
         .eq("is_available", true)
         .order("order_index");
 
-      setProducts(prods || []);
+      const prodsList = prods || [];
+      setProducts(prodsList);
+
+      // Fetch combo product IDs
+      if (prodsList.length > 0) {
+        const { data: combos } = await supabase
+          .from("combo_items")
+          .select("parent_product_id")
+          .in("parent_product_id", prodsList.map((p: any) => p.id));
+        if (combos && combos.length > 0) {
+          setComboProductIds(new Set(combos.map((c: any) => c.parent_product_id)));
+        }
+      }
+
       setLoading(false);
     };
     load();
@@ -241,7 +255,12 @@ const MenuPage = () => {
                     className="w-full flex items-center gap-4 p-3 rounded-lg bg-card border border-border hover:shadow-md transition-shadow text-left"
                   >
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-foreground truncate">{product.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-medium text-foreground truncate">{product.name}</h3>
+                        {comboProductIds.has(product.id) && !product.image_url && (
+                          <Badge className="text-[9px] px-1.5 py-0 bg-primary text-primary-foreground shrink-0">COMBO</Badge>
+                        )}
+                      </div>
                       {product.description && (
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
                           {product.description}
@@ -267,6 +286,9 @@ const MenuPage = () => {
                         />
                         {product.is_promo && (
                           <Badge className="absolute top-0.5 left-0.5 text-[9px] px-1.5 py-0 bg-destructive text-destructive-foreground">OFERTA</Badge>
+                        )}
+                        {comboProductIds.has(product.id) && (
+                          <Badge className={`absolute ${product.is_promo ? 'bottom-0.5' : 'top-0.5'} left-0.5 text-[9px] px-1.5 py-0 bg-primary text-primary-foreground`}>COMBO</Badge>
                         )}
                       </div>
                     )}
