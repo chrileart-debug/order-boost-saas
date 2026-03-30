@@ -904,7 +904,7 @@ const ProductsPage = () => {
                   )}
                   {/* Quick-create product Sheet (same layout as main product form) */}
                   <Sheet open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
-                    <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]">
+                    <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]" overlayClassName="z-[55]">
                       <SheetHeader>
                         <SheetTitle>Novo Produto (para o Combo)</SheetTitle>
                       </SheetHeader>
@@ -928,7 +928,54 @@ const ProductsPage = () => {
                           <Label>Preço (R$) *</Label>
                           <Input type="number" step="0.01" min="0" value={quickForm.price} onChange={e => setQuickForm({ ...quickForm, price: e.target.value })} placeholder="0.00" />
                         </div>
-                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full h-11 text-base font-semibold">
+
+                        {/* Promoção */}
+                        <div className="space-y-3 border-t border-border pt-4">
+                          <div className="flex items-center justify-between">
+                            <Label>Ativar Promoção</Label>
+                            <Switch checked={quickForm.is_promo} onCheckedChange={v => setQuickForm({ ...quickForm, is_promo: v, promo_price: v ? quickForm.promo_price : "" })} />
+                          </div>
+                          {quickForm.is_promo && (
+                            <div className="space-y-2">
+                              <Label>Preço de Oferta (R$) *</Label>
+                              <Input type="number" step="0.01" min="0" value={quickForm.promo_price} onChange={e => setQuickForm({ ...quickForm, promo_price: e.target.value })} placeholder="0.00" />
+                              {quickPromoInvalid && (
+                                <p className="text-xs text-destructive">O preço de oferta deve ser menor que o preço original.</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Complementos vinculados */}
+                        {allGroups.length > 0 && (
+                          <div className="space-y-3 border-t border-border pt-4">
+                            <h3 className="font-semibold text-foreground text-sm">Complementos vinculados</h3>
+                            <div className="space-y-2">
+                              {allGroups.map(g => {
+                                const gLinks = groupItemLinks.filter(gi => gi.group_id === g.id);
+                                const itemNames = gLinks.map(gi => libraryItems.find(i => i.id === gi.item_id)?.name).filter(Boolean);
+                                const linked = quickLinkedGroupIds.includes(g.id);
+                                return (
+                                  <div key={g.id} className={`border rounded-lg p-3 transition-colors cursor-pointer ${linked ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => toggleQuickGroupLink(g.id)}>
+                                    <div className="flex items-center gap-3">
+                                      <Checkbox checked={linked} onCheckedChange={() => toggleQuickGroupLink(g.id)} />
+                                      <div className="flex-1 min-w-0">
+                                        <span className="font-medium text-foreground text-sm">{g.name}</span>
+                                        <p className="text-xs text-muted-foreground">
+                                          {g.selection_type === "quantity" ? "Contador" : "Seleção"} · Mín: {g.min_selection} · Máx: {g.max_selection}
+                                          {g.min_selection > 0 && <Badge variant="destructive" className="ml-2 text-[10px]">Obrig.</Badge>}
+                                        </p>
+                                        {itemNames.length > 0 && <p className="text-xs text-muted-foreground mt-0.5">{itemNames.join(", ")}</p>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick || quickPromoInvalid} className="w-full h-11 text-base font-semibold">
                           {savingQuick ? "Criando..." : "Criar Produto"}
                         </Button>
                       </div>
