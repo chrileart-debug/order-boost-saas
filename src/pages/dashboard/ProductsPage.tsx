@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search, Boxes, Minus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImageCropper from "@/components/ImageCropper";
@@ -23,6 +23,7 @@ interface Product { id: string; name: string; description: string | null; price:
 interface OptionGroup { id: string; name: string; min_selection: number; max_selection: number; establishment_id: string; selection_type: string }
 interface LibraryItem { id: string; establishment_id: string; name: string; description: string; price: number; is_available: boolean }
 interface GroupItem { id: string; group_id: string; item_id: string; max_quantity: number; sort_order: number }
+interface ComboItem { id: string; parent_product_id: string; child_product_id: string; quantity: number }
 
 const ProductsPage = () => {
   const { establishment, loading: estLoading } = useEstablishment();
@@ -45,6 +46,14 @@ const ProductsPage = () => {
   const [prodImageBlob, setProdImageBlob] = useState<Blob | null>(null);
   const [prodImageRemoved, setProdImageRemoved] = useState(false);
   const [savingProd, setSavingProd] = useState(false);
+
+  /* Step 0: product type selection */
+  const [prodTypeStep, setProdTypeStep] = useState<"select" | "form" | null>(null);
+  const [prodType, setProdType] = useState<"simple" | "combo">("simple");
+
+  /* combo items */
+  const [comboItems, setComboItems] = useState<{ product_id: string; quantity: number }[]>([]);
+  const [comboSearch, setComboSearch] = useState("");
 
   /* modifier groups */
   const [allGroups, setAllGroups] = useState<OptionGroup[]>([]);
@@ -141,6 +150,9 @@ const ProductsPage = () => {
     if (!defaultCatId) { try { defaultCatId = await ensureDefaultCategory(); } catch { return; } }
     setProdForm({ name: "", description: "", price: "", category_id: defaultCatId, is_promo: false, promo_price: "" });
     setEditingProd(null); setProdImageBlob(null); setProdImageRemoved(false); setLinkedGroupIds([]);
+    setComboItems([]); setComboSearch("");
+    setProdType("simple");
+    setProdTypeStep("select");
     setProdSheet(true);
   };
 
@@ -149,6 +161,19 @@ const ProductsPage = () => {
     setEditingProd(prod); setProdImageBlob(null); setProdImageRemoved(false);
     const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
     setLinkedGroupIds((mods || []).map((m: any) => m.group_id));
+
+    // Check if it's a combo
+    const { data: ci } = await supabase.from("combo_items").select("*").eq("parent_product_id", prod.id);
+    const comboItemsList = (ci || []) as ComboItem[];
+    if (comboItemsList.length > 0) {
+      setProdType("combo");
+      setComboItems(comboItemsList.map(c => ({ product_id: c.child_product_id, quantity: c.quantity })));
+    } else {
+      setProdType("simple");
+      setComboItems([]);
+    }
+    setComboSearch("");
+    setProdTypeStep("form");
     setProdSheet(true);
   };
 
@@ -177,9 +202,19 @@ const ProductsPage = () => {
         await supabase.from("products").update({ image_url: null }).eq("id", productId);
       }
       if (productId) {
+        // Save modifiers
         await supabase.from("product_modifiers").delete().eq("product_id", productId);
         if (linkedGroupIds.length > 0) {
           await supabase.from("product_modifiers").insert(linkedGroupIds.map(gid => ({ product_id: productId!, group_id: gid })));
+        }
+        // Save combo items
+        await supabase.from("combo_items").delete().eq("parent_product_id", productId);
+        if (prodType === "combo" && comboItems.length > 0) {
+          await supabase.from("combo_items").insert(comboItems.map(ci => ({
+            parent_product_id: productId!,
+            child_product_id: ci.product_id,
+            quantity: ci.quantity,
+          })));
         }
       }
       toast({ title: editingProd ? "Produto atualizado" : "Produto criado" });
@@ -191,9 +226,9 @@ const ProductsPage = () => {
   };
 
   const deleteProduct = async (id: string) => {
-    // Remove image from storage bucket
     const path = `products/${id}.webp`;
     await supabase.storage.from("establishments").remove([path]);
+    await supabase.from("combo_items").delete().eq("parent_product_id", id);
     await supabase.from("product_modifiers").delete().eq("product_id", id);
     await supabase.from("products").delete().eq("id", id);
     fetchData(true);
@@ -205,6 +240,29 @@ const ProductsPage = () => {
     await supabase.from("products").update({ is_available: newVal }).eq("id", prod.id);
     setProducts(prev => prev.map(p => p.id === prod.id ? { ...p, is_available: newVal } : p));
   };
+
+  /* ─── combo helpers ─── */
+  const addComboItem = (productId: string) => {
+    setComboItems(prev => {
+      const existing = prev.find(ci => ci.product_id === productId);
+      if (existing) return prev.map(ci => ci.product_id === productId ? { ...ci, quantity: ci.quantity + 1 } : ci);
+      return [...prev, { product_id: productId, quantity: 1 }];
+    });
+  };
+
+  const removeComboItem = (productId: string) => {
+    setComboItems(prev => {
+      const existing = prev.find(ci => ci.product_id === productId);
+      if (!existing) return prev;
+      if (existing.quantity <= 1) return prev.filter(ci => ci.product_id !== productId);
+      return prev.map(ci => ci.product_id === productId ? { ...ci, quantity: ci.quantity - 1 } : ci);
+    });
+  };
+
+  const comboTotalIndividual = comboItems.reduce((sum, ci) => {
+    const p = products.find(pr => pr.id === ci.product_id);
+    return sum + (p ? p.price * ci.quantity : 0);
+  }, 0);
 
   /* ═══════════════════════════════════════════════ */
   /*           ITEM LIBRARY CRUD                     */
@@ -249,7 +307,6 @@ const ProductsPage = () => {
   };
 
   const deleteItem = async (id: string) => {
-    // Remove from all groups first
     await supabase.from("group_items").delete().eq("item_id", id);
     await supabase.from("item_library").delete().eq("id", id);
     fetchData(true);
@@ -277,7 +334,6 @@ const ProductsPage = () => {
   const openEditGroup = (group: OptionGroup) => {
     setEditingGroup(group);
     setGroupForm({ name: group.name, min: String(group.min_selection), max: String(group.max_selection), selectionType: group.selection_type || "selection" });
-    // Load max quantities for items in this group
     const mqMap: Record<string, string> = {};
     groupItemLinks.filter(gi => gi.group_id === group.id).forEach(gi => { mqMap[gi.item_id] = String(gi.max_quantity); });
     setGroupItemMaxQty(mqMap);
@@ -308,7 +364,6 @@ const ProductsPage = () => {
     }
 
     if (groupId) {
-      // Sync group_items: delete old, insert new
       await supabase.from("group_items").delete().eq("group_id", groupId);
       const itemIds = Object.keys(groupItemMaxQty);
       if (itemIds.length > 0) {
@@ -364,8 +419,11 @@ const ProductsPage = () => {
 
   if (!establishment) return <div className="text-center py-12 text-muted-foreground">Configure seu estabelecimento primeiro.</div>;
 
-
   const filteredLibItems = libraryItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()));
+
+  // Products available for combo selection (exclude current editing product)
+  const comboEligibleProducts = products.filter(p => p.id !== editingProd?.id);
+  const filteredComboProducts = comboEligibleProducts.filter(p => !comboSearch || p.name.toLowerCase().includes(comboSearch.toLowerCase()));
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -599,82 +657,208 @@ const ProductsPage = () => {
       {/* ─── product sheet ─── */}
       <Sheet open={prodSheet} onOpenChange={setProdSheet}>
         <SheetContent className="overflow-y-auto sm:max-w-lg w-full">
-          <SheetHeader><SheetTitle>{editingProd ? "Editar" : "Novo"} Produto</SheetTitle></SheetHeader>
-          <div className="space-y-5 mt-6">
-            <ImageCropper aspectRatio={1} onCropped={setProdImageBlob} onRemove={() => { setProdImageRemoved(true); setProdImageBlob(null); }} currentUrl={editingProd?.image_url || undefined} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={prodForm.category_id} onChange={e => setProdForm({ ...prodForm, category_id: e.target.value })}>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Nome *</Label>
-              <Input value={prodForm.name} onChange={e => setProdForm({ ...prodForm, name: e.target.value })} placeholder="Ex: Cookie de chocolate" />
-            </div>
-            <div className="space-y-2">
-              <Label>Descrição</Label>
-              <Input value={prodForm.description} onChange={e => setProdForm({ ...prodForm, description: e.target.value })} placeholder="Descrição do produto" />
-            </div>
-            <div className="space-y-2">
-              <Label>Preço (R$) *</Label>
-              <Input type="number" step="0.01" min="0" value={prodForm.price} onChange={e => setProdForm({ ...prodForm, price: e.target.value })} placeholder="0.00" />
-            </div>
+          <SheetHeader>
+            <SheetTitle>
+              {prodTypeStep === "select" ? "Novo Produto" : editingProd ? "Editar Produto" : prodType === "combo" ? "Novo Combo" : "Novo Produto"}
+            </SheetTitle>
+          </SheetHeader>
 
-            <div className="space-y-3 border border-border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <Label>Ativar Promoção</Label>
-                <Switch checked={prodForm.is_promo} onCheckedChange={v => setProdForm({ ...prodForm, is_promo: v })} />
+          {/* ── STEP 0: Type Selection ── */}
+          {prodTypeStep === "select" && (
+            <div className="space-y-4 mt-6">
+              <p className="text-sm text-muted-foreground">Que tipo de produto deseja criar?</p>
+              <div
+                className="border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                onClick={() => { setProdType("simple"); setProdTypeStep("form"); }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Package className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Produto Simples</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Para a venda de itens individuais, lanches ou bebidas avulsas.</p>
+                  </div>
+                </div>
               </div>
-              {prodForm.is_promo && (
-                <div className="space-y-2">
-                  <Label>Preço de Oferta (R$) *</Label>
-                  <Input type="number" step="0.01" min="0" value={prodForm.promo_price} onChange={e => setProdForm({ ...prodForm, promo_price: e.target.value })} placeholder="0.00" />
+              <div
+                className="border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                onClick={() => { setProdType("combo"); setProdTypeStep("form"); }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
+                    <Boxes className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5">Agrupe produtos existentes para criar uma oferta conjunta com preço exclusivo.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 1: Product Form ── */}
+          {prodTypeStep === "form" && (
+            <div className="space-y-5 mt-6">
+              {!editingProd && (
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setProdTypeStep("select")}>
+                  ← Voltar
+                </Button>
+              )}
+
+              <ImageCropper aspectRatio={1} onCropped={setProdImageBlob} onRemove={() => { setProdImageRemoved(true); setProdImageBlob(null); }} currentUrl={editingProd?.image_url || undefined} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+                <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={prodForm.category_id} onChange={e => setProdForm({ ...prodForm, category_id: e.target.value })}>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input value={prodForm.name} onChange={e => setProdForm({ ...prodForm, name: e.target.value })} placeholder={prodType === "combo" ? "Ex: Combo Casal" : "Ex: Cookie de chocolate"} />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input value={prodForm.description} onChange={e => setProdForm({ ...prodForm, description: e.target.value })} placeholder="Descrição do produto" />
+              </div>
+              <div className="space-y-2">
+                <Label>{prodType === "combo" ? "Preço do Combo (R$) *" : "Preço (R$) *"}</Label>
+                <Input type="number" step="0.01" min="0" value={prodForm.price} onChange={e => setProdForm({ ...prodForm, price: e.target.value })} placeholder="0.00" />
+              </div>
+
+              <div className="space-y-3 border border-border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <Label>Ativar Promoção</Label>
+                  <Switch checked={prodForm.is_promo} onCheckedChange={v => setProdForm({ ...prodForm, is_promo: v })} />
+                </div>
+                {prodForm.is_promo && (
+                  <div className="space-y-2">
+                    <Label>Preço de Oferta (R$) *</Label>
+                    <Input type="number" step="0.01" min="0" value={prodForm.promo_price} onChange={e => setProdForm({ ...prodForm, promo_price: e.target.value })} placeholder="0.00" />
+                  </div>
+                )}
+              </div>
+
+              {/* ── Combo Composition ── */}
+              {prodType === "combo" && (
+                <div className="space-y-3 border-t border-border pt-4">
+                  <h3 className="font-semibold text-foreground">Composição do Combo</h3>
+                  <p className="text-xs text-muted-foreground">Selecione os produtos que fazem parte deste combo. O preço individual é usado apenas como referência.</p>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
+                  </div>
+
+                  {comboEligibleProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Crie produtos simples primeiro para adicioná-los ao combo.</p>
+                  ) : (
+                    <div className="space-y-1 max-h-48 overflow-y-auto">
+                      {filteredComboProducts.map(p => {
+                        const inCombo = comboItems.find(ci => ci.product_id === p.id);
+                        return (
+                          <div key={p.id} className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${inCombo ? 'bg-primary/5' : 'hover:bg-muted/50'}`}>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm text-foreground">{p.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">R$ {Number(p.price).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {inCombo ? (
+                                <>
+                                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => removeComboItem(p.id)}>
+                                    <Minus className="w-3 h-3" />
+                                  </Button>
+                                  <span className="text-sm font-medium w-6 text-center">{inCombo.quantity}</span>
+                                  <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => addComboItem(p.id)}>
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => addComboItem(p.id)}>
+                                  <Plus className="w-3 h-3 mr-1" /> Adicionar
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {comboItems.length > 0 && (
+                    <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens selecionados</p>
+                      {comboItems.map(ci => {
+                        const p = products.find(pr => pr.id === ci.product_id);
+                        return (
+                          <div key={ci.product_id} className="flex justify-between text-sm">
+                            <span className="text-foreground">{ci.quantity}x {p?.name || "?"}</span>
+                            <span className="text-muted-foreground">R$ {((p?.price || 0) * ci.quantity).toFixed(2)}</span>
+                          </div>
+                        );
+                      })}
+                      <Separator className="my-2" />
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span className="text-foreground">Custo total individual</span>
+                        <span className="text-foreground">R$ {comboTotalIndividual.toFixed(2)}</span>
+                      </div>
+                      {prodForm.price && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Economia do combo</span>
+                          <span className="text-success font-medium">
+                            R$ {(comboTotalIndividual - parseFloat(prodForm.price || "0")).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
 
-            <div className="space-y-3 border-t border-border pt-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">Complementos vinculados</h3>
-                <Button variant="outline" size="sm" onClick={openNewGroup}><Plus className="w-3 h-3 mr-1" /> Criar novo</Button>
-              </div>
-              {allGroups.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum grupo criado ainda.</p>
-              ) : (
-                <div className="space-y-2">
-                  {allGroups.map(g => {
-                    const gLinks = groupItemLinks.filter(gi => gi.group_id === g.id);
-                    const itemNames = gLinks.map(gi => libraryItems.find(i => i.id === gi.item_id)?.name).filter(Boolean);
-                    const linked = linkedGroupIds.includes(g.id);
-                    return (
-                      <div key={g.id} className={`border rounded-lg p-3 transition-colors cursor-pointer ${linked ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => toggleGroupLink(g.id)}>
-                        <div className="flex items-center gap-3">
-                          <Checkbox checked={linked} onCheckedChange={() => toggleGroupLink(g.id)} />
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium text-foreground text-sm">{g.name}</span>
-                            <p className="text-xs text-muted-foreground">
-                              {g.selection_type === "quantity" ? "Contador" : "Seleção"} · Mín: {g.min_selection} · Máx: {g.max_selection}
-                              {g.min_selection > 0 && <Badge variant="destructive" className="ml-2 text-[10px]">Obrig.</Badge>}
-                            </p>
-                            {itemNames.length > 0 && <p className="text-xs text-muted-foreground mt-0.5">{itemNames.join(", ")}</p>}
+              {/* ── Modifiers ── */}
+              <div className="space-y-3 border-t border-border pt-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-foreground">Complementos vinculados</h3>
+                  <Button variant="outline" size="sm" onClick={openNewGroup}><Plus className="w-3 h-3 mr-1" /> Criar novo</Button>
+                </div>
+                {allGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum grupo criado ainda.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {allGroups.map(g => {
+                      const gLinks = groupItemLinks.filter(gi => gi.group_id === g.id);
+                      const itemNames = gLinks.map(gi => libraryItems.find(i => i.id === gi.item_id)?.name).filter(Boolean);
+                      const linked = linkedGroupIds.includes(g.id);
+                      return (
+                        <div key={g.id} className={`border rounded-lg p-3 transition-colors cursor-pointer ${linked ? 'border-primary bg-primary/5' : 'border-border'}`} onClick={() => toggleGroupLink(g.id)}>
+                          <div className="flex items-center gap-3">
+                            <Checkbox checked={linked} onCheckedChange={() => toggleGroupLink(g.id)} />
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-foreground text-sm">{g.name}</span>
+                              <p className="text-xs text-muted-foreground">
+                                {g.selection_type === "quantity" ? "Contador" : "Seleção"} · Mín: {g.min_selection} · Máx: {g.max_selection}
+                                {g.min_selection > 0 && <Badge variant="destructive" className="ml-2 text-[10px]">Obrig.</Badge>}
+                              </p>
+                              {itemNames.length > 0 && <p className="text-xs text-muted-foreground mt-0.5">{itemNames.join(", ")}</p>}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
-            <Button onClick={saveProduct} className="w-full" size="lg" disabled={savingProd || !prodForm.name || !prodForm.price}>
-              {savingProd ? "Salvando..." : "Salvar Produto"}
-            </Button>
-          </div>
+              <Button onClick={saveProduct} className="w-full" size="lg" disabled={savingProd || !prodForm.name || !prodForm.price}>
+                {savingProd ? "Salvando..." : "Salvar Produto"}
+              </Button>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 
-      {/* ─── item library sheet (same style as group sheet) ─── */}
+      {/* ─── item library sheet ─── */}
       <Sheet open={itemSheet} onOpenChange={(open) => {
         setItemSheet(open);
         if (!open && creatingFromGroup) {
