@@ -188,9 +188,9 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 overflow-hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
         {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {product.image_url && (
             <img src={product.image_url} alt={product.name} className="w-full h-48 object-cover rounded-t-lg" />
           )}
@@ -347,7 +347,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
         </div>
 
         {/* Sticky footer */}
-        <div className="sticky bottom-0 border-t border-border bg-background px-6 py-4">
+        <div className="shrink-0 border-t border-border bg-background px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3">
               <button
