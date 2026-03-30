@@ -282,6 +282,9 @@ const MenuPage = () => {
                         {product.is_promo && (
                           <Badge className="absolute top-0.5 left-0.5 text-[9px] px-1.5 py-0 bg-destructive text-destructive-foreground">OFERTA</Badge>
                         )}
+                        {!product.is_promo && comboProductIds.has(product.id) && (
+                          <Badge className="absolute top-0.5 left-0.5 text-[9px] px-1.5 py-0 bg-primary text-primary-foreground">COMBO</Badge>
+                        )}
                       </div>
                     )}
                   </button>
