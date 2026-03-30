@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Crown, Zap, Star } from "lucide-react";
+import { Check, Crown, Zap, Star, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Subscription {
   id: string;
@@ -17,10 +18,9 @@ const plans = [
   {
     id: "essential",
     name: "Essential",
-    price: "49,90",
+    price: "29,90",
     icon: Zap,
     color: "primary",
-    checkoutUrl: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=a366933173f3455abddf02656ed7228f",
     features: [
       "Cardápio digital completo",
       "Gestão de pedidos em tempo real",
@@ -33,10 +33,9 @@ const plans = [
   {
     id: "pro",
     name: "PRO",
-    price: "99,90",
+    price: "49,90",
     icon: Crown,
     color: "warning",
-    checkoutUrl: "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=14d541e5eb6543aaa2ff7514f1fca373",
     popular: true,
     features: [
       "Tudo do Essential",
@@ -53,6 +52,7 @@ const SubscriptionPage = () => {
   const { establishment, loading: estLoading } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSub = async () => {
@@ -70,10 +70,31 @@ const SubscriptionPage = () => {
     fetchSub();
   }, [establishment]);
 
-  const handleCheckout = (plan: typeof plans[0]) => {
+  const handleCheckout = async (plan: typeof plans[0]) => {
     if (!establishment) return;
-    const url = `${plan.checkoutUrl}&external_reference=${establishment.id}`;
-    window.open(url, "_blank");
+    setCheckoutLoading(plan.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-asaas-checkout", {
+        body: { establishmentId: establishment.id, planType: plan.id },
+      });
+
+      if (error) {
+        console.error("Checkout error:", error);
+        toast.error("Erro ao gerar link de pagamento. Tente novamente.");
+        return;
+      }
+
+      if (data?.checkoutUrl) {
+        window.open(data.checkoutUrl, "_blank");
+      } else {
+        toast.error("Link de pagamento não disponível. Tente novamente.");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      toast.error("Erro inesperado. Tente novamente.");
+    } finally {
+      setCheckoutLoading(null);
+    }
   };
 
   if (estLoading || loading) {
@@ -115,6 +136,7 @@ const SubscriptionPage = () => {
         {plans.map((plan) => {
           const Icon = plan.icon;
           const isActive = activePlan === plan.id;
+          const isLoading = checkoutLoading === plan.id;
 
           return (
             <div
@@ -165,7 +187,7 @@ const SubscriptionPage = () => {
 
               <Button
                 onClick={() => handleCheckout(plan)}
-                disabled={isActive}
+                disabled={isActive || isLoading}
                 className={`w-full h-12 text-base font-semibold ${
                   plan.popular
                     ? ""
@@ -173,7 +195,13 @@ const SubscriptionPage = () => {
                 }`}
                 variant={plan.popular ? "default" : "default"}
               >
-                {isActive ? "Plano ativo" : "Assinar agora"}
+                {isLoading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
+                ) : isActive ? (
+                  "Plano ativo"
+                ) : (
+                  "Assinar agora"
+                )}
               </Button>
             </div>
           );
@@ -181,7 +209,7 @@ const SubscriptionPage = () => {
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Pagamento seguro via Mercado Pago. Cancele a qualquer momento.
+        Pagamento seguro via Asaas. Cancele a qualquer momento.
       </p>
     </div>
   );

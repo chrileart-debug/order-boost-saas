@@ -243,10 +243,13 @@ export type Database = {
       establishments: {
         Row: {
           address: Json | null
+          asaas_customer_id: string | null
           base_fee: number | null
+          checkout_expires_at: string | null
           cnpj: string | null
           cover_url: string | null
           created_at: string
+          current_checkout_url: string | null
           id: string
           is_open: boolean | null
           km_extra_price: number | null
@@ -268,10 +271,13 @@ export type Database = {
         }
         Insert: {
           address?: Json | null
+          asaas_customer_id?: string | null
           base_fee?: number | null
+          checkout_expires_at?: string | null
           cnpj?: string | null
           cover_url?: string | null
           created_at?: string
+          current_checkout_url?: string | null
           id?: string
           is_open?: boolean | null
           km_extra_price?: number | null
@@ -293,10 +299,13 @@ export type Database = {
         }
         Update: {
           address?: Json | null
+          asaas_customer_id?: string | null
           base_fee?: number | null
+          checkout_expires_at?: string | null
           cnpj?: string | null
           cover_url?: string | null
           created_at?: string
+          current_checkout_url?: string | null
           id?: string
           is_open?: boolean | null
           km_extra_price?: number | null
