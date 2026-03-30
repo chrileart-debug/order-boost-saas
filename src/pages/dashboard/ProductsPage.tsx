@@ -189,8 +189,11 @@ const ProductsPage = () => {
     setProdSheet(true);
   };
 
+  const promoInvalid = prodForm.is_promo && prodForm.promo_price !== "" && parseFloat(prodForm.promo_price) >= parseFloat(prodForm.price || "0");
+
   const saveProduct = async () => {
     if (!prodForm.name || !prodForm.price) return;
+    if (prodForm.is_promo && (!prodForm.promo_price || promoInvalid)) return;
     setSavingProd(true);
     const categoryId = prodForm.category_id || (await ensureDefaultCategory());
     const payload: any = { name: prodForm.name, description: prodForm.description || null, price: parseFloat(prodForm.price), category_id: categoryId, is_promo: prodForm.is_promo, promo_price: prodForm.is_promo && prodForm.promo_price ? parseFloat(prodForm.promo_price) : null };
