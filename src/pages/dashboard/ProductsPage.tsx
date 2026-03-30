@@ -33,6 +33,7 @@ const ProductsPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [comboProductIds, setComboProductIds] = useState<Set<string>>(new Set());
 
   /* category dialog */
   const [catDialog, setCatDialog] = useState(false);
@@ -95,9 +96,20 @@ const ProductsPage = () => {
 
     if (cats.length > 0) {
       const { data: prods } = await supabase.from("products").select("*").in("category_id", cats.map(c => c.id)).order("order_index");
-      setProducts(prods || []);
+      const productsList = prods || [];
+      setProducts(productsList);
+
+      // Fetch combo product IDs
+      if (productsList.length > 0) {
+        const { data: comboData } = await supabase.from("combo_items").select("parent_product_id").in("parent_product_id", productsList.map(p => p.id));
+        const ids = new Set((comboData || []).map((c: any) => c.parent_product_id));
+        setComboProductIds(ids);
+      } else {
+        setComboProductIds(new Set());
+      }
     } else {
       setProducts([]);
+      setComboProductIds(new Set());
     }
 
     const groups = (groupsRes.data || []) as OptionGroup[];
@@ -489,6 +501,9 @@ const ProductsPage = () => {
                         )}
                         {prod.is_promo && prod.is_available && (
                           <Badge className="absolute top-1 left-1 text-[10px] bg-destructive text-destructive-foreground">OFERTA</Badge>
+                        )}
+                        {comboProductIds.has(prod.id) && prod.is_available && (
+                          <Badge className={`absolute ${prod.is_promo ? 'bottom-1' : 'top-1'} left-1 text-[10px] bg-primary text-primary-foreground`}>COMBO</Badge>
                         )}
                       </div>
                       <div className="p-3 flex-1 min-w-0 flex flex-col justify-between">
