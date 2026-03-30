@@ -279,6 +279,28 @@ const ProductsPage = () => {
     });
   };
 
+  const quickCreateProduct = async () => {
+    if (!quickForm.name || !quickForm.price) return;
+    setSavingQuick(true);
+    try {
+      const categoryId = categories[0]?.id || (await ensureDefaultCategory());
+      const { data } = await supabase.from("products").insert({
+        name: quickForm.name,
+        price: parseFloat(quickForm.price),
+        category_id: categoryId,
+        order_index: products.length,
+      }).select().single();
+      if (data) {
+        setProducts(prev => [...prev, data as Product]);
+        toast({ title: "Produto criado" });
+      }
+      setQuickCreateOpen(false);
+      setQuickForm({ name: "", price: "" });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally { setSavingQuick(false); }
+  };
+
   const comboTotalIndividual = comboItems.reduce((sum, ci) => {
     const p = products.find(pr => pr.id === ci.product_id);
     return sum + (p ? p.price * ci.quantity : 0);
