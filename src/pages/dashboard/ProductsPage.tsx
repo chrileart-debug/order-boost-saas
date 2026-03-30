@@ -429,6 +429,9 @@ const ProductsPage = () => {
                         {!prod.is_available && (
                           <div className="absolute inset-0 bg-background/60 flex items-center justify-center"><Badge variant="secondary" className="text-[10px]">Off</Badge></div>
                         )}
+                        {prod.is_promo && prod.is_available && (
+                          <Badge className="absolute top-1 left-1 text-[10px] bg-destructive text-destructive-foreground">OFERTA</Badge>
+                        )}
                       </div>
                       <div className="p-3 flex-1 min-w-0 flex flex-col justify-between">
                         <div className="flex items-start justify-between gap-2">
@@ -436,7 +439,16 @@ const ProductsPage = () => {
                             <h3 className="font-medium text-foreground truncate">{prod.name}</h3>
                             {prod.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{prod.description}</p>}
                           </div>
-                          <span className="text-primary font-bold text-sm whitespace-nowrap">R$ {Number(prod.price).toFixed(2)}</span>
+                          <div className="text-right shrink-0">
+                            {prod.is_promo && prod.promo_price != null ? (
+                              <>
+                                <span className="text-muted-foreground line-through text-xs block">R$ {Number(prod.price).toFixed(2)}</span>
+                                <span className="text-destructive font-bold text-sm">R$ {Number(prod.promo_price).toFixed(2)}</span>
+                              </>
+                            ) : (
+                              <span className="text-primary font-bold text-sm">R$ {Number(prod.price).toFixed(2)}</span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <div className="flex items-center gap-2">
@@ -607,6 +619,19 @@ const ProductsPage = () => {
             <div className="space-y-2">
               <Label>Preço (R$) *</Label>
               <Input type="number" step="0.01" min="0" value={prodForm.price} onChange={e => setProdForm({ ...prodForm, price: e.target.value })} placeholder="0.00" />
+            </div>
+
+            <div className="space-y-3 border border-border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <Label>Ativar Promoção</Label>
+                <Switch checked={prodForm.is_promo} onCheckedChange={v => setProdForm({ ...prodForm, is_promo: v })} />
+              </div>
+              {prodForm.is_promo && (
+                <div className="space-y-2">
+                  <Label>Preço de Oferta (R$) *</Label>
+                  <Input type="number" step="0.01" min="0" value={prodForm.promo_price} onChange={e => setProdForm({ ...prodForm, promo_price: e.target.value })} placeholder="0.00" />
+                </div>
+              )}
             </div>
 
             <div className="space-y-3 border-t border-border pt-4">
