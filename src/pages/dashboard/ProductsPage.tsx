@@ -823,8 +823,8 @@ const ProductsPage = () => {
                   {comboEligibleProducts.length === 0 ? (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">Nenhum produto disponível para adicionar ao combo.</p>
-                      <Button variant="outline" size="sm" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
-                        <Plus className="w-3 h-3 mr-1" /> Criar produto rápido
+                      <Button variant="outline" size="sm" onClick={openQuickCreate}>
+                        <Plus className="w-3 h-3 mr-1" /> Criar produto
                       </Button>
                     </div>
                   ) : (
