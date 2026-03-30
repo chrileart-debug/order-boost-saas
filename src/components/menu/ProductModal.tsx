@@ -188,163 +188,167 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-        {product.image_url && (
-          <img src={product.image_url} alt={product.name} className="w-full h-48 object-cover rounded-t-lg" />
-        )}
-        <div className="p-6 space-y-5">
-          <DialogHeader>
-            <DialogTitle className="text-xl">{product.name}</DialogTitle>
-            {product.description && (
-              <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
-            )}
-            <p className="text-lg font-semibold text-primary mt-2">{formatPrice(product.price)}</p>
-          </DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto">
+          {product.image_url && (
+            <img src={product.image_url} alt={product.name} className="w-full h-48 object-cover rounded-t-lg" />
+          )}
+          <div className="p-6 space-y-5">
+            <DialogHeader>
+              <DialogTitle className="text-xl">{product.name}</DialogTitle>
+              {product.description && (
+                <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
+              )}
+              <p className="text-lg font-semibold text-primary mt-2">{formatPrice(product.price)}</p>
+            </DialogHeader>
 
-          {loading ? (
-            <div className="space-y-5 py-2">
-              {[1, 2].map((i) => (
-                <div key={i} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-5 w-32" />
-                    <Skeleton className="h-5 w-20 rounded-full" />
-                  </div>
-                  <div className="space-y-2.5">
-                    {[1, 2].map((j) => (
-                      <div key={j} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Skeleton className="h-4 w-4 rounded" />
-                          <Skeleton className="h-4 w-28" />
-                        </div>
-                        <Skeleton className="h-4 w-14" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            groups.map((group) => {
-              const gItems = groupItems.filter((gi) => gi.group_id === group.id);
-              if (gItems.length === 0) return null;
-              const isRequired = (group.min_selection || 0) > 0;
-
-              return (
-                <div key={group.id} className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-foreground">{group.name}</h3>
-                    {isRequired && <Badge variant="destructive" className="text-[10px]">Obrigatório</Badge>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {isRequired ? `Escolha ${group.min_selection}` : "Opcional"}
-                    {group.max_selection > 1 ? ` (máx. ${group.max_selection})` : ""}
-                  </p>
-
-                  {group.selection_type === "quantity" ? (
-                    /* ═══ QUANTITY MODE ═══ */
-                    <div className="space-y-0">
-                      {gItems.map((gi) => {
-                        const qty = quantities[gi.id] || 0;
-                        return (
-                          <div key={gi.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
-                            <div className="flex-1 min-w-0">
-                              <span className="text-sm text-foreground">{gi.item_name}</span>
-                              {gi.item_price > 0 && (
-                                <span className="text-sm text-muted-foreground ml-2">+ {formatPrice(gi.item_price)}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setItemQty(gi.id, group.id, -1, gi.max_quantity, group.max_selection || 99)}
-                                disabled={qty === 0}
-                                className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-accent disabled:opacity-30"
-                              >
-                                <Minus className="h-3 w-3" />
-                              </button>
-                              <span className="text-sm font-semibold w-8 text-center">
-                                {gi.max_quantity > 0 ? `${qty}/${gi.max_quantity}` : qty}
-                              </span>
-                              {(() => {
-                                const groupGiIds = groupItems.filter(g => g.group_id === group.id).map(g => g.id);
-                                const groupTotal = groupGiIds.reduce((s, id) => s + (quantities[id] || 0), 0);
-                                const atGroupMax = groupTotal >= (group.max_selection || 99);
-                                const atItemMax = gi.max_quantity > 0 && qty >= gi.max_quantity;
-                                return (
-                                  <button
-                                    onClick={() => setItemQty(gi.id, group.id, 1, gi.max_quantity, group.max_selection || 99)}
-                                    disabled={atGroupMax || atItemMax}
-                                    className="w-7 h-7 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 disabled:opacity-30"
-                                  >
-                                    <Plus className="h-3 w-3" />
-                                  </button>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        );
-                      })}
+            {loading ? (
+              <div className="space-y-5 py-2">
+                {[1, 2].map((i) => (
+                  <div key={i} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-5 w-20 rounded-full" />
                     </div>
-                  ) : (
-                    /* ═══ SELECTION MODE ═══ */
-                    (group.max_selection || 1) === 1 ? (
-                      <RadioGroup
-                        value={selected[group.id]?.[0] || ""}
-                        onValueChange={(val) => toggleOption(group.id, val, 1)}
-                      >
-                        {gItems.map((gi) => (
-                          <div key={gi.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                            <div className="flex items-center gap-2">
-                              <RadioGroupItem value={gi.item_id} id={gi.id} />
-                              <Label htmlFor={gi.id} className="cursor-pointer">{gi.item_name}</Label>
-                            </div>
-                            {gi.item_price > 0 && (
-                              <span className="text-sm text-muted-foreground">+ {formatPrice(gi.item_price)}</span>
-                            )}
+                    <div className="space-y-2.5">
+                      {[1, 2].map((j) => (
+                        <div key={j} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-4 w-4 rounded" />
+                            <Skeleton className="h-4 w-28" />
                           </div>
-                        ))}
-                      </RadioGroup>
-                    ) : (
+                          <Skeleton className="h-4 w-14" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              groups.map((group) => {
+                const gItems = groupItems.filter((gi) => gi.group_id === group.id);
+                if (gItems.length === 0) return null;
+                const isRequired = (group.min_selection || 0) > 0;
+
+                return (
+                  <div key={group.id} className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-foreground">{group.name}</h3>
+                      {isRequired && <Badge variant="destructive" className="text-[10px]">Obrigatório</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {isRequired ? `Escolha ${group.min_selection}` : "Opcional"}
+                      {group.max_selection > 1 ? ` (máx. ${group.max_selection})` : ""}
+                    </p>
+
+                    {group.selection_type === "quantity" ? (
                       <div className="space-y-0">
                         {gItems.map((gi) => {
-                          const checked = selected[group.id]?.includes(gi.item_id) || false;
+                          const qty = quantities[gi.id] || 0;
                           return (
+                            <div key={gi.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm text-foreground">{gi.item_name}</span>
+                                {gi.item_price > 0 && (
+                                  <span className="text-sm text-muted-foreground ml-2">+ {formatPrice(gi.item_price)}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => setItemQty(gi.id, group.id, -1, gi.max_quantity, group.max_selection || 99)}
+                                  disabled={qty === 0}
+                                  className="w-7 h-7 rounded-full border border-border flex items-center justify-center hover:bg-accent disabled:opacity-30"
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </button>
+                                <span className="text-sm font-semibold w-8 text-center">
+                                  {gi.max_quantity > 0 ? `${qty}/${gi.max_quantity}` : qty}
+                                </span>
+                                {(() => {
+                                  const groupGiIds = groupItems.filter(g => g.group_id === group.id).map(g => g.id);
+                                  const groupTotal = groupGiIds.reduce((s, id) => s + (quantities[id] || 0), 0);
+                                  const atGroupMax = groupTotal >= (group.max_selection || 99);
+                                  const atItemMax = gi.max_quantity > 0 && qty >= gi.max_quantity;
+                                  return (
+                                    <button
+                                      onClick={() => setItemQty(gi.id, group.id, 1, gi.max_quantity, group.max_selection || 99)}
+                                      disabled={atGroupMax || atItemMax}
+                                      className="w-7 h-7 rounded-full border border-primary text-primary flex items-center justify-center hover:bg-primary/10 disabled:opacity-30"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </button>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      (group.max_selection || 1) === 1 ? (
+                        <RadioGroup
+                          value={selected[group.id]?.[0] || ""}
+                          onValueChange={(val) => toggleOption(group.id, val, 1)}
+                        >
+                          {gItems.map((gi) => (
                             <div key={gi.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                               <div className="flex items-center gap-2">
-                                <Checkbox
-                                  id={gi.id}
-                                  checked={checked}
-                                  onCheckedChange={() => toggleOption(group.id, gi.item_id, group.max_selection || 1)}
-                                />
+                                <RadioGroupItem value={gi.item_id} id={gi.id} />
                                 <Label htmlFor={gi.id} className="cursor-pointer">{gi.item_name}</Label>
                               </div>
                               {gi.item_price > 0 && (
                                 <span className="text-sm text-muted-foreground">+ {formatPrice(gi.item_price)}</span>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )
-                  )}
-                </div>
-              );
-            })
-          )}
+                          ))}
+                        </RadioGroup>
+                      ) : (
+                        <div className="space-y-0">
+                          {gItems.map((gi) => {
+                            const checked = selected[group.id]?.includes(gi.item_id) || false;
+                            return (
+                              <div key={gi.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={gi.id}
+                                    checked={checked}
+                                    onCheckedChange={() => toggleOption(group.id, gi.item_id, group.max_selection || 1)}
+                                  />
+                                  <Label htmlFor={gi.id} className="cursor-pointer">{gi.item_name}</Label>
+                                </div>
+                                {gi.item_price > 0 && (
+                                  <span className="text-sm text-muted-foreground">+ {formatPrice(gi.item_price)}</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
+                    )}
+                  </div>
+                );
+              })
+            )}
 
-          {/* Observations */}
-          <div className="space-y-1">
-            <Label className="text-sm text-muted-foreground">Alguma observação?</Label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: Tirar alface, sem cebola, ponto da carne, etc..."
-              maxLength={140}
-              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px] resize-none"
-            />
-            <p className="text-[10px] text-muted-foreground text-right">{notes.length}/140</p>
+            {/* Observations */}
+            <div className="space-y-1">
+              <Label className="text-sm text-muted-foreground">Alguma observação?</Label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex: Tirar alface, sem cebola, ponto da carne, etc..."
+                maxLength={140}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px] resize-none"
+              />
+              <p className="text-[10px] text-muted-foreground text-right">{notes.length}/140</p>
+            </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-3 pt-2">
+        {/* Sticky footer */}
+        <div className="sticky bottom-0 border-t border-border bg-background px-6 py-4">
+          <div className="flex items-center gap-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
