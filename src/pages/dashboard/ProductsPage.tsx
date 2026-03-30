@@ -815,7 +815,7 @@ const ProductsPage = () => {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
                     </div>
-                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
+                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={openQuickCreate}>
                       <Plus className="w-3 h-3 mr-1" /> Criar
                     </Button>
                   </div>
