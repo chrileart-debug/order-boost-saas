@@ -45,16 +45,10 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const asaasBase = "https://api.asaas.com/v3";
-    const asaasHeaders = {
-      "Content-Type": "application/json",
-      access_token: asaasKey,
-    };
-
     // 1. Fetch establishment
     const { data: est, error: estErr } = await supabase
       .from("establishments")
-      .select("id, name, asaas_customer_id, current_checkout_url, checkout_expires_at, cnpj, whatsapp")
+      .select("id, name, current_checkout_url, checkout_expires_at, cnpj, whatsapp")
       .eq("id", establishmentId)
       .single();
 
@@ -77,76 +71,46 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Ensure Asaas customer exists
-    let customerId = est.asaas_customer_id;
-    if (!customerId) {
-      const customerRes = await fetch(`${asaasBase}/customers`, {
-        method: "POST",
-        headers: asaasHeaders,
-        body: JSON.stringify({
-          name: est.name,
-          cpfCnpj: est.cnpj?.replace(/\D/g, "") || "00000000000",
-          mobilePhone: est.whatsapp?.replace(/\D/g, "") || undefined,
-          externalReference: est.id,
-        }),
-      });
+    // 3. Create checkout via Asaas /v3/checkouts
+    const asaasBase = "https://api.asaas.com/v3";
+    const asaasHeaders = {
+      "Content-Type": "application/json",
+      access_token: asaasKey,
+    };
 
-      if (!customerRes.ok) {
-        const errText = await customerRes.text();
-        console.error("Asaas customer creation error:", errText);
-        return new Response(
-          JSON.stringify({ error: "Failed to create Asaas customer" }),
-          { status: 502, headers: corsHeaders }
-        );
-      }
-
-      const customerData = await customerRes.json();
-      customerId = customerData.id;
-
-      await supabase
-        .from("establishments")
-        .update({ asaas_customer_id: customerId })
-        .eq("id", est.id);
-    }
-
-    // 4. Create subscription in Asaas
     const value = PLAN_VALUES[planType];
-    const nextDueDate = new Date();
-    nextDueDate.setDate(nextDueDate.getDate() + 1);
-    const dueDateStr = nextDueDate.toISOString().split("T")[0]; // YYYY-MM-DD
+    const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
 
-    const subRes = await fetch(`${asaasBase}/subscriptions`, {
+    const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
       method: "POST",
       headers: asaasHeaders,
       body: JSON.stringify({
-        customer: customerId,
         billingType: "CREDIT_CARD",
-        cycle: "MONTHLY",
+        chargeType: "RECURRING",
+        subscriptionCycle: "MONTHLY",
         value,
-        nextDueDate: dueDateStr,
-        description: `Plano ${planType.charAt(0).toUpperCase() + planType.slice(1)} - ePrato`,
+        description: `Assinatura Mensal EPRATO - ${planLabel}`,
         externalReference: est.id,
       }),
     });
 
-    if (!subRes.ok) {
-      const errText = await subRes.text();
-      console.error("Asaas subscription creation error:", errText);
+    if (!checkoutRes.ok) {
+      const errText = await checkoutRes.text();
+      console.error("Asaas checkout creation error:", errText);
       return new Response(
-        JSON.stringify({ error: "Failed to create Asaas subscription" }),
+        JSON.stringify({ error: "Failed to create Asaas checkout", details: errText }),
         { status: 502, headers: corsHeaders }
       );
     }
 
-    const subData = await subRes.json();
-    console.log("Asaas subscription created:", JSON.stringify(subData));
+    const checkoutData = await checkoutRes.json();
+    console.log("Asaas checkout created:", JSON.stringify(checkoutData));
 
-    // The invoiceUrl is the payment link
-    const checkoutUrl = subData.invoiceUrl || subData.bankSlipUrl || "";
+    const checkoutUrl = checkoutData.url || checkoutData.invoiceUrl || "";
 
-    // Save checkout URL with 24h expiry
+    // 4. Save checkout URL with 15min expiry
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
     await supabase
       .from("establishments")
@@ -156,14 +120,14 @@ Deno.serve(async (req) => {
       })
       .eq("id", est.id);
 
-    // Also upsert into subscriptions table as pending
+    // 5. Upsert subscription as pending
     await supabase.from("subscriptions").upsert(
       {
         establishment_id: est.id,
         plan_type: planType,
         status: "pending",
         gateway_name: "asaas",
-        gateway_subscription_id: subData.id,
+        gateway_subscription_id: checkoutData.id || null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "establishment_id" }
