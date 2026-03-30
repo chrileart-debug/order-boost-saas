@@ -85,11 +85,12 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: asaasHeaders,
       body: JSON.stringify({
-        billingType: "CREDIT_CARD",
+        billingTypes: ["CREDIT_CARD"],
         chargeType: "RECURRING",
         subscriptionCycle: "MONTHLY",
         value,
-        description: `Assinatura Mensal EPRATO - ${planLabel}`,
+        name: `Assinatura Mensal EPRATO - ${planLabel}`,
+        description: `Plano ${planLabel} - Assinatura mensal EPRATO`,
         externalReference: est.id,
       }),
     });
