@@ -247,17 +247,27 @@ const MenuPage = () => {
                           {product.description}
                         </p>
                       )}
-                      <p className="text-sm font-semibold text-primary mt-1">
-                        {formatPrice(product.price)}
-                      </p>
+                      {product.is_promo && product.promo_price != null ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-muted-foreground line-through">{formatPrice(product.price)}</span>
+                          <span className="text-sm font-semibold text-destructive">{formatPrice(product.promo_price)}</span>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-semibold text-primary mt-1">
+                          {formatPrice(product.price)}
+                        </p>
+                      )}
                     </div>
                     {product.image_url && (
-                      <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0">
+                      <div className="w-20 h-20 rounded-lg overflow-hidden shrink-0 relative">
                         <img
                           src={product.image_url}
                           alt={product.name}
                           className="w-full h-full object-cover"
                         />
+                        {product.is_promo && (
+                          <Badge className="absolute top-0.5 left-0.5 text-[9px] px-1.5 py-0 bg-destructive text-destructive-foreground">OFERTA</Badge>
+                        )}
                       </div>
                     )}
                   </button>

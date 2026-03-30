@@ -165,8 +165,9 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
     return opts;
   };
 
+  const effectiveBasePrice = product.is_promo && product.promo_price != null ? product.promo_price : product.price;
   const selectedOptions = buildCartOptions();
-  const unitPrice = product.price + selectedOptions.reduce((s, o) => s + o.price * o.quantity, 0);
+  const unitPrice = effectiveBasePrice + selectedOptions.reduce((s, o) => s + o.price * o.quantity, 0);
   const totalPrice = unitPrice * quantity;
 
   const formatPrice = (v: number) =>
@@ -177,7 +178,7 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
       productId: product.id,
       productName: product.name,
       productImage: product.image_url,
-      basePrice: product.price,
+      basePrice: effectiveBasePrice,
       quantity,
       options: selectedOptions,
       notes: notes.trim() || undefined,
@@ -200,7 +201,14 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
               {product.description && (
                 <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
               )}
-              <p className="text-lg font-semibold text-primary mt-2">{formatPrice(product.price)}</p>
+              {product.is_promo && product.promo_price != null ? (
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm text-muted-foreground line-through">{formatPrice(product.price)}</span>
+                  <span className="text-lg font-semibold text-destructive">{formatPrice(product.promo_price)}</span>
+                </div>
+              ) : (
+                <p className="text-lg font-semibold text-primary mt-2">{formatPrice(product.price)}</p>
+              )}
             </DialogHeader>
 
             {loading ? (
