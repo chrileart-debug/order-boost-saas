@@ -56,10 +56,12 @@ const ProductsPage = () => {
   const [comboItems, setComboItems] = useState<{ product_id: string; quantity: number }[]>([]);
   const [comboSearch, setComboSearch] = useState("");
 
-  /* quick-create product inside combo */
+  /* quick-create/edit product inside combo */
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickEditingProd, setQuickEditingProd] = useState<Product | null>(null);
   const [quickForm, setQuickForm] = useState({ name: "", description: "", price: "", category_id: "", is_promo: false, promo_price: "" });
   const [quickImageBlob, setQuickImageBlob] = useState<Blob | null>(null);
+  const [quickImageRemoved, setQuickImageRemoved] = useState(false);
   const [quickLinkedGroupIds, setQuickLinkedGroupIds] = useState<string[]>([]);
   const [savingQuick, setSavingQuick] = useState(false);
 
