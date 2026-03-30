@@ -283,8 +283,9 @@ const ProductsPage = () => {
 
   const openQuickCreate = () => {
     const defaultCat = categories[0]?.id || "";
-    setQuickForm({ name: "", description: "", price: "", category_id: defaultCat });
+    setQuickForm({ name: "", description: "", price: "", category_id: defaultCat, is_promo: false, promo_price: "" });
     setQuickImageBlob(null);
+    setQuickLinkedGroupIds([]);
     setQuickCreateOpen(true);
   };
 
