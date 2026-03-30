@@ -35,6 +35,8 @@ interface GroupItemData {
   item_price: number;
 }
 
+interface ComboDetail { quantity: number; name: string }
+
 const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   const [groups, setGroups] = useState<GroupData[]>([]);
   const [groupItems, setGroupItems] = useState<GroupItemData[]>([]);
@@ -45,9 +47,22 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
+  const [comboDetails, setComboDetails] = useState<ComboDetail[]>([]);
 
   useEffect(() => {
     const load = async () => {
+      // Fetch combo items
+      const { data: comboData } = await supabase
+        .from("combo_items")
+        .select("quantity, child_product_id")
+        .eq("parent_product_id", product.id);
+      if (comboData && comboData.length > 0) {
+        const childIds = comboData.map((c: any) => c.child_product_id);
+        const { data: childProds } = await supabase.from("products").select("id, name").in("id", childIds);
+        const nameMap = new Map((childProds || []).map((p: any) => [p.id, p.name]));
+        setComboDetails(comboData.map((c: any) => ({ quantity: c.quantity, name: nameMap.get(c.child_product_id) || "?" })));
+      }
+
       // Fetch groups via product_modifiers junction table
       const { data: modifiers } = await supabase
         .from("product_modifiers")
