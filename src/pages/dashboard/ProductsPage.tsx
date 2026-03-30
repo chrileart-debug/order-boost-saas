@@ -58,7 +58,8 @@ const ProductsPage = () => {
 
   /* quick-create product inside combo */
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  const [quickForm, setQuickForm] = useState({ name: "", price: "" });
+  const [quickForm, setQuickForm] = useState({ name: "", description: "", price: "", category_id: "" });
+  const [quickImageBlob, setQuickImageBlob] = useState<Blob | null>(null);
   const [savingQuick, setSavingQuick] = useState(false);
 
   /* modifier groups */
