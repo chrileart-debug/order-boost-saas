@@ -262,6 +262,7 @@ export type Database = {
           owner_id: string
           push_notify_statuses: Json | null
           slug: string
+          trial_ends_at: string | null
           updated_at: string
           whatsapp: string | null
         }
@@ -286,6 +287,7 @@ export type Database = {
           owner_id: string
           push_notify_statuses?: Json | null
           slug: string
+          trial_ends_at?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -310,6 +312,7 @@ export type Database = {
           owner_id?: string
           push_notify_statuses?: Json | null
           slug?: string
+          trial_ends_at?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -513,6 +516,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "orders_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          establishment_id: string
+          gateway_name: string
+          gateway_transaction_id: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          establishment_id: string
+          gateway_name?: string
+          gateway_transaction_id?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          establishment_id?: string
+          gateway_name?: string
+          gateway_transaction_id?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
@@ -728,6 +769,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "push_subscriptions_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          gateway_name: string
+          gateway_subscription_id: string | null
+          id: string
+          next_billing_date: string | null
+          plan_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          gateway_name?: string
+          gateway_subscription_id?: string | null
+          id?: string
+          next_billing_date?: string | null
+          plan_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          gateway_name?: string
+          gateway_subscription_id?: string | null
+          id?: string
+          next_billing_date?: string | null
+          plan_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_establishment_id_fkey"
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
