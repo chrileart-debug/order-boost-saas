@@ -58,7 +58,8 @@ const ProductsPage = () => {
 
   /* quick-create product inside combo */
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  const [quickForm, setQuickForm] = useState({ name: "", price: "" });
+  const [quickForm, setQuickForm] = useState({ name: "", description: "", price: "", category_id: "" });
+  const [quickImageBlob, setQuickImageBlob] = useState<Blob | null>(null);
   const [savingQuick, setSavingQuick] = useState(false);
 
   /* modifier groups */
@@ -279,23 +280,38 @@ const ProductsPage = () => {
     });
   };
 
+  const openQuickCreate = () => {
+    const defaultCat = categories[0]?.id || "";
+    setQuickForm({ name: "", description: "", price: "", category_id: defaultCat });
+    setQuickImageBlob(null);
+    setQuickCreateOpen(true);
+  };
+
   const quickCreateProduct = async () => {
     if (!quickForm.name || !quickForm.price) return;
     setSavingQuick(true);
     try {
-      const categoryId = categories[0]?.id || (await ensureDefaultCategory());
-      const { data } = await supabase.from("products").insert({
+      const categoryId = quickForm.category_id || categories[0]?.id || (await ensureDefaultCategory());
+      const payload: any = {
         name: quickForm.name,
+        description: quickForm.description || null,
         price: parseFloat(quickForm.price),
         category_id: categoryId,
         order_index: products.length,
-      }).select().single();
+      };
+      const { data } = await supabase.from("products").insert(payload).select().single();
       if (data) {
+        if (quickImageBlob) {
+          const path = `products/${data.id}.webp`;
+          await supabase.storage.from("establishments").upload(path, quickImageBlob, { upsert: true, contentType: "image/webp" });
+          const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
+          await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", data.id);
+          (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+        }
         setProducts(prev => [...prev, data as Product]);
-        toast({ title: "Produto criado" });
+        toast({ title: "Produto criado e disponível no combo" });
       }
       setQuickCreateOpen(false);
-      setQuickForm({ name: "", price: "" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setSavingQuick(false); }
@@ -799,7 +815,7 @@ const ProductsPage = () => {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
                     </div>
-                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
+                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={openQuickCreate}>
                       <Plus className="w-3 h-3 mr-1" /> Criar
                     </Button>
                   </div>
@@ -807,8 +823,8 @@ const ProductsPage = () => {
                   {comboEligibleProducts.length === 0 ? (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">Nenhum produto disponível para adicionar ao combo.</p>
-                      <Button variant="outline" size="sm" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
-                        <Plus className="w-3 h-3 mr-1" /> Criar produto rápido
+                      <Button variant="outline" size="sm" onClick={openQuickCreate}>
+                        <Plus className="w-3 h-3 mr-1" /> Criar produto
                       </Button>
                     </div>
                   ) : (
@@ -871,27 +887,38 @@ const ProductsPage = () => {
                       )}
                     </div>
                   )}
-                  {/* Quick-create product dialog */}
-                  <Dialog open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader>
-                        <DialogTitle>Criar produto rápido</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-3">
-                        <div className="space-y-1">
+                  {/* Quick-create product Sheet (same layout as main product form) */}
+                  <Sheet open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
+                    <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]">
+                      <SheetHeader>
+                        <SheetTitle>Novo Produto (para o Combo)</SheetTitle>
+                      </SheetHeader>
+                      <div className="space-y-5 mt-6">
+                        <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => setQuickImageBlob(null)} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
+                        <div className="space-y-2">
+                          <Label>Categoria</Label>
+                          <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={quickForm.category_id} onChange={e => setQuickForm({ ...quickForm, category_id: e.target.value })}>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
                           <Label>Nome *</Label>
                           <Input value={quickForm.name} onChange={e => setQuickForm({ ...quickForm, name: e.target.value })} placeholder="Ex: Cookie de chocolate" />
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
+                          <Label>Descrição</Label>
+                          <Input value={quickForm.description} onChange={e => setQuickForm({ ...quickForm, description: e.target.value })} placeholder="Descrição do produto" />
+                        </div>
+                        <div className="space-y-2">
                           <Label>Preço (R$) *</Label>
                           <Input type="number" step="0.01" min="0" value={quickForm.price} onChange={e => setQuickForm({ ...quickForm, price: e.target.value })} placeholder="0.00" />
                         </div>
-                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full">
-                          {savingQuick ? "Criando..." : "Criar e voltar ao combo"}
+                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full h-11 text-base font-semibold">
+                          {savingQuick ? "Criando..." : "Criar Produto"}
                         </Button>
                       </div>
-                    </DialogContent>
-                  </Dialog>
+                    </SheetContent>
+                  </Sheet>
                 </div>
               )}
 
