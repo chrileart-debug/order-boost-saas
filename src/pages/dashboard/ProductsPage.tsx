@@ -754,6 +754,9 @@ const ProductsPage = () => {
                   <div className="space-y-2">
                     <Label>Preço de Oferta (R$) *</Label>
                     <Input type="number" step="0.01" min="0" value={prodForm.promo_price} onChange={e => setProdForm({ ...prodForm, promo_price: e.target.value })} placeholder="0.00" />
+                    {promoInvalid && (
+                      <p className="text-xs text-destructive">O preço promocional deve ser menor que o preço original (R$ {parseFloat(prodForm.price || "0").toFixed(2)}).</p>
+                    )}
                   </div>
                 )}
               </div>
