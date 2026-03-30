@@ -289,8 +289,14 @@ const ProductsPage = () => {
     setQuickCreateOpen(true);
   };
 
+  const quickPromoInvalid = quickForm.is_promo && quickForm.promo_price !== "" && parseFloat(quickForm.promo_price) >= parseFloat(quickForm.price || "0");
+
+  const toggleQuickGroupLink = (gid: string) => {
+    setQuickLinkedGroupIds(prev => prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]);
+  };
+
   const quickCreateProduct = async () => {
-    if (!quickForm.name || !quickForm.price) return;
+    if (!quickForm.name || !quickForm.price || quickPromoInvalid) return;
     setSavingQuick(true);
     try {
       const categoryId = quickForm.category_id || categories[0]?.id || (await ensureDefaultCategory());
@@ -300,6 +306,8 @@ const ProductsPage = () => {
         price: parseFloat(quickForm.price),
         category_id: categoryId,
         order_index: products.length,
+        is_promo: quickForm.is_promo,
+        promo_price: quickForm.is_promo && quickForm.promo_price ? parseFloat(quickForm.promo_price) : null,
       };
       const { data } = await supabase.from("products").insert(payload).select().single();
       if (data) {
@@ -309,6 +317,11 @@ const ProductsPage = () => {
           const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
           await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", data.id);
           (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+        }
+        if (quickLinkedGroupIds.length > 0) {
+          await supabase.from("product_modifiers").insert(
+            quickLinkedGroupIds.map(gid => ({ product_id: data.id, group_id: gid }))
+          );
         }
         setProducts(prev => [...prev, data as Product]);
         toast({ title: "Produto criado e disponível no combo" });
