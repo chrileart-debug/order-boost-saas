@@ -887,27 +887,38 @@ const ProductsPage = () => {
                       )}
                     </div>
                   )}
-                  {/* Quick-create product dialog */}
-                  <Dialog open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
-                    <DialogContent className="max-w-sm">
-                      <DialogHeader>
-                        <DialogTitle>Criar produto rápido</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-3">
-                        <div className="space-y-1">
+                  {/* Quick-create product Sheet (same layout as main product form) */}
+                  <Sheet open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
+                    <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]">
+                      <SheetHeader>
+                        <SheetTitle>Novo Produto (para o Combo)</SheetTitle>
+                      </SheetHeader>
+                      <div className="space-y-5 mt-6">
+                        <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => setQuickImageBlob(null)} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
+                        <div className="space-y-2">
+                          <Label>Categoria</Label>
+                          <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={quickForm.category_id} onChange={e => setQuickForm({ ...quickForm, category_id: e.target.value })}>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
                           <Label>Nome *</Label>
                           <Input value={quickForm.name} onChange={e => setQuickForm({ ...quickForm, name: e.target.value })} placeholder="Ex: Cookie de chocolate" />
                         </div>
-                        <div className="space-y-1">
+                        <div className="space-y-2">
+                          <Label>Descrição</Label>
+                          <Input value={quickForm.description} onChange={e => setQuickForm({ ...quickForm, description: e.target.value })} placeholder="Descrição do produto" />
+                        </div>
+                        <div className="space-y-2">
                           <Label>Preço (R$) *</Label>
                           <Input type="number" step="0.01" min="0" value={quickForm.price} onChange={e => setQuickForm({ ...quickForm, price: e.target.value })} placeholder="0.00" />
                         </div>
-                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full">
-                          {savingQuick ? "Criando..." : "Criar e voltar ao combo"}
+                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full h-11 text-base font-semibold">
+                          {savingQuick ? "Criando..." : "Criar Produto"}
                         </Button>
                       </div>
-                    </DialogContent>
-                  </Dialog>
+                    </SheetContent>
+                  </Sheet>
                 </div>
               )}
 
