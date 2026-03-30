@@ -800,7 +800,12 @@ const ProductsPage = () => {
                   </div>
 
                   {comboEligibleProducts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Crie produtos simples primeiro para adicioná-los ao combo.</p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Nenhum produto disponível para adicionar ao combo.</p>
+                      <Button variant="outline" size="sm" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
+                        <Plus className="w-3 h-3 mr-1" /> Criar produto rápido
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-1 max-h-48 overflow-y-auto">
                       {filteredComboProducts.map(p => {
