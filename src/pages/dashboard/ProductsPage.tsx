@@ -1021,8 +1021,8 @@ const ProductsPage = () => {
                           </div>
                         )}
 
-                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick || quickPromoInvalid} className="w-full h-11 text-base font-semibold">
-                          {savingQuick ? "Criando..." : "Criar Produto"}
+                        <Button onClick={quickSaveProduct} disabled={!quickForm.name || !quickForm.price || savingQuick || quickPromoInvalid} className="w-full h-11 text-base font-semibold">
+                          {savingQuick ? (quickEditingProd ? "Salvando..." : "Criando...") : (quickEditingProd ? "Salvar Alterações" : "Criar Produto")}
                         </Button>
                       </div>
                     </SheetContent>
