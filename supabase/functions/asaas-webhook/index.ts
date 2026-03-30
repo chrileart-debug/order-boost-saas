@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { event, payment, subscription: subData } = body;
 
-    console.log("Asaas webhook received:", event);
+    console.log("Asaas webhook received:", event, JSON.stringify(body));
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -49,6 +49,18 @@ Deno.serve(async (req) => {
       let planType = "essential";
       if (payment.value >= 49) {
         planType = "pro";
+      }
+
+      // Save customer and subscription IDs to establishments
+      const estUpdate: Record<string, unknown> = {};
+      if (payment.customer) {
+        estUpdate.asaas_customer_id = payment.customer;
+      }
+      if (Object.keys(estUpdate).length > 0) {
+        await supabase
+          .from("establishments")
+          .update(estUpdate)
+          .eq("id", establishmentId);
       }
 
       // Update subscription to active
