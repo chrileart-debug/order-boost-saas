@@ -794,9 +794,14 @@ const ProductsPage = () => {
                   <h3 className="font-semibold text-foreground">Composição do Combo</h3>
                   <p className="text-xs text-muted-foreground">Selecione os produtos que fazem parte deste combo. O preço individual é usado apenas como referência.</p>
 
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input value={comboSearch} onChange={e => setComboSearch(e.target.value)} placeholder="Buscar produto..." className="pl-9 h-9" />
+                    </div>
+                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => { setQuickForm({ name: "", price: "" }); setQuickCreateOpen(true); }}>
+                      <Plus className="w-3 h-3 mr-1" /> Criar
+                    </Button>
                   </div>
 
                   {comboEligibleProducts.length === 0 ? (
