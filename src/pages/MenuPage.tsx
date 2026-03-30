@@ -255,7 +255,12 @@ const MenuPage = () => {
                     className="w-full flex items-center gap-4 p-3 rounded-lg bg-card border border-border hover:shadow-md transition-shadow text-left"
                   >
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-foreground truncate">{product.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-medium text-foreground truncate">{product.name}</h3>
+                        {comboProductIds.has(product.id) && !product.image_url && (
+                          <Badge className="text-[9px] px-1.5 py-0 bg-primary text-primary-foreground shrink-0">COMBO</Badge>
+                        )}
+                      </div>
                       {product.description && (
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
                           {product.description}
