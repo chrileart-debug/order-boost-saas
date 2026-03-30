@@ -91,7 +91,20 @@ const MenuPage = () => {
         .eq("is_available", true)
         .order("order_index");
 
-      setProducts(prods || []);
+      const prodsList = prods || [];
+      setProducts(prodsList);
+
+      // Fetch combo product IDs
+      if (prodsList.length > 0) {
+        const { data: combos } = await supabase
+          .from("combo_items")
+          .select("parent_product_id")
+          .in("parent_product_id", prodsList.map((p: any) => p.id));
+        if (combos && combos.length > 0) {
+          setComboProductIds(new Set(combos.map((c: any) => c.parent_product_id)));
+        }
+      }
+
       setLoading(false);
     };
     load();
