@@ -19,7 +19,7 @@ import ImageCropper from "@/components/ImageCropper";
 
 /* ─── types ─── */
 interface Category { id: string; name: string; order_index: number; establishment_id: string }
-interface Product { id: string; name: string; description: string | null; price: number; category_id: string; image_url: string | null; is_available: boolean; order_index: number }
+interface Product { id: string; name: string; description: string | null; price: number; category_id: string; image_url: string | null; is_available: boolean; order_index: number; is_promo: boolean; promo_price: number | null }
 interface OptionGroup { id: string; name: string; min_selection: number; max_selection: number; establishment_id: string; selection_type: string }
 interface LibraryItem { id: string; establishment_id: string; name: string; description: string; price: number; is_available: boolean }
 interface GroupItem { id: string; group_id: string; item_id: string; max_quantity: number; sort_order: number }
@@ -41,7 +41,7 @@ const ProductsPage = () => {
   /* product sheet */
   const [prodSheet, setProdSheet] = useState(false);
   const [editingProd, setEditingProd] = useState<Product | null>(null);
-  const [prodForm, setProdForm] = useState({ name: "", description: "", price: "", category_id: "" });
+  const [prodForm, setProdForm] = useState({ name: "", description: "", price: "", category_id: "", is_promo: false, promo_price: "" });
   const [prodImageBlob, setProdImageBlob] = useState<Blob | null>(null);
   const [prodImageRemoved, setProdImageRemoved] = useState(false);
   const [savingProd, setSavingProd] = useState(false);
@@ -139,13 +139,13 @@ const ProductsPage = () => {
   const openNewProduct = async () => {
     let defaultCatId = categories[0]?.id || "";
     if (!defaultCatId) { try { defaultCatId = await ensureDefaultCategory(); } catch { return; } }
-    setProdForm({ name: "", description: "", price: "", category_id: defaultCatId });
+    setProdForm({ name: "", description: "", price: "", category_id: defaultCatId, is_promo: false, promo_price: "" });
     setEditingProd(null); setProdImageBlob(null); setProdImageRemoved(false); setLinkedGroupIds([]);
     setProdSheet(true);
   };
 
   const openEditProduct = async (prod: Product) => {
-    setProdForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id });
+    setProdForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id, is_promo: prod.is_promo || false, promo_price: prod.promo_price != null ? String(prod.promo_price) : "" });
     setEditingProd(prod); setProdImageBlob(null); setProdImageRemoved(false);
     const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
     setLinkedGroupIds((mods || []).map((m: any) => m.group_id));
@@ -156,7 +156,7 @@ const ProductsPage = () => {
     if (!prodForm.name || !prodForm.price) return;
     setSavingProd(true);
     const categoryId = prodForm.category_id || (await ensureDefaultCategory());
-    const payload: any = { name: prodForm.name, description: prodForm.description || null, price: parseFloat(prodForm.price), category_id: categoryId };
+    const payload: any = { name: prodForm.name, description: prodForm.description || null, price: parseFloat(prodForm.price), category_id: categoryId, is_promo: prodForm.is_promo, promo_price: prodForm.is_promo && prodForm.promo_price ? parseFloat(prodForm.promo_price) : null };
     try {
       let productId = editingProd?.id;
       if (editingProd) {
