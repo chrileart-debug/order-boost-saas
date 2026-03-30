@@ -33,6 +33,7 @@ const ProductsPage = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [comboProductIds, setComboProductIds] = useState<Set<string>>(new Set());
 
   /* category dialog */
   const [catDialog, setCatDialog] = useState(false);
