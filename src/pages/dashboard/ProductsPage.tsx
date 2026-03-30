@@ -287,7 +287,19 @@ const ProductsPage = () => {
     const defaultCat = categories[0]?.id || "";
     setQuickForm({ name: "", description: "", price: "", category_id: defaultCat, is_promo: false, promo_price: "" });
     setQuickImageBlob(null);
+    setQuickImageRemoved(false);
+    setQuickEditingProd(null);
     setQuickLinkedGroupIds([]);
+    setQuickCreateOpen(true);
+  };
+
+  const openQuickEdit = async (prod: Product) => {
+    setQuickForm({ name: prod.name, description: prod.description || "", price: String(prod.price), category_id: prod.category_id, is_promo: prod.is_promo || false, promo_price: prod.promo_price != null ? String(prod.promo_price) : "" });
+    setQuickImageBlob(null);
+    setQuickImageRemoved(false);
+    setQuickEditingProd(prod);
+    const { data: mods } = await supabase.from("product_modifiers").select("*").eq("product_id", prod.id);
+    setQuickLinkedGroupIds((mods || []).map((m: any) => m.group_id));
     setQuickCreateOpen(true);
   };
 
