@@ -955,7 +955,7 @@ const ProductsPage = () => {
                         <SheetTitle>{quickEditingProd ? "Editar Produto" : "Novo Produto (para o Combo)"}</SheetTitle>
                       </SheetHeader>
                       <div className="space-y-5 mt-6">
-                        <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => setQuickImageBlob(null)} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
+                        <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => { setQuickImageRemoved(true); setQuickImageBlob(null); }} currentUrl={quickEditingProd?.image_url || undefined} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
                         <div className="space-y-2">
                           <Label>Categoria</Label>
                           <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={quickForm.category_id} onChange={e => setQuickForm({ ...quickForm, category_id: e.target.value })}>
