@@ -56,6 +56,11 @@ const ProductsPage = () => {
   const [comboItems, setComboItems] = useState<{ product_id: string; quantity: number }[]>([]);
   const [comboSearch, setComboSearch] = useState("");
 
+  /* quick-create product inside combo */
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickForm, setQuickForm] = useState({ name: "", price: "" });
+  const [savingQuick, setSavingQuick] = useState(false);
+
   /* modifier groups */
   const [allGroups, setAllGroups] = useState<OptionGroup[]>([]);
 
