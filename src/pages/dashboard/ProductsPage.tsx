@@ -280,23 +280,38 @@ const ProductsPage = () => {
     });
   };
 
+  const openQuickCreate = () => {
+    const defaultCat = categories[0]?.id || "";
+    setQuickForm({ name: "", description: "", price: "", category_id: defaultCat });
+    setQuickImageBlob(null);
+    setQuickCreateOpen(true);
+  };
+
   const quickCreateProduct = async () => {
     if (!quickForm.name || !quickForm.price) return;
     setSavingQuick(true);
     try {
-      const categoryId = categories[0]?.id || (await ensureDefaultCategory());
-      const { data } = await supabase.from("products").insert({
+      const categoryId = quickForm.category_id || categories[0]?.id || (await ensureDefaultCategory());
+      const payload: any = {
         name: quickForm.name,
+        description: quickForm.description || null,
         price: parseFloat(quickForm.price),
         category_id: categoryId,
         order_index: products.length,
-      }).select().single();
+      };
+      const { data } = await supabase.from("products").insert(payload).select().single();
       if (data) {
+        if (quickImageBlob) {
+          const path = `products/${data.id}.webp`;
+          await supabase.storage.from("establishments").upload(path, quickImageBlob, { upsert: true, contentType: "image/webp" });
+          const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
+          await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", data.id);
+          (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+        }
         setProducts(prev => [...prev, data as Product]);
-        toast({ title: "Produto criado" });
+        toast({ title: "Produto criado e disponível no combo" });
       }
       setQuickCreateOpen(false);
-      setQuickForm({ name: "", price: "" });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally { setSavingQuick(false); }
