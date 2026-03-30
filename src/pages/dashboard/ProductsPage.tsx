@@ -96,9 +96,20 @@ const ProductsPage = () => {
 
     if (cats.length > 0) {
       const { data: prods } = await supabase.from("products").select("*").in("category_id", cats.map(c => c.id)).order("order_index");
-      setProducts(prods || []);
+      const productsList = prods || [];
+      setProducts(productsList);
+
+      // Fetch combo product IDs
+      if (productsList.length > 0) {
+        const { data: comboData } = await supabase.from("combo_items").select("parent_product_id").in("parent_product_id", productsList.map(p => p.id));
+        const ids = new Set((comboData || []).map((c: any) => c.parent_product_id));
+        setComboProductIds(ids);
+      } else {
+        setComboProductIds(new Set());
+      }
     } else {
       setProducts([]);
+      setComboProductIds(new Set());
     }
 
     const groups = (groupsRes.data || []) as OptionGroup[];
