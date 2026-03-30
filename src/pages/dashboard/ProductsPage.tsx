@@ -309,7 +309,7 @@ const ProductsPage = () => {
     setQuickLinkedGroupIds(prev => prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]);
   };
 
-  const quickCreateProduct = async () => {
+  const quickSaveProduct = async () => {
     if (!quickForm.name || !quickForm.price || quickPromoInvalid) return;
     setSavingQuick(true);
     try {
@@ -319,26 +319,58 @@ const ProductsPage = () => {
         description: quickForm.description || null,
         price: parseFloat(quickForm.price),
         category_id: categoryId,
-        order_index: products.length,
         is_promo: quickForm.is_promo,
         promo_price: quickForm.is_promo && quickForm.promo_price ? parseFloat(quickForm.promo_price) : null,
       };
-      const { data } = await supabase.from("products").insert(payload).select().single();
-      if (data) {
+
+      let productId: string;
+
+      if (quickEditingProd) {
+        // UPDATE existing product
+        await supabase.from("products").update(payload).eq("id", quickEditingProd.id);
+        productId = quickEditingProd.id;
+
         if (quickImageBlob) {
-          const path = `products/${data.id}.webp`;
+          const path = `products/${productId}.webp`;
           await supabase.storage.from("establishments").upload(path, quickImageBlob, { upsert: true, contentType: "image/webp" });
           const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
-          await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", data.id);
-          (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+          const newUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+          await supabase.from("products").update({ image_url: newUrl }).eq("id", productId);
+          payload.image_url = newUrl;
+        } else if (quickImageRemoved) {
+          const path = `products/${productId}.webp`;
+          await supabase.storage.from("establishments").remove([path]);
+          await supabase.from("products").update({ image_url: null }).eq("id", productId);
+          payload.image_url = null;
         }
+
+        // Update modifiers
+        await supabase.from("product_modifiers").delete().eq("product_id", productId);
         if (quickLinkedGroupIds.length > 0) {
-          await supabase.from("product_modifiers").insert(
-            quickLinkedGroupIds.map(gid => ({ product_id: data.id, group_id: gid }))
-          );
+          await supabase.from("product_modifiers").insert(quickLinkedGroupIds.map(gid => ({ product_id: productId, group_id: gid })));
         }
-        setProducts(prev => [...prev, data as Product]);
-        toast({ title: "Produto criado e disponível no combo" });
+
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...payload, image_url: payload.image_url ?? p.image_url } : p));
+        toast({ title: "Produto atualizado" });
+      } else {
+        // CREATE new product
+        payload.order_index = products.length;
+        const { data } = await supabase.from("products").insert(payload).select().single();
+        if (data) {
+          productId = data.id;
+          if (quickImageBlob) {
+            const path = `products/${productId}.webp`;
+            await supabase.storage.from("establishments").upload(path, quickImageBlob, { upsert: true, contentType: "image/webp" });
+            const { data: urlData } = supabase.storage.from("establishments").getPublicUrl(path);
+            await supabase.from("products").update({ image_url: `${urlData.publicUrl}?t=${Date.now()}` }).eq("id", productId);
+            (data as any).image_url = `${urlData.publicUrl}?t=${Date.now()}`;
+          }
+          if (quickLinkedGroupIds.length > 0) {
+            await supabase.from("product_modifiers").insert(quickLinkedGroupIds.map(gid => ({ product_id: productId, group_id: gid })));
+          }
+          setProducts(prev => [...prev, data as Product]);
+          toast({ title: "Produto criado e disponível no combo" });
+        }
       }
       setQuickCreateOpen(false);
     } catch (err: any) {
