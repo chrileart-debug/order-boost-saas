@@ -189,8 +189,11 @@ const ProductsPage = () => {
     setProdSheet(true);
   };
 
+  const promoInvalid = prodForm.is_promo && prodForm.promo_price !== "" && parseFloat(prodForm.promo_price) >= parseFloat(prodForm.price || "0");
+
   const saveProduct = async () => {
     if (!prodForm.name || !prodForm.price) return;
+    if (prodForm.is_promo && (!prodForm.promo_price || promoInvalid)) return;
     setSavingProd(true);
     const categoryId = prodForm.category_id || (await ensureDefaultCategory());
     const payload: any = { name: prodForm.name, description: prodForm.description || null, price: parseFloat(prodForm.price), category_id: categoryId, is_promo: prodForm.is_promo, promo_price: prodForm.is_promo && prodForm.promo_price ? parseFloat(prodForm.promo_price) : null };
@@ -751,6 +754,9 @@ const ProductsPage = () => {
                   <div className="space-y-2">
                     <Label>Preço de Oferta (R$) *</Label>
                     <Input type="number" step="0.01" min="0" value={prodForm.promo_price} onChange={e => setProdForm({ ...prodForm, promo_price: e.target.value })} placeholder="0.00" />
+                    {promoInvalid && (
+                      <p className="text-xs text-destructive">O preço promocional deve ser menor que o preço original (R$ {parseFloat(prodForm.price || "0").toFixed(2)}).</p>
+                    )}
                   </div>
                 )}
               </div>
