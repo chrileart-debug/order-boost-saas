@@ -189,9 +189,15 @@ const ProductModal = ({ product, slug, onClose, onAdd }: Props) => {
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const handleAdd = () => {
+    // Build product name with combo details for order snapshot
+    let productName = product.name;
+    if (comboDetails.length > 0) {
+      const comboDesc = comboDetails.map(c => `${c.quantity}x ${c.name}`).join(", ");
+      productName = `${product.name} (Itens: ${comboDesc})`;
+    }
     addToCart(slug, {
       productId: product.id,
-      productName: product.name,
+      productName,
       productImage: product.image_url,
       basePrice: effectiveBasePrice,
       quantity,
