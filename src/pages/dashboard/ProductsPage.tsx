@@ -871,6 +871,27 @@ const ProductsPage = () => {
                       )}
                     </div>
                   )}
+                  {/* Quick-create product dialog */}
+                  <Dialog open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
+                    <DialogContent className="max-w-sm">
+                      <DialogHeader>
+                        <DialogTitle>Criar produto rápido</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label>Nome *</Label>
+                          <Input value={quickForm.name} onChange={e => setQuickForm({ ...quickForm, name: e.target.value })} placeholder="Ex: Cookie de chocolate" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label>Preço (R$) *</Label>
+                          <Input type="number" step="0.01" min="0" value={quickForm.price} onChange={e => setQuickForm({ ...quickForm, price: e.target.value })} placeholder="0.00" />
+                        </div>
+                        <Button onClick={quickCreateProduct} disabled={!quickForm.name || !quickForm.price || savingQuick} className="w-full">
+                          {savingQuick ? "Criando..." : "Criar e voltar ao combo"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
 
