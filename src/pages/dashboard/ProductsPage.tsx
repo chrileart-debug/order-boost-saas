@@ -952,7 +952,7 @@ const ProductsPage = () => {
                   <Sheet open={quickCreateOpen} onOpenChange={setQuickCreateOpen}>
                     <SheetContent className="overflow-y-auto sm:max-w-lg w-full z-[60]" overlayClassName="z-[55]">
                       <SheetHeader>
-                        <SheetTitle>Novo Produto (para o Combo)</SheetTitle>
+                        <SheetTitle>{quickEditingProd ? "Editar Produto" : "Novo Produto (para o Combo)"}</SheetTitle>
                       </SheetHeader>
                       <div className="space-y-5 mt-6">
                         <ImageCropper aspectRatio={1} onCropped={setQuickImageBlob} onRemove={() => setQuickImageBlob(null)} label="Foto do Produto" hint="Proporção 1:1 (quadrada)" />
