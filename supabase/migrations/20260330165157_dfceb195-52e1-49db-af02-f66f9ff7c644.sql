@@ -1,0 +1,1 @@
+ALTER TABLE public.subscriptions ADD CONSTRAINT subscriptions_establishment_id_key UNIQUE (establishment_id);
