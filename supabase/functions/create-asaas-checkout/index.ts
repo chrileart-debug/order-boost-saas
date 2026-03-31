@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { establishmentId, planType } = await req.json();
+    const { establishmentId, planType, originUrl: rawOrigin } = await req.json();
+    const originUrl = rawOrigin && rawOrigin.startsWith("http") ? rawOrigin : "https://eprato.lovable.app";
 
     if (!establishmentId || !planType || !PLAN_VALUES[planType]) {
       return jsonResponse({ error: "Missing or invalid establishmentId/planType" }, 400);
