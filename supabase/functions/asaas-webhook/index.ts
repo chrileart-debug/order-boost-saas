@@ -36,9 +36,23 @@ Deno.serve(async (req) => {
         });
       }
 
-      const establishmentId = payment.externalReference;
+      // Try externalReference first, then fallback to paymentLinkId lookup
+      let establishmentId = payment.externalReference;
+
+      if (!establishmentId && payment.paymentLink) {
+        // Look up establishment by current_checkout_id
+        const { data: estByLink } = await supabase
+          .from("establishments")
+          .select("id")
+          .eq("current_checkout_id", payment.paymentLink)
+          .single();
+        if (estByLink) {
+          establishmentId = estByLink.id;
+        }
+      }
+
       if (!establishmentId) {
-        console.error("No externalReference in payment");
+        console.error("No externalReference or paymentLink match in payment");
         return new Response(JSON.stringify({ error: "Missing externalReference" }), {
           status: 400,
           headers: corsHeaders,
