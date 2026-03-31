@@ -246,6 +246,7 @@ export type Database = {
           asaas_customer_id: string | null
           asaas_subscription_id: string | null
           base_fee: number | null
+          cancel_at_period_end: boolean
           checkout_expires_at: string | null
           cnpj: string | null
           cover_url: string | null
@@ -277,6 +278,7 @@ export type Database = {
           asaas_customer_id?: string | null
           asaas_subscription_id?: string | null
           base_fee?: number | null
+          cancel_at_period_end?: boolean
           checkout_expires_at?: string | null
           cnpj?: string | null
           cover_url?: string | null
@@ -308,6 +310,7 @@ export type Database = {
           asaas_customer_id?: string | null
           asaas_subscription_id?: string | null
           base_fee?: number | null
+          cancel_at_period_end?: boolean
           checkout_expires_at?: string | null
           cnpj?: string | null
           cover_url?: string | null

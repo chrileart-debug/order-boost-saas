@@ -7,7 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle, ShieldCheck } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle, ShieldCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 interface Subscription {
@@ -68,6 +79,8 @@ const SubscriptionPage = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const fetchSubscriptionData = useCallback(async () => {
@@ -92,11 +105,9 @@ const SubscriptionPage = () => {
     setLoading(false);
   }, [establishment]);
 
-  // Handle return from Asaas checkout (all statuses)
   useEffect(() => {
     const status = searchParams.get("status");
     if (status) {
-      // Always refresh on ANY return status
       refreshEstablishment();
       fetchSubscriptionData();
       setSearchParams({}, { replace: true });
@@ -106,23 +117,22 @@ const SubscriptionPage = () => {
     }
   }, [searchParams, refreshEstablishment, setSearchParams, fetchSubscriptionData]);
 
-  // Refetch on tab/window focus
   useEffect(() => {
     const onFocus = () => {
       refreshEstablishment();
       fetchSubscriptionData();
     };
     window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", () => {
+    const onVisibility = () => {
       if (document.visibilityState === "visible") onFocus();
-    });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refreshEstablishment, fetchSubscriptionData]);
 
-  // Initial fetch
   useEffect(() => {
     fetchSubscriptionData();
   }, [fetchSubscriptionData]);
@@ -159,9 +169,60 @@ const SubscriptionPage = () => {
     }
   };
 
-  // SOURCE OF TRUTH: establishment.plan_status from the database
+  const handleCancel = async () => {
+    if (!establishment?.id) return;
+    setCancelLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-asaas-subscription", {
+        body: { establishmentId: establishment.id, action: "cancel" },
+      });
+      if (error) {
+        toast.error("Erro ao cancelar assinatura.");
+        return;
+      }
+      const payload = typeof data === "string" ? JSON.parse(data) : data;
+      if (payload?.ok) {
+        toast.success("Cancelamento agendado. Seu acesso continua até o fim do ciclo.");
+        await refreshEstablishment();
+        await fetchSubscriptionData();
+      } else {
+        toast.error(payload?.error || "Erro ao cancelar.");
+      }
+    } catch {
+      toast.error("Erro inesperado.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleReactivate = async () => {
+    if (!establishment?.id) return;
+    setReactivateLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("manage-asaas-subscription", {
+        body: { establishmentId: establishment.id, action: "reactivate" },
+      });
+      if (error) {
+        toast.error("Erro ao reativar assinatura.");
+        return;
+      }
+      const payload = typeof data === "string" ? JSON.parse(data) : data;
+      if (payload?.ok) {
+        toast.success("Assinatura reativada com sucesso!");
+        await refreshEstablishment();
+        await fetchSubscriptionData();
+      } else {
+        toast.error(payload?.error || "Erro ao reativar.");
+      }
+    } catch {
+      toast.error("Erro inesperado.");
+    } finally {
+      setReactivateLoading(false);
+    }
+  };
+
   const isActive = establishment?.plan_status === "active";
-  // For plan details, use the confirmed subscription (only when active)
+  const isCancelScheduled = !!establishment?.cancel_at_period_end;
   const activePlan = isActive ? (subscription?.plan_type || "essential") : null;
 
   const nextBillingDate = subscription?.next_billing_date
@@ -185,7 +246,6 @@ const SubscriptionPage = () => {
     );
   }
 
-  // ── Plan cards ──
   const renderPlanCards = () => (
     <div className="grid gap-4 sm:grid-cols-2">
       {plans.map((plan) => {
@@ -312,6 +372,42 @@ const SubscriptionPage = () => {
         </TabsList>
 
         <TabsContent value="plan" className="space-y-5 mt-4">
+          {/* Cancellation scheduled alert */}
+          {isCancelScheduled && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="p-4 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    Cancelamento agendado
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Sua assinatura será encerrada em{" "}
+                    <strong>
+                      {nextBillingDate
+                        ? nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+                        : "breve"}
+                    </strong>
+                    . Até lá, você continua com acesso completo ao plano{" "}
+                    <strong className="capitalize">{activePlan}</strong>.
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={handleReactivate}
+                    disabled={reactivateLoading}
+                    className="mt-1"
+                  >
+                    {reactivateLoading ? (
+                      <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Reativando...</>
+                    ) : (
+                      <><RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Reativar Agora</>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="bg-card">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -329,8 +425,12 @@ const SubscriptionPage = () => {
                     <p className="text-lg font-bold text-foreground capitalize">{activePlan}</p>
                   </div>
                 </div>
-                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15">
-                  Ativo
+                <Badge className={
+                  isCancelScheduled
+                    ? "bg-amber-500/15 text-amber-600 border-amber-500/20 hover:bg-amber-500/15"
+                    : "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15"
+                }>
+                  {isCancelScheduled ? "Cancelamento agendado" : "Ativo"}
                 </Badge>
               </div>
 
@@ -343,7 +443,9 @@ const SubscriptionPage = () => {
                 </div>
                 {nextBillingDate && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Próxima cobrança</span>
+                    <span className="text-muted-foreground">
+                      {isCancelScheduled ? "Acesso até" : "Próxima cobrança"}
+                    </span>
                     <span className="font-medium text-foreground">
                       {nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </span>
@@ -375,11 +477,61 @@ const SubscriptionPage = () => {
             {renderPlanCards()}
           </div>
 
+          {/* Cancel / Reactivate footer */}
           <div className="pt-1 text-center">
-            <Button variant="ghost" className="text-muted-foreground text-xs hover:text-destructive">
-              <XCircle className="w-3.5 h-3.5 mr-1" />
-              Cancelar assinatura
-            </Button>
+            {isCancelScheduled ? (
+              <Button
+                variant="ghost"
+                className="text-muted-foreground text-xs hover:text-primary"
+                onClick={handleReactivate}
+                disabled={reactivateLoading}
+              >
+                {reactivateLoading ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> Reativando...</>
+                ) : (
+                  <><RotateCcw className="w-3.5 h-3.5 mr-1" /> Reativar assinatura</>
+                )}
+              </Button>
+            ) : (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" className="text-muted-foreground text-xs hover:text-destructive">
+                    <XCircle className="w-3.5 h-3.5 mr-1" />
+                    Cancelar assinatura
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Deseja cancelar a renovação?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Você terá acesso ao plano <strong className="capitalize">{activePlan}</strong> até o dia{" "}
+                      <strong>
+                        {nextBillingDate
+                          ? nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
+                          : "o fim do ciclo atual"}
+                      </strong>
+                      . Após essa data, seu plano será encerrado automaticamente.
+                      <br /><br />
+                      Você pode reativar a qualquer momento antes do vencimento.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Manter plano</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleCancel}
+                      disabled={cancelLoading}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {cancelLoading ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Cancelando...</>
+                      ) : (
+                        "Confirmar cancelamento"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </TabsContent>
 
