@@ -35,9 +35,11 @@ Deno.serve(async (req) => {
 
   try {
     const { establishmentId, planType, originUrl: rawOrigin } = await req.json();
+    const normalizedEstablishmentId =
+      typeof establishmentId === "string" ? establishmentId.trim() : "";
     const originUrl = rawOrigin && rawOrigin.startsWith("http") ? rawOrigin : "https://eprato.lovable.app";
 
-    if (!establishmentId || !planType || !PLAN_VALUES[planType]) {
+    if (!normalizedEstablishmentId || !planType || !PLAN_VALUES[planType]) {
       return jsonResponse({ error: "Missing or invalid establishmentId/planType" }, 400);
     }
 
@@ -53,7 +55,7 @@ Deno.serve(async (req) => {
     const { data: est, error: estErr } = await supabase
       .from("establishments")
       .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id")
-      .eq("id", establishmentId)
+      .eq("id", normalizedEstablishmentId)
       .single();
 
     if (estErr || !est) {
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
         const { data: existingSub } = await supabase
           .from("subscriptions")
           .select("plan_type, status")
-          .eq("establishment_id", establishmentId)
+          .eq("establishment_id", normalizedEstablishmentId)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -98,11 +100,12 @@ Deno.serve(async (req) => {
         billingTypes: ["CREDIT_CARD"],
         chargeTypes: ["RECURRENT"],
         minutesToExpire: CHECKOUT_EXPIRATION_MINUTES,
-        externalReference: establishmentId,
+        externalReference: normalizedEstablishmentId,
         items: [
           {
             name: `Plano ${planLabel}`,
             description: "Assinatura Mensal EPRATO",
+            externalReference: normalizedEstablishmentId,
             quantity: 1,
             value,
           },
