@@ -32,6 +32,7 @@ const plans = [
     name: "Essential",
     price: "29,90",
     value: 29.9,
+    tier: 1,
     icon: Zap,
     features: [
       "Cardápio digital completo",
@@ -47,6 +48,7 @@ const plans = [
     name: "PRO",
     price: "49,90",
     value: 49.9,
+    tier: 2,
     icon: Crown,
     popular: true,
     features: [
@@ -59,7 +61,6 @@ const plans = [
     ],
   },
 ];
-
 const SubscriptionPage = () => {
   const { establishment, loading: estLoading, refresh: refreshEstablishment } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -167,9 +168,10 @@ const SubscriptionPage = () => {
     <div className="grid gap-4 sm:grid-cols-2">
       {plans.map((plan) => {
         const Icon = plan.icon;
+        const currentTier = plans.find((p) => p.id === activePlan)?.tier ?? 0;
         const isCurrent = activePlan === plan.id;
-        const isUpgrade = isActive && !isCurrent;
-        const isLoadingThis = checkoutLoading === plan.id;
+        const isUpgrade = isActive && !isCurrent && plan.tier > currentTier;
+        const isDowngrade = isActive && !isCurrent && plan.tier < currentTier;
 
         return (
           <Card
@@ -225,13 +227,15 @@ const SubscriptionPage = () => {
                   <ShieldCheck className="w-4 h-4 mr-2" />
                   Plano Atual
                 </Button>
+              ) : isDowngrade ? (
+                <p className="text-center text-xs text-muted-foreground py-2">Plano inferior ao atual</p>
               ) : isUpgrade ? (
                 <Button
                   onClick={() => handleCheckout(plan)}
-                  disabled={isLoadingThis}
+                  disabled={checkoutLoading === plan.id}
                   className="w-full h-11 font-semibold"
                 >
-                  {isLoadingThis ? (
+                  {checkoutLoading === plan.id ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
                   ) : (
                     `Fazer Upgrade para ${plan.name}`
@@ -240,11 +244,11 @@ const SubscriptionPage = () => {
               ) : (
                 <Button
                   onClick={() => handleCheckout(plan)}
-                  disabled={isLoadingThis}
+                  disabled={checkoutLoading === plan.id}
                   className="w-full h-11 font-semibold"
                   variant={plan.popular ? "default" : "outline"}
                 >
-                  {isLoadingThis ? (
+                  {checkoutLoading === plan.id ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
                   ) : (
                     "Assinar agora"
