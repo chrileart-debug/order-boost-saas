@@ -208,7 +208,11 @@ const SubscriptionPage = () => {
       }
       const payload = typeof data === "string" ? JSON.parse(data) : data;
       if (payload?.ok) {
-        toast.success("Assinatura reativada com sucesso!");
+        if (payload.needsCheckout) {
+          toast.info("Para reativar, faça um novo checkout.");
+        } else {
+          toast.success("Assinatura reativada com sucesso!");
+        }
         await refreshEstablishment();
         await fetchSubscriptionData();
       } else {
