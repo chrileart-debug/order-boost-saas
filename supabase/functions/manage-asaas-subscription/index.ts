@@ -126,6 +126,17 @@ Deno.serve(async (req) => {
       if (!createRes.ok) {
         const errText = await createRes.text();
         console.error("Asaas create subscription error:", errText);
+        
+        // If customer is invalid, just clear the flag and tell frontend to use checkout
+        if (errText.includes("invalid_customer")) {
+          console.log("Cliente inválido no Asaas, limpando flag e sugerindo checkout");
+          await supabase
+            .from("establishments")
+            .update({ cancel_at_period_end: false, asaas_customer_id: null })
+            .eq("id", establishmentId);
+          return json({ ok: true, needsCheckout: true, message: "Cliente não encontrado no Asaas. Use o checkout para reativar." });
+        }
+        
         return json({ error: "Falha ao reativar no Asaas", details: errText }, 502);
       }
 
