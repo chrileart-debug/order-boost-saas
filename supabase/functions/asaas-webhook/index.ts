@@ -41,30 +41,32 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const establishmentId = payment?.externalReference || subData?.externalReference;
-    console.log("ID identificado:", establishmentId ?? null);
+    let resolvedEstablishmentId: string | null =
+      payment?.externalReference || subData?.externalReference || null;
 
-    if (!establishmentId) {
-      console.error("ExternalReference ausente no webhook");
+    // Fallback: busca pelo checkoutSession salvo em current_checkout_id
+    if (!resolvedEstablishmentId && payment?.checkoutSession) {
+      const { data: estBySession } = await supabase
+        .from("establishments")
+        .select("id")
+        .eq("current_checkout_id", payment.checkoutSession)
+        .maybeSingle();
+      if (estBySession) {
+        resolvedEstablishmentId = estBySession.id;
+      }
+    }
+
+    console.log("ID identificado:", resolvedEstablishmentId);
+
+    if (!resolvedEstablishmentId) {
+      console.error("ExternalReference ausente e fallback falhou");
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         status: 200,
         headers: corsHeaders,
       });
     }
 
-    const { data: establishment, error: estLookupError } = await supabase
-      .from("establishments")
-      .select("id")
-      .eq("id", establishmentId)
-      .maybeSingle();
-
-    if (estLookupError || !establishment) {
-      console.error("Estabelecimento não encontrado para externalReference");
-      return new Response(JSON.stringify({ ok: true, skipped: true }), {
-        status: 200,
-        headers: corsHeaders,
-      });
-    }
+    const establishment = { id: resolvedEstablishmentId };
 
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
