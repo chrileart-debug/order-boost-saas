@@ -59,11 +59,24 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Establishment not found" }, 404);
     }
 
+    // Check for existing valid checkout WITH matching plan type
     if (est.current_checkout_url && est.current_checkout_url.length > 0 && est.checkout_expires_at) {
       const expiresAt = new Date(est.checkout_expires_at);
       if (expiresAt > new Date()) {
-        console.log("Returning existing checkout URL:", est.current_checkout_url);
-        return jsonResponse({ checkoutUrl: est.current_checkout_url }, 200);
+        // Verify the cached checkout matches the requested plan
+        const { data: existingSub } = await supabase
+          .from("subscriptions")
+          .select("plan_type, status")
+          .eq("establishment_id", establishmentId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingSub && existingSub.plan_type === planType && existingSub.status === "pending") {
+          console.log("Returning existing checkout URL:", est.current_checkout_url);
+          return jsonResponse({ checkoutUrl: est.current_checkout_url }, 200);
+        }
+        console.log("Cached checkout plan mismatch or not pending, creating new checkout");
       }
     }
 
