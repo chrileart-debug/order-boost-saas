@@ -28,6 +28,15 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Robust externalReference extraction
+    const externalReference =
+      body.checkout?.externalReference ||
+      payment?.externalReference ||
+      subData?.externalReference ||
+      body.externalReference;
+
+    console.log("ID do Restaurante capturado:", externalReference);
+
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
@@ -36,11 +45,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Try externalReference first, then fallback to paymentLinkId lookup
-      let establishmentId = payment.externalReference;
+      let establishmentId = externalReference;
 
       if (!establishmentId && payment.paymentLink) {
-        // Look up establishment by current_checkout_id
         const { data: estByLink } = await supabase
           .from("establishments")
           .select("id")
@@ -108,7 +115,7 @@ Deno.serve(async (req) => {
 
       console.log("Payment confirmed for establishment:", establishmentId);
     } else if (event === "PAYMENT_OVERDUE") {
-      if (!payment?.externalReference) {
+      if (!externalReference) {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
           status: 200,
           headers: corsHeaders,
@@ -118,12 +125,11 @@ Deno.serve(async (req) => {
       await supabase
         .from("subscriptions")
         .update({ status: "overdue", updated_at: new Date().toISOString() })
-        .eq("establishment_id", payment.externalReference);
+        .eq("establishment_id", externalReference);
 
-      console.log("Payment overdue for:", payment.externalReference);
+      console.log("Payment overdue for:", externalReference);
     } else if (event === "SUBSCRIPTION_DELETED" || event === "SUBSCRIPTION_INACTIVE") {
-      const ref = subData?.externalReference || payment?.externalReference;
-      if (!ref) {
+      if (!externalReference) {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
           status: 200,
           headers: corsHeaders,
@@ -133,9 +139,9 @@ Deno.serve(async (req) => {
       await supabase
         .from("subscriptions")
         .update({ status: "inactive", updated_at: new Date().toISOString() })
-        .eq("establishment_id", ref);
+        .eq("establishment_id", externalReference);
 
-      console.log("Subscription deleted/inactive for:", ref);
+      console.log("Subscription deleted/inactive for:", externalReference);
     } else {
       console.log("Unhandled event:", event);
     }
