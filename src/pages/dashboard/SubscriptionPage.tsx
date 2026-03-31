@@ -168,9 +168,10 @@ const SubscriptionPage = () => {
     <div className="grid gap-4 sm:grid-cols-2">
       {plans.map((plan) => {
         const Icon = plan.icon;
+        const currentTier = plans.find((p) => p.id === activePlan)?.tier ?? 0;
         const isCurrent = activePlan === plan.id;
-        const isUpgrade = isActive && !isCurrent;
-        const isLoadingThis = checkoutLoading === plan.id;
+        const isUpgrade = isActive && !isCurrent && plan.tier > currentTier;
+        const isDowngrade = isActive && !isCurrent && plan.tier < currentTier;
 
         return (
           <Card
