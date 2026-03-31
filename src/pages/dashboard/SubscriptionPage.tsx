@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,6 +61,7 @@ const plans = [
     ],
   },
 ];
+
 const SubscriptionPage = () => {
   const { establishment, loading: estLoading, refresh: refreshEstablishment } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -69,47 +70,66 @@ const SubscriptionPage = () => {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const fetchSubscriptionData = useCallback(async () => {
+    if (!establishment) return;
+    const [subRes, payRes] = await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("establishment_id", establishment.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("payments")
+        .select("*")
+        .eq("establishment_id", establishment.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ]);
+    setSubscription(subRes.data as Subscription | null);
+    setPayments((payRes.data as Payment[]) || []);
+    setLoading(false);
+  }, [establishment]);
+
+  // Handle return from Asaas checkout (all statuses)
   useEffect(() => {
     const status = searchParams.get("status");
-    if (status === "success") {
+    if (status) {
+      // Always refresh on ANY return status
       refreshEstablishment();
+      fetchSubscriptionData();
       setSearchParams({}, { replace: true });
-      toast.success("Pagamento processado! Seu plano será ativado em instantes.");
+      if (status === "success") {
+        toast.success("Pagamento processado! Seu plano será ativado em instantes.");
+      }
     }
-  }, [searchParams, refreshEstablishment, setSearchParams]);
+  }, [searchParams, refreshEstablishment, setSearchParams, fetchSubscriptionData]);
 
+  // Refetch on tab/window focus
   useEffect(() => {
-    const fetchData = async () => {
-      if (!establishment) return;
-      const [subRes, payRes] = await Promise.all([
-        supabase
-          .from("subscriptions")
-          .select("*")
-          .eq("establishment_id", establishment.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        supabase
-          .from("payments")
-          .select("*")
-          .eq("establishment_id", establishment.id)
-          .order("created_at", { ascending: false })
-          .limit(20),
-      ]);
-      setSubscription(subRes.data as Subscription | null);
-      setPayments((payRes.data as Payment[]) || []);
-      setLoading(false);
+    const onFocus = () => {
+      refreshEstablishment();
+      fetchSubscriptionData();
     };
-    fetchData();
-  }, [establishment]);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") onFocus();
+    });
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [refreshEstablishment, fetchSubscriptionData]);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchSubscriptionData();
+  }, [fetchSubscriptionData]);
 
   const handleCheckout = async (plan: (typeof plans)[0]) => {
     if (!establishment?.id) {
       toast.error("Estabelecimento inválido.");
-      return;
-    }
-    if (establishment.plan_status === "active") {
-      toast.info("Seu plano já está ativo!");
       return;
     }
     setCheckoutLoading(plan.id);
@@ -123,7 +143,7 @@ const SubscriptionPage = () => {
       }
       const payload = typeof data === "string" ? JSON.parse(data) : data;
       if (payload?.alreadyActive) {
-        toast.info("Seu plano já está ativo!");
+        toast.info("Você já possui este plano ativo!");
         await refreshEstablishment();
         return;
       }
@@ -139,7 +159,9 @@ const SubscriptionPage = () => {
     }
   };
 
-  const isActive = establishment?.plan_status === "active" || subscription?.status === "active";
+  // SOURCE OF TRUTH: establishment.plan_status from the database
+  const isActive = establishment?.plan_status === "active";
+  // For plan details, use the confirmed subscription (only when active)
   const activePlan = isActive ? (subscription?.plan_type || "essential") : null;
 
   const nextBillingDate = subscription?.next_billing_date
@@ -163,7 +185,7 @@ const SubscriptionPage = () => {
     );
   }
 
-  // ── Plan cards (shared between active & inactive views) ──
+  // ── Plan cards ──
   const renderPlanCards = () => (
     <div className="grid gap-4 sm:grid-cols-2">
       {plans.map((plan) => {
@@ -289,9 +311,7 @@ const SubscriptionPage = () => {
           <TabsTrigger value="history">Histórico de Pagamentos</TabsTrigger>
         </TabsList>
 
-        {/* ===== ABA PLANO ===== */}
         <TabsContent value="plan" className="space-y-5 mt-4">
-          {/* Summary card */}
           <Card className="bg-card">
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -333,7 +353,6 @@ const SubscriptionPage = () => {
             </CardContent>
           </Card>
 
-          {/* Payment method */}
           <Card>
             <CardContent className="p-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -351,13 +370,11 @@ const SubscriptionPage = () => {
             </CardContent>
           </Card>
 
-          {/* Plan cards always visible */}
           <div>
             <p className="text-sm font-semibold text-foreground mb-3">Planos disponíveis</p>
             {renderPlanCards()}
           </div>
 
-          {/* Cancel */}
           <div className="pt-1 text-center">
             <Button variant="ghost" className="text-muted-foreground text-xs hover:text-destructive">
               <XCircle className="w-3.5 h-3.5 mr-1" />
@@ -366,7 +383,6 @@ const SubscriptionPage = () => {
           </div>
         </TabsContent>
 
-        {/* ===== ABA HISTÓRICO ===== */}
         <TabsContent value="history" className="mt-4">
           {payments.length === 0 ? (
             <Card>

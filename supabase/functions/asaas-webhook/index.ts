@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Validação de token no header
+  // Validate webhook token
   const webhookToken = req.headers.get("asaas-access-token");
   const expectedToken = Deno.env.get("ASAAS_WEBHOOK_TOKEN");
 
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     let resolvedEstablishmentId: string | null =
       payment?.externalReference || subData?.externalReference || null;
 
-    // Fallback: busca pelo checkoutSession salvo em current_checkout_id
+    // Fallback: look up by checkoutSession
     if (!resolvedEstablishmentId && payment?.checkoutSession) {
       const { data: estBySession } = await supabase
         .from("establishments")
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const establishment = { id: resolvedEstablishmentId };
+    const establishmentId = resolvedEstablishmentId;
 
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
         planType = "pro";
       }
 
+      // Update establishment — ALWAYS set active on confirmed payment
       const estUpdate: Record<string, unknown> = {
         plan_status: "active",
       };
@@ -91,34 +92,21 @@ Deno.serve(async (req) => {
         estUpdate.asaas_subscription_id = payment.subscription;
       }
 
-      if (Object.keys(estUpdate).length > 0) {
-        const { error: estUpdateError } = await supabase
-          .from("establishments")
-          .update(estUpdate)
-          .eq("id", establishment.id);
+      const { error: estUpdateError } = await supabase
+        .from("establishments")
+        .update(estUpdate)
+        .eq("id", establishmentId);
 
-        if (estUpdateError) {
-          console.error("Falha ao atualizar establishments (campos opcionais):", estUpdateError.message);
-
-          const fallbackUpdate: Record<string, unknown> = {};
-          if (payment.customer) {
-            fallbackUpdate.asaas_customer_id = payment.customer;
-          }
-
-          if (Object.keys(fallbackUpdate).length > 0) {
-            await supabase
-              .from("establishments")
-              .update(fallbackUpdate)
-              .eq("id", establishment.id);
-          }
-        }
+      if (estUpdateError) {
+        console.error("Falha ao atualizar establishments:", estUpdateError.message);
       }
 
+      // Upsert subscription with CONFIRMED data
       const { error: subError } = await supabase
         .from("subscriptions")
         .upsert(
           {
-            establishment_id: establishment.id,
+            establishment_id: establishmentId,
             plan_type: planType,
             status: "active",
             gateway_name: "asaas",
@@ -134,19 +122,19 @@ Deno.serve(async (req) => {
       }
 
       await supabase.from("payments").insert({
-        establishment_id: establishment.id,
+        establishment_id: establishmentId,
         amount: payment.value || 0,
         status: "approved",
         gateway_name: "asaas",
         gateway_transaction_id: payment.id || null,
       });
 
-      console.log("Banco atualizado");
+      console.log("Banco atualizado: plano ativado", planType);
     } else if (event === "PAYMENT_OVERDUE") {
       const { error: overdueUpdateError } = await supabase
         .from("establishments")
         .update({ plan_status: "overdue" })
-        .eq("id", establishment.id);
+        .eq("id", establishmentId);
 
       if (overdueUpdateError) {
         console.error("Falha ao atualizar plan_status overdue:", overdueUpdateError.message);
@@ -155,14 +143,31 @@ Deno.serve(async (req) => {
       await supabase
         .from("subscriptions")
         .update({ status: "overdue", updated_at: new Date().toISOString() })
-        .eq("establishment_id", establishment.id);
+        .eq("establishment_id", establishmentId);
 
-      console.log("Banco atualizado");
+      console.log("Banco atualizado: overdue");
     } else if (event === "SUBSCRIPTION_DELETED" || event === "SUBSCRIPTION_INACTIVE") {
+      // PROTECTION: Only degrade if the event matches the ACTIVE subscription
+      const subscriptionIdFromEvent = subData?.id || payment?.subscription || null;
+
+      const { data: est } = await supabase
+        .from("establishments")
+        .select("asaas_subscription_id")
+        .eq("id", establishmentId)
+        .maybeSingle();
+
+      if (est && subscriptionIdFromEvent && est.asaas_subscription_id !== subscriptionIdFromEvent) {
+        console.log(`Evento órfão ignorado: evento sub=${subscriptionIdFromEvent}, ativa=${est.asaas_subscription_id}`);
+        return new Response(JSON.stringify({ ok: true, skipped: true }), {
+          status: 200,
+          headers: corsHeaders,
+        });
+      }
+
       const { error: inactiveUpdateError } = await supabase
         .from("establishments")
         .update({ plan_status: "inactive" })
-        .eq("id", establishment.id);
+        .eq("id", establishmentId);
 
       if (inactiveUpdateError) {
         console.error("Falha ao atualizar plan_status inactive:", inactiveUpdateError.message);
@@ -171,9 +176,9 @@ Deno.serve(async (req) => {
       await supabase
         .from("subscriptions")
         .update({ status: "inactive", updated_at: new Date().toISOString() })
-        .eq("establishment_id", establishment.id);
+        .eq("establishment_id", establishmentId);
 
-      console.log("Banco atualizado");
+      console.log("Banco atualizado: inactive");
     } else {
       console.log("Unhandled event:", event);
     }
