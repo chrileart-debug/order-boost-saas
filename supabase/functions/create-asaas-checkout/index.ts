@@ -54,9 +54,19 @@ Deno.serve(async (req) => {
 
     const { data: est, error: estErr } = await supabase
       .from("establishments")
-      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id")
+      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id, plan_status")
       .eq("id", normalizedEstablishmentId)
       .single();
+
+    if (estErr || !est) {
+      return jsonResponse({ error: "Establishment not found" }, 404);
+    }
+
+    // If plan is already active, do NOT create a new checkout
+    if (est.plan_status === "active") {
+      console.log("Plan already active, skipping checkout creation");
+      return jsonResponse({ error: "Plan already active", alreadyActive: true }, 200);
+    }
 
     if (estErr || !est) {
       return jsonResponse({ error: "Establishment not found" }, 404);
