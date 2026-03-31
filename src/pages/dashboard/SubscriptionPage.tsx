@@ -71,7 +71,11 @@ const SubscriptionPage = () => {
   }, [establishment]);
 
   const handleCheckout = async (plan: typeof plans[0]) => {
-    if (!establishment) return;
+    if (!establishment?.id) {
+      toast.error("Estabelecimento inválido para gerar o pagamento.");
+      return;
+    }
+
     setCheckoutLoading(plan.id);
     try {
       const { data, error } = await supabase.functions.invoke("create-asaas-checkout", {
@@ -84,8 +88,11 @@ const SubscriptionPage = () => {
         return;
       }
 
-      if (data?.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      const payload = typeof data === "string" ? JSON.parse(data) : data;
+      const checkoutUrl = payload?.checkoutUrl;
+
+      if (checkoutUrl) {
+        window.location.href = checkoutUrl;
       } else {
         toast.error("Link de pagamento não disponível. Tente novamente.");
       }
