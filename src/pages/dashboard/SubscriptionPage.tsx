@@ -111,6 +111,11 @@ const SubscriptionPage = () => {
       toast.error("Estabelecimento inválido.");
       return;
     }
+    // Block checkout if plan is already active
+    if (establishment.plan_status === "active") {
+      toast.info("Seu plano já está ativo!");
+      return;
+    }
     setCheckoutLoading(plan.id);
     try {
       const { data, error } = await supabase.functions.invoke("create-asaas-checkout", {
@@ -121,6 +126,11 @@ const SubscriptionPage = () => {
         return;
       }
       const payload = typeof data === "string" ? JSON.parse(data) : data;
+      if (payload?.alreadyActive) {
+        toast.info("Seu plano já está ativo!");
+        await refreshEstablishment();
+        return;
+      }
       if (payload?.checkoutUrl) {
         window.location.href = payload.checkoutUrl;
       } else {
