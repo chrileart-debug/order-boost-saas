@@ -32,6 +32,7 @@ const plans = [
     name: "Essential",
     price: "29,90",
     value: 29.9,
+    tier: 1,
     icon: Zap,
     features: [
       "Cardápio digital completo",
@@ -47,6 +48,7 @@ const plans = [
     name: "PRO",
     price: "49,90",
     value: 49.9,
+    tier: 2,
     icon: Crown,
     popular: true,
     features: [
@@ -59,7 +61,6 @@ const plans = [
     ],
   },
 ];
-
 const SubscriptionPage = () => {
   const { establishment, loading: estLoading, refresh: refreshEstablishment } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
