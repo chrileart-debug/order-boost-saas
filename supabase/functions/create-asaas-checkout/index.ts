@@ -91,8 +91,6 @@ Deno.serve(async (req) => {
     const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
     const today = new Date();
     const nextDueDate = today.toISOString().split("T")[0];
-    const appUrl = "https://eprato.lovable.app";
-
     const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
       method: "POST",
       headers: asaasHeaders,
@@ -114,9 +112,9 @@ Deno.serve(async (req) => {
           nextDueDate,
         },
         callback: {
-          successUrl: `${appUrl}/dashboard/subscription?status=success`,
-          cancelUrl: `${appUrl}/dashboard/subscription?status=cancel`,
-          expiredUrl: `${appUrl}/dashboard/subscription?status=expired`,
+          successUrl: `${originUrl}/dashboard/subscription?status=success`,
+          cancelUrl: `${originUrl}/dashboard/subscription?status=cancel`,
+          expiredUrl: `${originUrl}/dashboard/subscription?status=expired`,
           autoRedirect: true,
         },
       }),
