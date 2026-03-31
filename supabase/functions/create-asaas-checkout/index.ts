@@ -105,9 +105,10 @@ Deno.serve(async (req) => {
     }
 
     const checkoutData = await checkoutRes.json();
-    console.log("Asaas checkout created:", JSON.stringify(checkoutData));
+    console.log("Asaas checkout full response:", JSON.stringify(checkoutData));
+    console.log("Link recebido do Asaas:", checkoutData.invoiceUrl);
 
-    const checkoutUrl = checkoutData.url || checkoutData.invoiceUrl || "";
+    const checkoutUrl = checkoutData.invoiceUrl || checkoutData.url || "";
 
     // 4. Save checkout URL with 15min expiry
     const expiresAt = new Date();
