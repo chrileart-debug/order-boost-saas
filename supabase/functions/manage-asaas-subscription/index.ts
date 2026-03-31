@@ -49,18 +49,22 @@ Deno.serve(async (req) => {
       }
 
       // DELETE subscription on Asaas (stops future charges)
+      console.log("Tentando deletar assinatura Asaas:", est.asaas_subscription_id);
       const delRes = await fetch(`${asaasBase}/subscriptions/${est.asaas_subscription_id}`, {
         method: "DELETE",
         headers: asaasHeaders,
       });
 
-      if (!delRes.ok) {
-        const errText = await delRes.text();
-        console.error("Asaas DELETE subscription error:", errText);
-        return json({ error: "Falha ao cancelar no Asaas", details: errText }, 502);
+      const delBody = await delRes.text();
+      console.log("Asaas DELETE response:", delRes.status, delBody);
+
+      // Accept 200 (success) and 404 (already deleted/doesn't exist)
+      if (!delRes.ok && delRes.status !== 404) {
+        console.error("Asaas DELETE subscription error:", delRes.status, delBody);
+        return json({ error: "Falha ao cancelar no Asaas", details: delBody || `Status ${delRes.status}` }, 502);
       }
 
-      console.log("Asaas subscription deleted:", est.asaas_subscription_id);
+      console.log("Asaas subscription deleted/not found:", est.asaas_subscription_id);
 
       // Mark cancel_at_period_end = true, keep plan_status = 'active'
       await supabase
