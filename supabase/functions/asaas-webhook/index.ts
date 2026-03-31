@@ -28,6 +28,15 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Robust externalReference extraction
+    const externalReference =
+      body.checkout?.externalReference ||
+      payment?.externalReference ||
+      subData?.externalReference ||
+      body.externalReference;
+
+    console.log("ID do Restaurante capturado:", externalReference);
+
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
@@ -36,11 +45,9 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Try externalReference first, then fallback to paymentLinkId lookup
-      let establishmentId = payment.externalReference;
+      let establishmentId = externalReference;
 
       if (!establishmentId && payment.paymentLink) {
-        // Look up establishment by current_checkout_id
         const { data: estByLink } = await supabase
           .from("establishments")
           .select("id")
