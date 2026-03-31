@@ -45,7 +45,6 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. Fetch establishment
     const { data: est, error: estErr } = await supabase
       .from("establishments")
       .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id")
@@ -59,7 +58,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Reuse valid existing checkout URL (only if non-empty and not expired)
     if (est.current_checkout_url && est.current_checkout_url.length > 0 && est.checkout_expires_at) {
       const expiresAt = new Date(est.checkout_expires_at);
       if (expiresAt > new Date()) {
@@ -71,7 +69,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Create checkout via Asaas /v3/checkouts
     const asaasBase = "https://api.asaas.com/v3";
     const asaasHeaders = {
       "Content-Type": "application/json",
@@ -80,10 +77,8 @@ Deno.serve(async (req) => {
 
     const value = PLAN_VALUES[planType];
     const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
-
     const today = new Date();
     const nextDueDate = today.toISOString().split("T")[0];
-
     const appUrl = "https://eprato.lovable.app";
 
     const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
@@ -109,6 +104,7 @@ Deno.serve(async (req) => {
         callback: {
           successUrl: `${appUrl}/dashboard/subscription?status=success`,
           cancelUrl: `${appUrl}/dashboard/subscription?status=cancel`,
+          expiredUrl: `${appUrl}/dashboard/subscription?status=expired`,
           autoRedirect: true,
         },
       }),
@@ -126,10 +122,9 @@ Deno.serve(async (req) => {
     const checkoutData = await checkoutRes.json();
     console.log("Asaas checkout full response:", JSON.stringify(checkoutData));
 
-    const checkoutUrl = checkoutData.url || "";
-    console.log("Link recebido do Asaas:", checkoutUrl);
+    const checkoutUrl = checkoutData.link || checkoutData.url || "";
+    console.log("Link recebido do Asaas:", checkoutData.link || checkoutData.url || null);
 
-    // Validate URL before saving
     if (!checkoutUrl) {
       console.error("Asaas returned empty checkout URL");
       return new Response(
@@ -138,7 +133,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Save to DB
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
@@ -152,11 +146,14 @@ Deno.serve(async (req) => {
       .eq("id", est.id);
 
     if (updateErr) {
-      console.error("Failed to update establishment:", updateErr);
+      console.error("Failed to update establishment:", JSON.stringify(updateErr));
+      return new Response(
+        JSON.stringify({ error: "Failed to save checkout URL", details: updateErr.message }),
+        { status: 500, headers: corsHeaders }
+      );
     }
 
-    // 5. Upsert subscription as pending
-    await supabase.from("subscriptions").upsert(
+    const { error: subErr } = await supabase.from("subscriptions").upsert(
       {
         establishment_id: est.id,
         plan_type: planType,
@@ -167,6 +164,14 @@ Deno.serve(async (req) => {
       },
       { onConflict: "establishment_id" }
     );
+
+    if (subErr) {
+      console.error("Failed to upsert subscription:", JSON.stringify(subErr));
+      return new Response(
+        JSON.stringify({ error: "Checkout created but subscription sync failed", details: subErr.message }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
 
     return new Response(JSON.stringify({ checkoutUrl }), {
       status: 200,
