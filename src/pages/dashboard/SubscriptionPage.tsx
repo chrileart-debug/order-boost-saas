@@ -254,7 +254,13 @@ const SubscriptionPage = () => {
                     "Assinar agora"
                   )}
                 </Button>
-              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
   // ── No active plan ──
   if (!isActive) {
     return (
