@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     // 1. Fetch establishment
     const { data: est, error: estErr } = await supabase
       .from("establishments")
-      .select("id, name, current_checkout_url, checkout_expires_at, cnpj, whatsapp")
+      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id, cnpj, whatsapp")
       .eq("id", establishmentId)
       .single();
 
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Create checkout via Asaas /v3/checkouts
+    // 3. Create payment link via Asaas /v3/paymentLinks
     const asaasBase = "https://api.asaas.com/v3";
     const asaasHeaders = {
       "Content-Type": "application/json",
@@ -81,17 +81,23 @@ Deno.serve(async (req) => {
     const value = PLAN_VALUES[planType];
     const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
 
-    const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
+    // Expiry: 15 min from now
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+    const endDate = expiresAt.toISOString().split("T")[0];
+
+    const checkoutRes = await fetch(`${asaasBase}/paymentLinks`, {
       method: "POST",
       headers: asaasHeaders,
       body: JSON.stringify({
-        billingTypes: ["CREDIT_CARD"],
-        chargeTypes: ["RECURRING"],
+        billingType: "CREDIT_CARD",
+        chargeType: "RECURRING",
         subscriptionCycle: "MONTHLY",
         value,
         name: `Assinatura Mensal EPRATO - ${planLabel}`,
         description: `Plano ${planLabel} - Assinatura mensal EPRATO`,
         externalReference: est.id,
+        endDate,
       }),
     });
 
@@ -106,19 +112,16 @@ Deno.serve(async (req) => {
 
     const checkoutData = await checkoutRes.json();
     console.log("Asaas checkout full response:", JSON.stringify(checkoutData));
-    console.log("Link recebido do Asaas:", checkoutData.invoiceUrl);
+    console.log("Link recebido do Asaas:", checkoutData.url);
 
-    const checkoutUrl = checkoutData.invoiceUrl || checkoutData.url || "";
-
-    // 4. Save checkout URL with 15min expiry
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+    const checkoutUrl = checkoutData.url || "";
 
     await supabase
       .from("establishments")
       .update({
         current_checkout_url: checkoutUrl,
         checkout_expires_at: expiresAt.toISOString(),
+        current_checkout_id: checkoutData.id || null,
       })
       .eq("id", est.id);
 

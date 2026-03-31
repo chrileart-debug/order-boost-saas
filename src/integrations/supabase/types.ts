@@ -249,6 +249,7 @@ export type Database = {
           cnpj: string | null
           cover_url: string | null
           created_at: string
+          current_checkout_id: string | null
           current_checkout_url: string | null
           id: string
           is_open: boolean | null
@@ -277,6 +278,7 @@ export type Database = {
           cnpj?: string | null
           cover_url?: string | null
           created_at?: string
+          current_checkout_id?: string | null
           current_checkout_url?: string | null
           id?: string
           is_open?: boolean | null
@@ -305,6 +307,7 @@ export type Database = {
           cnpj?: string | null
           cover_url?: string | null
           created_at?: string
+          current_checkout_id?: string | null
           current_checkout_url?: string | null
           id?: string
           is_open?: boolean | null
