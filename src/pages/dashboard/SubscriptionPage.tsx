@@ -61,11 +61,23 @@ const plans = [
 ];
 
 const SubscriptionPage = () => {
-  const { establishment, loading: estLoading } = useEstablishment();
+  const { establishment, loading: estLoading, refresh: refreshEstablishment } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Refetch on success return from Asaas
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status === "success") {
+      refreshEstablishment();
+      // Clean up the URL param
+      setSearchParams({}, { replace: true });
+      toast.success("Pagamento processado! Seu plano será ativado em instantes.");
+    }
+  }, [searchParams, refreshEstablishment, setSearchParams]);
 
   useEffect(() => {
     const fetchData = async () => {
