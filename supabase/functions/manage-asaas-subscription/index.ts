@@ -79,7 +79,13 @@ Deno.serve(async (req) => {
     // ── REACTIVATE ──
     if (action === "reactivate") {
       if (!est.asaas_customer_id) {
-        return json({ error: "Nenhum cliente Asaas encontrado para reativar." }, 400);
+        // No customer on Asaas — just clear the cancel flag and let user go through checkout again
+        console.log("Sem asaas_customer_id, limpando cancel flag apenas");
+        await supabase
+          .from("establishments")
+          .update({ cancel_at_period_end: false })
+          .eq("id", establishmentId);
+        return json({ ok: true, needsCheckout: true, message: "Assinatura reativada. Faça um novo checkout para continuar." });
       }
 
       // Get current subscription info from our DB
