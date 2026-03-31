@@ -6,6 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const jsonHeaders = {
+  ...corsHeaders,
+  "Content-Type": "application/json",
+};
+
+const CHECKOUT_EXPIRATION_MINUTES = 120;
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: jsonHeaders,
+  });
+
 const PLAN_VALUES: Record<string, number> = {
   essential: 29.9,
   pro: 49.9,
@@ -17,28 +30,19 @@ Deno.serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: corsHeaders,
-    });
+    return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
   try {
     const { establishmentId, planType } = await req.json();
 
     if (!establishmentId || !planType || !PLAN_VALUES[planType]) {
-      return new Response(
-        JSON.stringify({ error: "Missing or invalid establishmentId/planType" }),
-        { status: 400, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "Missing or invalid establishmentId/planType" }, 400);
     }
 
     const asaasKey = Deno.env.get("ASAAS_API_KEY");
     if (!asaasKey) {
-      return new Response(JSON.stringify({ error: "ASAAS_API_KEY not set" }), {
-        status: 500,
-        headers: corsHeaders,
-      });
+      return jsonResponse({ error: "ASAAS_API_KEY not set" }, 500);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -52,20 +56,14 @@ Deno.serve(async (req) => {
       .single();
 
     if (estErr || !est) {
-      return new Response(JSON.stringify({ error: "Establishment not found" }), {
-        status: 404,
-        headers: corsHeaders,
-      });
+      return jsonResponse({ error: "Establishment not found" }, 404);
     }
 
     if (est.current_checkout_url && est.current_checkout_url.length > 0 && est.checkout_expires_at) {
       const expiresAt = new Date(est.checkout_expires_at);
       if (expiresAt > new Date()) {
         console.log("Returning existing checkout URL:", est.current_checkout_url);
-        return new Response(
-          JSON.stringify({ checkoutUrl: est.current_checkout_url }),
-          { status: 200, headers: corsHeaders }
-        );
+        return jsonResponse({ checkoutUrl: est.current_checkout_url }, 200);
       }
     }
 
@@ -87,7 +85,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         billingTypes: ["CREDIT_CARD"],
         chargeTypes: ["RECURRENT"],
-        minutesToExpire: 10,
+        minutesToExpire: CHECKOUT_EXPIRATION_MINUTES,
         externalReference: establishmentId,
         items: [
           {
@@ -113,44 +111,34 @@ Deno.serve(async (req) => {
     if (!checkoutRes.ok) {
       const errText = await checkoutRes.text();
       console.error("Asaas checkout creation error:", errText);
-      return new Response(
-        JSON.stringify({ error: "Failed to create Asaas checkout", details: errText }),
-        { status: 502, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "Failed to create Asaas checkout", details: errText }, 502);
     }
 
     const checkoutData = await checkoutRes.json();
     console.log("Asaas checkout full response:", JSON.stringify(checkoutData));
 
-    const checkoutUrl = checkoutData.link || checkoutData.url || "";
-    console.log("Link recebido do Asaas:", checkoutData.link || checkoutData.url || null);
+    const checkoutUrl = checkoutData.checkoutUrl || checkoutData.link || checkoutData.url || "";
+    console.log("Link recebido do Asaas:", checkoutData.checkoutUrl || checkoutData.link || checkoutData.url || null);
 
     if (!checkoutUrl) {
       console.error("Asaas returned empty checkout URL");
-      return new Response(
-        JSON.stringify({ error: "Asaas returned empty checkout URL", rawResponse: checkoutData }),
-        { status: 502, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "Asaas returned empty checkout URL", rawResponse: checkoutData }, 502);
     }
 
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+    const expiresAt = new Date(Date.now() + CHECKOUT_EXPIRATION_MINUTES * 60 * 1000).toISOString();
 
     const { error: updateErr } = await supabase
       .from("establishments")
       .update({
         current_checkout_url: checkoutUrl,
-        checkout_expires_at: expiresAt.toISOString(),
+        checkout_expires_at: expiresAt,
         current_checkout_id: checkoutData.id || null,
       })
       .eq("id", est.id);
 
     if (updateErr) {
       console.error("Failed to update establishment:", JSON.stringify(updateErr));
-      return new Response(
-        JSON.stringify({ error: "Failed to save checkout URL", details: updateErr.message }),
-        { status: 500, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "Failed to save checkout URL", details: updateErr.message }, 500);
     }
 
     const { error: subErr } = await supabase.from("subscriptions").upsert(
@@ -167,21 +155,12 @@ Deno.serve(async (req) => {
 
     if (subErr) {
       console.error("Failed to upsert subscription:", JSON.stringify(subErr));
-      return new Response(
-        JSON.stringify({ error: "Checkout created but subscription sync failed", details: subErr.message }),
-        { status: 500, headers: corsHeaders }
-      );
+      return jsonResponse({ error: "Checkout created but subscription sync failed", details: subErr.message }, 500);
     }
 
-    return new Response(JSON.stringify({ checkoutUrl }), {
-      status: 200,
-      headers: corsHeaders,
-    });
+    return jsonResponse({ checkoutUrl }, 200);
   } catch (err) {
     console.error("create-asaas-checkout error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: corsHeaders,
-    });
+    return jsonResponse({ error: "Internal server error" }, 500);
   }
 });
