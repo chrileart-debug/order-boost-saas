@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -60,11 +61,23 @@ const plans = [
 ];
 
 const SubscriptionPage = () => {
-  const { establishment, loading: estLoading } = useEstablishment();
+  const { establishment, loading: estLoading, refresh: refreshEstablishment } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Refetch on success return from Asaas
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status === "success") {
+      refreshEstablishment();
+      // Clean up the URL param
+      setSearchParams({}, { replace: true });
+      toast.success("Pagamento processado! Seu plano será ativado em instantes.");
+    }
+  }, [searchParams, refreshEstablishment, setSearchParams]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -98,6 +111,11 @@ const SubscriptionPage = () => {
       toast.error("Estabelecimento inválido.");
       return;
     }
+    // Block checkout if plan is already active
+    if (establishment.plan_status === "active") {
+      toast.info("Seu plano já está ativo!");
+      return;
+    }
     setCheckoutLoading(plan.id);
     try {
       const { data, error } = await supabase.functions.invoke("create-asaas-checkout", {
@@ -108,6 +126,11 @@ const SubscriptionPage = () => {
         return;
       }
       const payload = typeof data === "string" ? JSON.parse(data) : data;
+      if (payload?.alreadyActive) {
+        toast.info("Seu plano já está ativo!");
+        await refreshEstablishment();
+        return;
+      }
       if (payload?.checkoutUrl) {
         window.location.href = payload.checkoutUrl;
       } else {
@@ -120,7 +143,9 @@ const SubscriptionPage = () => {
     }
   };
 
-  const activePlan = subscription?.status === "active" ? subscription.plan_type : null;
+  // Use plan_status from establishment as source of truth
+  const isActive = establishment?.plan_status === "active" || subscription?.status === "active";
+  const activePlan = isActive ? (subscription?.plan_type || "essential") : null;
   const currentPlanDef = plans.find((p) => p.id === activePlan);
 
   const nextBillingDate = subscription?.next_billing_date

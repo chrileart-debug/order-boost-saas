@@ -54,9 +54,19 @@ Deno.serve(async (req) => {
 
     const { data: est, error: estErr } = await supabase
       .from("establishments")
-      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id")
+      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id, plan_status")
       .eq("id", normalizedEstablishmentId)
       .single();
+
+    if (estErr || !est) {
+      return jsonResponse({ error: "Establishment not found" }, 404);
+    }
+
+    // If plan is already active, do NOT create a new checkout
+    if (est.plan_status === "active") {
+      console.log("Plan already active, skipping checkout creation");
+      return jsonResponse({ error: "Plan already active", alreadyActive: true }, 200);
+    }
 
     if (estErr || !est) {
       return jsonResponse({ error: "Establishment not found" }, 404);
@@ -156,17 +166,33 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Failed to save checkout URL", details: updateErr.message }, 500);
     }
 
-    const { error: subErr } = await supabase.from("subscriptions").upsert(
-      {
-        establishment_id: est.id,
-        plan_type: planType,
-        status: "pending",
-        gateway_name: "asaas",
-        gateway_subscription_id: checkoutData.id || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "establishment_id" }
-    );
+    // Only upsert subscription if it's NOT already active
+    const { data: currentSub } = await supabase
+      .from("subscriptions")
+      .select("status")
+      .eq("establishment_id", est.id)
+      .maybeSingle();
+
+    if (!currentSub || currentSub.status !== "active") {
+      const { error: subErr } = await supabase.from("subscriptions").upsert(
+        {
+          establishment_id: est.id,
+          plan_type: planType,
+          status: "pending",
+          gateway_name: "asaas",
+          gateway_subscription_id: checkoutData.id || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "establishment_id" }
+      );
+
+      if (subErr) {
+        console.error("Failed to upsert subscription:", JSON.stringify(subErr));
+        return jsonResponse({ error: "Checkout created but subscription sync failed", details: subErr.message }, 500);
+      }
+    } else {
+      console.log("Subscription already active, skipping upsert");
+    }
 
     if (subErr) {
       console.error("Failed to upsert subscription:", JSON.stringify(subErr));
