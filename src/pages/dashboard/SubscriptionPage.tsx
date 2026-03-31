@@ -227,13 +227,15 @@ const SubscriptionPage = () => {
                   <ShieldCheck className="w-4 h-4 mr-2" />
                   Plano Atual
                 </Button>
+              ) : isDowngrade ? (
+                <p className="text-center text-xs text-muted-foreground py-2">Plano inferior ao atual</p>
               ) : isUpgrade ? (
                 <Button
                   onClick={() => handleCheckout(plan)}
-                  disabled={isLoadingThis}
+                  disabled={checkoutLoading === plan.id}
                   className="w-full h-11 font-semibold"
                 >
-                  {isLoadingThis ? (
+                  {checkoutLoading === plan.id ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
                   ) : (
                     `Fazer Upgrade para ${plan.name}`
@@ -242,24 +244,17 @@ const SubscriptionPage = () => {
               ) : (
                 <Button
                   onClick={() => handleCheckout(plan)}
-                  disabled={isLoadingThis}
+                  disabled={checkoutLoading === plan.id}
                   className="w-full h-11 font-semibold"
                   variant={plan.popular ? "default" : "outline"}
                 >
-                  {isLoadingThis ? (
+                  {checkoutLoading === plan.id ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
                   ) : (
                     "Assinar agora"
                   )}
                 </Button>
               )}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  );
-
   // ── No active plan ──
   if (!isActive) {
     return (
