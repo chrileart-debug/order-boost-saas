@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
       headers: corsHeaders,
     });
   }
+  console.log("Token validado");
 
   try {
     const body = await req.json();
@@ -40,12 +41,30 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const externalReference =
-      payment?.externalReference ||
-      subData?.externalReference ||
-      body.externalReference;
+    const establishmentId = payment?.externalReference || subData?.externalReference;
+    console.log("ID identificado:", establishmentId ?? null);
 
-    console.log("Webhook validado para o restaurante:", externalReference);
+    if (!establishmentId) {
+      console.error("ExternalReference ausente no webhook");
+      return new Response(JSON.stringify({ ok: true, skipped: true }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
+
+    const { data: establishment, error: estLookupError } = await supabase
+      .from("establishments")
+      .select("id")
+      .eq("id", establishmentId)
+      .maybeSingle();
+
+    if (estLookupError || !establishment) {
+      console.error("Estabelecimento não encontrado para externalReference");
+      return new Response(JSON.stringify({ ok: true, skipped: true }), {
+        status: 200,
+        headers: corsHeaders,
+      });
+    }
 
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
@@ -55,48 +74,49 @@ Deno.serve(async (req) => {
         });
       }
 
-      let establishmentId = externalReference;
-
-      if (!establishmentId && payment.paymentLink) {
-        const { data: estByLink } = await supabase
-          .from("establishments")
-          .select("id")
-          .eq("current_checkout_id", payment.paymentLink)
-          .single();
-        if (estByLink) {
-          establishmentId = estByLink.id;
-        }
-      }
-
-      if (!establishmentId) {
-        console.error("No externalReference or paymentLink match in payment");
-        return new Response(JSON.stringify({ error: "Missing externalReference" }), {
-          status: 400,
-          headers: corsHeaders,
-        });
-      }
-
       let planType = "essential";
       if (payment.value >= 49) {
         planType = "pro";
       }
 
-      const estUpdate: Record<string, unknown> = {};
+      const estUpdate: Record<string, unknown> = {
+        plan_status: "active",
+      };
       if (payment.customer) {
         estUpdate.asaas_customer_id = payment.customer;
       }
+      if (payment.subscription) {
+        estUpdate.asaas_subscription_id = payment.subscription;
+      }
+
       if (Object.keys(estUpdate).length > 0) {
-        await supabase
+        const { error: estUpdateError } = await supabase
           .from("establishments")
           .update(estUpdate)
-          .eq("id", establishmentId);
+          .eq("id", establishment.id);
+
+        if (estUpdateError) {
+          console.error("Falha ao atualizar establishments (campos opcionais):", estUpdateError.message);
+
+          const fallbackUpdate: Record<string, unknown> = {};
+          if (payment.customer) {
+            fallbackUpdate.asaas_customer_id = payment.customer;
+          }
+
+          if (Object.keys(fallbackUpdate).length > 0) {
+            await supabase
+              .from("establishments")
+              .update(fallbackUpdate)
+              .eq("id", establishment.id);
+          }
+        }
       }
 
       const { error: subError } = await supabase
         .from("subscriptions")
         .upsert(
           {
-            establishment_id: establishmentId,
+            establishment_id: establishment.id,
             plan_type: planType,
             status: "active",
             gateway_name: "asaas",
@@ -112,42 +132,46 @@ Deno.serve(async (req) => {
       }
 
       await supabase.from("payments").insert({
-        establishment_id: establishmentId,
+        establishment_id: establishment.id,
         amount: payment.value || 0,
         status: "approved",
         gateway_name: "asaas",
         gateway_transaction_id: payment.id || null,
       });
 
-      console.log("Payment confirmed for establishment:", establishmentId);
+      console.log("Banco atualizado");
     } else if (event === "PAYMENT_OVERDUE") {
-      if (!externalReference) {
-        return new Response(JSON.stringify({ ok: true, skipped: true }), {
-          status: 200,
-          headers: corsHeaders,
-        });
+      const { error: overdueUpdateError } = await supabase
+        .from("establishments")
+        .update({ plan_status: "overdue" })
+        .eq("id", establishment.id);
+
+      if (overdueUpdateError) {
+        console.error("Falha ao atualizar plan_status overdue:", overdueUpdateError.message);
       }
 
       await supabase
         .from("subscriptions")
         .update({ status: "overdue", updated_at: new Date().toISOString() })
-        .eq("establishment_id", externalReference);
+        .eq("establishment_id", establishment.id);
 
-      console.log("Payment overdue for:", externalReference);
+      console.log("Banco atualizado");
     } else if (event === "SUBSCRIPTION_DELETED" || event === "SUBSCRIPTION_INACTIVE") {
-      if (!externalReference) {
-        return new Response(JSON.stringify({ ok: true, skipped: true }), {
-          status: 200,
-          headers: corsHeaders,
-        });
+      const { error: inactiveUpdateError } = await supabase
+        .from("establishments")
+        .update({ plan_status: "inactive" })
+        .eq("id", establishment.id);
+
+      if (inactiveUpdateError) {
+        console.error("Falha ao atualizar plan_status inactive:", inactiveUpdateError.message);
       }
 
       await supabase
         .from("subscriptions")
         .update({ status: "inactive", updated_at: new Date().toISOString() })
-        .eq("establishment_id", externalReference);
+        .eq("establishment_id", establishment.id);
 
-      console.log("Subscription deleted/inactive for:", externalReference);
+      console.log("Banco atualizado");
     } else {
       console.log("Unhandled event:", event);
     }
