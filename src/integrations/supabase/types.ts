@@ -244,6 +244,7 @@ export type Database = {
         Row: {
           address: Json | null
           asaas_customer_id: string | null
+          asaas_subscription_id: string | null
           base_fee: number | null
           checkout_expires_at: string | null
           cnpj: string | null
@@ -264,6 +265,7 @@ export type Database = {
           onboarding_completed: boolean | null
           operating_hours: Json | null
           owner_id: string
+          plan_status: string
           push_notify_statuses: Json | null
           slug: string
           trial_ends_at: string | null
@@ -273,6 +275,7 @@ export type Database = {
         Insert: {
           address?: Json | null
           asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           base_fee?: number | null
           checkout_expires_at?: string | null
           cnpj?: string | null
@@ -293,6 +296,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           operating_hours?: Json | null
           owner_id: string
+          plan_status?: string
           push_notify_statuses?: Json | null
           slug: string
           trial_ends_at?: string | null
@@ -302,6 +306,7 @@ export type Database = {
         Update: {
           address?: Json | null
           asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           base_fee?: number | null
           checkout_expires_at?: string | null
           cnpj?: string | null
@@ -322,6 +327,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           operating_hours?: Json | null
           owner_id?: string
+          plan_status?: string
           push_notify_statuses?: Json | null
           slug?: string
           trial_ends_at?: string | null
