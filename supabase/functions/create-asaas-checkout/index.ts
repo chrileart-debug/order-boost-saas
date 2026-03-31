@@ -62,14 +62,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Establishment not found" }, 404);
     }
 
-    // If plan is already active, do NOT create a new checkout
+    // If plan is already active, check if it's the SAME plan (block) or DIFFERENT (allow upgrade)
     if (est.plan_status === "active") {
-      console.log("Plan already active, skipping checkout creation");
-      return jsonResponse({ error: "Plan already active", alreadyActive: true }, 200);
-    }
+      const { data: currentSub } = await supabase
+        .from("subscriptions")
+        .select("plan_type")
+        .eq("establishment_id", normalizedEstablishmentId)
+        .maybeSingle();
 
-    if (estErr || !est) {
-      return jsonResponse({ error: "Establishment not found" }, 404);
+      if (currentSub && currentSub.plan_type === planType) {
+        console.log("Same plan already active, blocking checkout");
+        return jsonResponse({ error: "Você já possui este plano ativo.", alreadyActive: true }, 200);
+      }
+      console.log(`Upgrade detected: ${currentSub?.plan_type} -> ${planType}, allowing new checkout`);
     }
 
     // Check for existing valid checkout WITH matching plan type
