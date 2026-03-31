@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     // 1. Fetch establishment
     const { data: est, error: estErr } = await supabase
       .from("establishments")
-      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id, cnpj, whatsapp")
+      .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id")
       .eq("id", establishmentId)
       .single();
 
@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Create payment link via Asaas /v3/paymentLinks
+    // 3. Create checkout via Asaas /v3/checkouts
     const asaasBase = "https://api.asaas.com/v3";
     const asaasHeaders = {
       "Content-Type": "application/json",
@@ -81,23 +81,40 @@ Deno.serve(async (req) => {
     const value = PLAN_VALUES[planType];
     const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
 
-    // Expiry: 15 min from now
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-    const endDate = expiresAt.toISOString().split("T")[0];
+    // Next due date = today YYYY-MM-DD
+    const today = new Date();
+    const nextDueDate = today.toISOString().split("T")[0];
 
-    const checkoutRes = await fetch(`${asaasBase}/paymentLinks`, {
+    // Expiry: 10 min from now
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+    const appUrl = "https://eprato.lovable.app";
+
+    const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
       method: "POST",
       headers: asaasHeaders,
       body: JSON.stringify({
-        billingType: "CREDIT_CARD",
-        chargeType: "RECURRING",
-        subscriptionCycle: "MONTHLY",
-        value,
-        name: `Assinatura Mensal EPRATO - ${planLabel}`,
-        description: `Plano ${planLabel} - Assinatura mensal EPRATO`,
-        externalReference: est.id,
-        endDate,
+        billingTypes: ["CREDIT_CARD"],
+        chargeTypes: ["RECURRENT"],
+        minutesToExpire: 10,
+        externalReference: establishmentId,
+        items: [
+          {
+            name: `Plano ${planLabel}`,
+            description: "Assinatura Mensal EPRATO",
+            quantity: 1,
+            value,
+          },
+        ],
+        subscription: {
+          cycle: "MONTHLY",
+          nextDueDate,
+        },
+        callback: {
+          successUrl: `${appUrl}/dashboard/assinatura?status=success`,
+          autoRedirect: true,
+        },
       }),
     });
 
@@ -112,10 +129,11 @@ Deno.serve(async (req) => {
 
     const checkoutData = await checkoutRes.json();
     console.log("Asaas checkout full response:", JSON.stringify(checkoutData));
-    console.log("Link recebido do Asaas:", checkoutData.url);
 
     const checkoutUrl = checkoutData.url || "";
+    console.log("Link recebido do Asaas:", checkoutUrl);
 
+    // 4. Save to DB
     await supabase
       .from("establishments")
       .update({

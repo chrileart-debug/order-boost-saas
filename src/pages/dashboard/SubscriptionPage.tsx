@@ -85,7 +85,7 @@ const SubscriptionPage = () => {
       }
 
       if (data?.checkoutUrl) {
-        window.open(data.checkoutUrl, "_blank");
+        window.location.href = data.checkoutUrl;
       } else {
         toast.error("Link de pagamento não disponível. Tente novamente.");
       }
