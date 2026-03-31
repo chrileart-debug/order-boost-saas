@@ -18,6 +18,18 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Validação de token no header
+  const webhookToken = req.headers.get("asaas-access-token");
+  const expectedToken = Deno.env.get("ASAAS_WEBHOOK_TOKEN");
+
+  if (!expectedToken || webhookToken !== expectedToken) {
+    console.error("Webhook token inválido ou ausente");
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: corsHeaders,
+    });
+  }
+
   try {
     const body = await req.json();
     const { event, payment, subscription: subData } = body;
@@ -28,14 +40,12 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Robust externalReference extraction
     const externalReference =
-      body.checkout?.externalReference ||
       payment?.externalReference ||
       subData?.externalReference ||
       body.externalReference;
 
-    console.log("ID do Restaurante capturado:", externalReference);
+    console.log("Webhook validado para o restaurante:", externalReference);
 
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
@@ -66,13 +76,11 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Determine plan type from value
       let planType = "essential";
       if (payment.value >= 49) {
         planType = "pro";
       }
 
-      // Save customer and subscription IDs to establishments
       const estUpdate: Record<string, unknown> = {};
       if (payment.customer) {
         estUpdate.asaas_customer_id = payment.customer;
@@ -84,7 +92,6 @@ Deno.serve(async (req) => {
           .eq("id", establishmentId);
       }
 
-      // Update subscription to active
       const { error: subError } = await supabase
         .from("subscriptions")
         .upsert(
@@ -104,7 +111,6 @@ Deno.serve(async (req) => {
         console.error("Subscription upsert error:", subError);
       }
 
-      // Register payment
       await supabase.from("payments").insert({
         establishment_id: establishmentId,
         amount: payment.value || 0,
