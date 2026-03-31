@@ -59,11 +59,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Check for valid existing checkout URL
-    if (est.current_checkout_url && est.checkout_expires_at) {
+    // 2. Reuse valid existing checkout URL (only if non-empty and not expired)
+    if (est.current_checkout_url && est.current_checkout_url.length > 0 && est.checkout_expires_at) {
       const expiresAt = new Date(est.checkout_expires_at);
       if (expiresAt > new Date()) {
-        console.log("Returning existing checkout URL");
+        console.log("Returning existing checkout URL:", est.current_checkout_url);
         return new Response(
           JSON.stringify({ checkoutUrl: est.current_checkout_url }),
           { status: 200, headers: corsHeaders }
@@ -81,13 +81,8 @@ Deno.serve(async (req) => {
     const value = PLAN_VALUES[planType];
     const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
 
-    // Next due date = today YYYY-MM-DD
     const today = new Date();
     const nextDueDate = today.toISOString().split("T")[0];
-
-    // Expiry: 10 min from now
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
     const appUrl = "https://eprato.lovable.app";
 
@@ -112,7 +107,8 @@ Deno.serve(async (req) => {
           nextDueDate,
         },
         callback: {
-          successUrl: `${appUrl}/dashboard/assinatura?status=success`,
+          successUrl: `${appUrl}/dashboard/subscription?status=success`,
+          cancelUrl: `${appUrl}/dashboard/subscription?status=cancel`,
           autoRedirect: true,
         },
       }),
@@ -133,8 +129,20 @@ Deno.serve(async (req) => {
     const checkoutUrl = checkoutData.url || "";
     console.log("Link recebido do Asaas:", checkoutUrl);
 
+    // Validate URL before saving
+    if (!checkoutUrl) {
+      console.error("Asaas returned empty checkout URL");
+      return new Response(
+        JSON.stringify({ error: "Asaas returned empty checkout URL", rawResponse: checkoutData }),
+        { status: 502, headers: corsHeaders }
+      );
+    }
+
     // 4. Save to DB
-    await supabase
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+    const { error: updateErr } = await supabase
       .from("establishments")
       .update({
         current_checkout_url: checkoutUrl,
@@ -142,6 +150,10 @@ Deno.serve(async (req) => {
         current_checkout_id: checkoutData.id || null,
       })
       .eq("id", est.id);
+
+    if (updateErr) {
+      console.error("Failed to update establishment:", updateErr);
+    }
 
     // 5. Upsert subscription as pending
     await supabase.from("subscriptions").upsert(
