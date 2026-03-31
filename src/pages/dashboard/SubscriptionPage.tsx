@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Crown, Zap, Star, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface Subscription {
@@ -12,6 +14,15 @@ interface Subscription {
   plan_type: string;
   status: string;
   next_billing_date: string | null;
+  created_at: string;
+}
+
+interface Payment {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  gateway_transaction_id: string | null;
 }
 
 const plans = [
@@ -19,8 +30,8 @@ const plans = [
     id: "essential",
     name: "Essential",
     price: "29,90",
+    value: 29.9,
     icon: Zap,
-    color: "primary",
     features: [
       "Cardápio digital completo",
       "Gestão de pedidos em tempo real",
@@ -34,8 +45,8 @@ const plans = [
     id: "pro",
     name: "PRO",
     price: "49,90",
+    value: 49.9,
     icon: Crown,
-    color: "warning",
     popular: true,
     features: [
       "Tudo do Essential",
@@ -51,173 +62,299 @@ const plans = [
 const SubscriptionPage = () => {
   const { establishment, loading: estLoading } = useEstablishment();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSub = async () => {
+    const fetchData = async () => {
       if (!establishment) return;
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("establishment_id", establishment.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      setSubscription(data as Subscription | null);
+
+      const [subRes, payRes] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("establishment_id", establishment.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("payments")
+          .select("*")
+          .eq("establishment_id", establishment.id)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
+
+      setSubscription(subRes.data as Subscription | null);
+      setPayments((payRes.data as Payment[]) || []);
       setLoading(false);
     };
-    fetchSub();
+    fetchData();
   }, [establishment]);
 
-  const handleCheckout = async (plan: typeof plans[0]) => {
+  const handleCheckout = async (plan: (typeof plans)[0]) => {
     if (!establishment?.id) {
-      toast.error("Estabelecimento inválido para gerar o pagamento.");
+      toast.error("Estabelecimento inválido.");
       return;
     }
-
     setCheckoutLoading(plan.id);
     try {
       const { data, error } = await supabase.functions.invoke("create-asaas-checkout", {
         body: { establishmentId: establishment.id, planType: plan.id, originUrl: window.location.origin },
       });
-
       if (error) {
-        console.error("Checkout error:", error);
-        toast.error("Erro ao gerar link de pagamento. Tente novamente.");
+        toast.error("Erro ao gerar link de pagamento.");
         return;
       }
-
       const payload = typeof data === "string" ? JSON.parse(data) : data;
-      const checkoutUrl = payload?.checkoutUrl;
-
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
+      if (payload?.checkoutUrl) {
+        window.location.href = payload.checkoutUrl;
       } else {
-        toast.error("Link de pagamento não disponível. Tente novamente.");
+        toast.error("Link de pagamento não disponível.");
       }
-    } catch (err) {
-      console.error("Checkout error:", err);
-      toast.error("Erro inesperado. Tente novamente.");
+    } catch {
+      toast.error("Erro inesperado.");
     } finally {
       setCheckoutLoading(null);
     }
   };
 
+  const activePlan = subscription?.status === "active" ? subscription.plan_type : null;
+  const currentPlanDef = plans.find((p) => p.id === activePlan);
+
+  const nextBillingDate = subscription?.next_billing_date
+    ? new Date(subscription.next_billing_date)
+    : subscription?.created_at
+      ? new Date(new Date(subscription.created_at).getTime() + 30 * 24 * 60 * 60 * 1000)
+      : null;
+
   if (estLoading || loading) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid md:grid-cols-2 gap-6">
-          <Skeleton className="h-[480px] rounded-2xl" />
-          <Skeleton className="h-[480px] rounded-2xl" />
-        </div>
+      <div className="max-w-2xl mx-auto space-y-6 px-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-[200px] rounded-2xl" />
+        <Skeleton className="h-[120px] rounded-2xl" />
+        <Skeleton className="h-[300px] rounded-2xl" />
       </div>
     );
   }
 
-  const activePlan = subscription?.status === "active" ? subscription.plan_type : null;
-
-  return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
-        <p className="text-muted-foreground mt-1">Escolha o plano ideal para o seu negócio.</p>
-      </div>
-
-      {activePlan && (
-        <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex items-center gap-3">
-          <Star className="w-5 h-5 text-primary" />
-          <span className="text-sm text-foreground">
-            Seu plano atual: <strong className="text-primary uppercase">{activePlan}</strong>
-            {subscription?.next_billing_date && (
-              <span className="text-muted-foreground ml-2">
-                · Próxima cobrança: {new Date(subscription.next_billing_date).toLocaleDateString("pt-BR")}
-              </span>
-            )}
-          </span>
+  // No active plan — show plan selection cards
+  if (!activePlan) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6 px-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
+          <p className="text-muted-foreground text-sm mt-1">Escolha o plano ideal para o seu negócio.</p>
         </div>
-      )}
 
-      <div className="grid md:grid-cols-2 gap-6">
-        {plans.map((plan) => {
-          const Icon = plan.icon;
-          const isActive = activePlan === plan.id;
-          const isLoading = checkoutLoading === plan.id;
+        <div className="grid gap-4 sm:grid-cols-2">
+          {plans.map((plan) => {
+            const Icon = plan.icon;
+            const isLoading = checkoutLoading === plan.id;
+            return (
+              <Card
+                key={plan.id}
+                className={`relative transition-all ${
+                  plan.popular ? "border-primary shadow-md" : "border-border"
+                }`}
+              >
+                {plan.popular && (
+                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] px-3">
+                    MAIS POPULAR
+                  </Badge>
+                )}
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        plan.popular ? "bg-primary/10" : "bg-muted"
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${plan.popular ? "text-primary" : "text-foreground"}`} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{plan.name}</CardTitle>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-2xl font-extrabold text-foreground">R$ {plan.price}</span>
+                        <span className="text-muted-foreground text-xs">/mês</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-2">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-foreground">
+                        <Check className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    onClick={() => handleCheckout(plan)}
+                    disabled={isLoading}
+                    className="w-full h-11 font-semibold"
+                    variant={plan.popular ? "default" : "outline"}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...
+                      </>
+                    ) : (
+                      "Assinar agora"
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
 
-          return (
-            <div
-              key={plan.id}
-              className={`relative border-2 rounded-2xl p-6 flex flex-col transition-all ${
-                plan.popular
-                  ? "border-primary shadow-lg shadow-primary/10"
-                  : "border-border hover:border-primary/30"
-              } ${isActive ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
-            >
-              {plan.popular && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 text-xs font-semibold">
-                  MAIS POPULAR
+        <p className="text-center text-xs text-muted-foreground">
+          Pagamento seguro via Asaas. Cancele a qualquer momento.
+        </p>
+      </div>
+    );
+  }
+
+  // Active plan — show tabs
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 px-4">
+      <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
+
+      <Tabs defaultValue="plan" className="w-full">
+        <TabsList className="w-full grid grid-cols-2">
+          <TabsTrigger value="plan">Plano</TabsTrigger>
+          <TabsTrigger value="history">Histórico</TabsTrigger>
+        </TabsList>
+
+        {/* ===== ABA PLANO ===== */}
+        <TabsContent value="plan" className="space-y-4 mt-4">
+          {/* Card do plano ativo */}
+          <Card>
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {currentPlanDef && (
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <currentPlanDef.icon className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Plano atual</p>
+                    <p className="text-lg font-bold text-foreground uppercase">{activePlan}</p>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15">
+                  Ativo
                 </Badge>
-              )}
+              </div>
 
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                  plan.popular ? "bg-primary/10" : "bg-muted"
-                }`}>
-                  <Icon className={`w-6 h-6 ${plan.popular ? "text-primary" : "text-foreground"}`} />
+              <div className="border-t border-border pt-3 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Valor mensal</span>
+                <span className="font-semibold text-foreground">
+                  R$ {currentPlanDef?.price ?? activePlan === "pro" ? "49,90" : "29,90"}
+                </span>
+              </div>
+
+              {nextBillingDate && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Próxima cobrança</span>
+                  <span className="font-medium text-foreground">
+                    {nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Card método de pagamento */}
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <CreditCard className="w-5 h-5 text-foreground" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-foreground">{plan.name}</h2>
-                  {isActive && (
-                    <Badge variant="outline" className="text-primary border-primary/30 text-[10px]">
-                      PLANO ATUAL
-                    </Badge>
+                  <p className="text-sm text-muted-foreground">Método de pagamento</p>
+                  <p className="text-sm font-medium text-foreground">Cartão de crédito •••• 7667</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Trocar plano */}
+          {activePlan !== "pro" && (
+            <Card className="border-primary/30">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-foreground">Fazer upgrade para PRO</p>
+                  <p className="text-sm text-muted-foreground">R$ 49,90/mês · Mais recursos</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleCheckout(plans[1])}
+                  disabled={checkoutLoading === "pro"}
+                >
+                  {checkoutLoading === "pro" ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Upgrade"
                   )}
-                </div>
-              </div>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-              <div className="mb-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-foreground">R$ {plan.price}</span>
-                  <span className="text-muted-foreground text-sm">/mês</span>
-                </div>
-              </div>
+          {/* Cancelar */}
+          <div className="pt-2 text-center">
+            <Button variant="ghost" className="text-muted-foreground text-xs hover:text-destructive">
+              <XCircle className="w-3.5 h-3.5 mr-1" />
+              Cancelar assinatura
+            </Button>
+          </div>
+        </TabsContent>
 
-              <ul className="space-y-3 flex-1 mb-6">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm">
-                    <Check className={`w-4 h-4 mt-0.5 shrink-0 ${plan.popular ? "text-primary" : "text-success"}`} />
-                    <span className="text-foreground">{feature}</span>
-                  </li>
+        {/* ===== ABA HISTÓRICO ===== */}
+        <TabsContent value="history" className="mt-4">
+          {payments.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Receipt className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">Nenhuma fatura encontrada.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0 divide-y divide-border">
+                {payments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between px-5 py-3.5">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        {new Date(p.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        R$ {p.amount.toFixed(2).replace(".", ",")}
+                      </p>
+                    </div>
+                    <Badge
+                      className={
+                        p.status === "approved"
+                          ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15"
+                          : "bg-muted text-muted-foreground"
+                      }
+                    >
+                      {p.status === "approved" ? "Pago" : p.status}
+                    </Badge>
+                  </div>
                 ))}
-              </ul>
-
-              <Button
-                onClick={() => handleCheckout(plan)}
-                disabled={isActive || isLoading}
-                className={`w-full h-12 text-base font-semibold ${
-                  plan.popular
-                    ? ""
-                    : "bg-foreground text-background hover:bg-foreground/90"
-                }`}
-                variant={plan.popular ? "default" : "default"}
-              >
-                {isLoading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
-                ) : isActive ? (
-                  "Plano ativo"
-                ) : (
-                  "Assinar agora"
-                )}
-              </Button>
-            </div>
-          );
-        })}
-      </div>
-
-      <p className="text-center text-xs text-muted-foreground">
-        Pagamento seguro via Asaas. Cancele a qualquer momento.
-      </p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
