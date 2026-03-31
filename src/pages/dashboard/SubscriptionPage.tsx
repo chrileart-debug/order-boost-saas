@@ -79,7 +79,7 @@ const SubscriptionPage = () => {
     setCheckoutLoading(plan.id);
     try {
       const { data, error } = await supabase.functions.invoke("create-asaas-checkout", {
-        body: { establishmentId: establishment.id, planType: plan.id },
+        body: { establishmentId: establishment.id, planType: plan.id, originUrl: window.location.origin },
       });
 
       if (error) {
