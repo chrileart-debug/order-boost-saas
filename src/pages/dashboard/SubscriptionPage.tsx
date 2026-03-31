@@ -254,6 +254,7 @@ const SubscriptionPage = () => {
                     "Assinar agora"
                   )}
                 </Button>
+              )}
             </CardContent>
           </Card>
         );
