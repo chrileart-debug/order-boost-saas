@@ -133,7 +133,9 @@ const SubscriptionPage = () => {
     }
   };
 
-  const activePlan = subscription?.status === "active" ? subscription.plan_type : null;
+  // Use plan_status from establishment as source of truth
+  const isActive = establishment?.plan_status === "active" || subscription?.status === "active";
+  const activePlan = isActive ? (subscription?.plan_type || "essential") : null;
   const currentPlanDef = plans.find((p) => p.id === activePlan);
 
   const nextBillingDate = subscription?.next_billing_date
