@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle } from "lucide-react";
+import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 interface Subscription {
@@ -68,12 +68,10 @@ const SubscriptionPage = () => {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Refetch on success return from Asaas
   useEffect(() => {
     const status = searchParams.get("status");
     if (status === "success") {
       refreshEstablishment();
-      // Clean up the URL param
       setSearchParams({}, { replace: true });
       toast.success("Pagamento processado! Seu plano será ativado em instantes.");
     }
@@ -82,7 +80,6 @@ const SubscriptionPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!establishment) return;
-
       const [subRes, payRes] = await Promise.all([
         supabase
           .from("subscriptions")
@@ -98,7 +95,6 @@ const SubscriptionPage = () => {
           .order("created_at", { ascending: false })
           .limit(20),
       ]);
-
       setSubscription(subRes.data as Subscription | null);
       setPayments((payRes.data as Payment[]) || []);
       setLoading(false);
@@ -111,7 +107,6 @@ const SubscriptionPage = () => {
       toast.error("Estabelecimento inválido.");
       return;
     }
-    // Block checkout if plan is already active
     if (establishment.plan_status === "active") {
       toast.info("Seu plano já está ativo!");
       return;
@@ -143,10 +138,8 @@ const SubscriptionPage = () => {
     }
   };
 
-  // Use plan_status from establishment as source of truth
   const isActive = establishment?.plan_status === "active" || subscription?.status === "active";
   const activePlan = isActive ? (subscription?.plan_type || "essential") : null;
-  const currentPlanDef = plans.find((p) => p.id === activePlan);
 
   const nextBillingDate = subscription?.next_billing_date
     ? new Date(subscription.next_billing_date)
@@ -156,87 +149,124 @@ const SubscriptionPage = () => {
 
   if (estLoading || loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6 px-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[200px] rounded-2xl" />
-        <Skeleton className="h-[120px] rounded-2xl" />
-        <Skeleton className="h-[300px] rounded-2xl" />
+      <div className="max-w-2xl mx-auto space-y-4 px-4 py-2">
+        <Skeleton className="h-7 w-40" />
+        <Skeleton className="h-10 w-full rounded-lg" />
+        <Skeleton className="h-[100px] rounded-xl" />
+        <Skeleton className="h-[60px] rounded-xl" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-[280px] rounded-xl" />
+          <Skeleton className="h-[280px] rounded-xl" />
+        </div>
       </div>
     );
   }
 
-  // No active plan — show plan selection cards
-  if (!activePlan) {
+  // ── Plan cards (shared between active & inactive views) ──
+  const renderPlanCards = () => (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {plans.map((plan) => {
+        const Icon = plan.icon;
+        const isCurrent = activePlan === plan.id;
+        const isUpgrade = isActive && !isCurrent;
+        const isLoadingThis = checkoutLoading === plan.id;
+
+        return (
+          <Card
+            key={plan.id}
+            className={`relative transition-all ${
+              isCurrent
+                ? "border-primary ring-2 ring-primary/20 shadow-md"
+                : plan.popular
+                  ? "border-primary/40 shadow-sm"
+                  : "border-border"
+            }`}
+          >
+            {isCurrent && (
+              <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] px-3 border-0">
+                SEU PLANO
+              </Badge>
+            )}
+            {!isCurrent && plan.popular && (
+              <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] px-3 border-0">
+                MAIS POPULAR
+              </Badge>
+            )}
+            <CardHeader className="pb-3 pt-5">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    isCurrent ? "bg-emerald-500/10" : plan.popular ? "bg-primary/10" : "bg-muted"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 ${isCurrent ? "text-emerald-600" : plan.popular ? "text-primary" : "text-foreground"}`} />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">{plan.name}</CardTitle>
+                  <div className="flex items-baseline gap-0.5">
+                    <span className="text-2xl font-extrabold text-foreground">R$ {plan.price}</span>
+                    <span className="text-muted-foreground text-xs">/mês</span>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <ul className="space-y-2">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-foreground">
+                    <Check className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              {isCurrent ? (
+                <Button disabled className="w-full h-11 font-semibold" variant="outline">
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Plano Atual
+                </Button>
+              ) : isUpgrade ? (
+                <Button
+                  onClick={() => handleCheckout(plan)}
+                  disabled={isLoadingThis}
+                  className="w-full h-11 font-semibold"
+                >
+                  {isLoadingThis ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
+                  ) : (
+                    `Fazer Upgrade para ${plan.name}`
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => handleCheckout(plan)}
+                  disabled={isLoadingThis}
+                  className="w-full h-11 font-semibold"
+                  variant={plan.popular ? "default" : "outline"}
+                >
+                  {isLoadingThis ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
+                  ) : (
+                    "Assinar agora"
+                  )}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
+  // ── No active plan ──
+  if (!isActive) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6 px-4">
+      <div className="max-w-2xl mx-auto space-y-6 px-4 py-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
           <p className="text-muted-foreground text-sm mt-1">Escolha o plano ideal para o seu negócio.</p>
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          {plans.map((plan) => {
-            const Icon = plan.icon;
-            const isLoading = checkoutLoading === plan.id;
-            return (
-              <Card
-                key={plan.id}
-                className={`relative transition-all ${
-                  plan.popular ? "border-primary shadow-md" : "border-border"
-                }`}
-              >
-                {plan.popular && (
-                  <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px] px-3">
-                    MAIS POPULAR
-                  </Badge>
-                )}
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        plan.popular ? "bg-primary/10" : "bg-muted"
-                      }`}
-                    >
-                      <Icon className={`w-5 h-5 ${plan.popular ? "text-primary" : "text-foreground"}`} />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{plan.name}</CardTitle>
-                      <div className="flex items-baseline gap-0.5">
-                        <span className="text-2xl font-extrabold text-foreground">R$ {plan.price}</span>
-                        <span className="text-muted-foreground text-xs">/mês</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm text-foreground">
-                        <Check className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    onClick={() => handleCheckout(plan)}
-                    disabled={isLoading}
-                    className="w-full h-11 font-semibold"
-                    variant={plan.popular ? "default" : "outline"}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...
-                      </>
-                    ) : (
-                      "Assinar agora"
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
+        {renderPlanCards()}
         <p className="text-center text-xs text-muted-foreground">
           Pagamento seguro via Asaas. Cancele a qualquer momento.
         </p>
@@ -244,32 +274,35 @@ const SubscriptionPage = () => {
     );
   }
 
-  // Active plan — show tabs
+  // ── Active plan — Tabs ──
   return (
-    <div className="max-w-2xl mx-auto space-y-6 px-4">
+    <div className="max-w-2xl mx-auto space-y-5 px-4 py-2">
       <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
 
       <Tabs defaultValue="plan" className="w-full">
         <TabsList className="w-full grid grid-cols-2">
-          <TabsTrigger value="plan">Plano</TabsTrigger>
-          <TabsTrigger value="history">Histórico</TabsTrigger>
+          <TabsTrigger value="plan">Minha Assinatura</TabsTrigger>
+          <TabsTrigger value="history">Histórico de Pagamentos</TabsTrigger>
         </TabsList>
 
         {/* ===== ABA PLANO ===== */}
-        <TabsContent value="plan" className="space-y-4 mt-4">
-          {/* Card do plano ativo */}
-          <Card>
-            <CardContent className="p-5 space-y-4">
+        <TabsContent value="plan" className="space-y-5 mt-4">
+          {/* Summary card */}
+          <Card className="bg-card">
+            <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {currentPlanDef && (
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <currentPlanDef.icon className="w-5 h-5 text-primary" />
-                    </div>
-                  )}
+                  {(() => {
+                    const Def = plans.find((p) => p.id === activePlan);
+                    return Def ? (
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Def.icon className="w-5 h-5 text-primary" />
+                      </div>
+                    ) : null;
+                  })()}
                   <div>
-                    <p className="text-sm text-muted-foreground">Plano atual</p>
-                    <p className="text-lg font-bold text-foreground uppercase">{activePlan}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Plano atual</p>
+                    <p className="text-lg font-bold text-foreground capitalize">{activePlan}</p>
                   </div>
                 </div>
                 <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15">
@@ -277,64 +310,51 @@ const SubscriptionPage = () => {
                 </Badge>
               </div>
 
-              <div className="border-t border-border pt-3 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Valor mensal</span>
-                <span className="font-semibold text-foreground">
-                  R$ {currentPlanDef?.price ?? activePlan === "pro" ? "49,90" : "29,90"}
-                </span>
-              </div>
-
-              {nextBillingDate && (
+              <div className="border-t border-border pt-3 space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Próxima cobrança</span>
-                  <span className="font-medium text-foreground">
-                    {nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                  <span className="text-muted-foreground">Valor mensal</span>
+                  <span className="font-semibold text-foreground">
+                    R$ {activePlan === "pro" ? "49,90" : "29,90"}
                   </span>
                 </div>
-              )}
+                {nextBillingDate && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Próxima cobrança</span>
+                    <span className="font-medium text-foreground">
+                      {nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                    </span>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Card método de pagamento */}
+          {/* Payment method */}
           <Card>
-            <CardContent className="p-5">
+            <CardContent className="p-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                   <CreditCard className="w-5 h-5 text-foreground" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Método de pagamento</p>
+                  <p className="text-xs text-muted-foreground">Método de pagamento</p>
                   <p className="text-sm font-medium text-foreground">Cartão de crédito •••• 7667</p>
                 </div>
               </div>
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
+                Alterar
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Trocar plano */}
-          {activePlan !== "pro" && (
-            <Card className="border-primary/30">
-              <CardContent className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-foreground">Fazer upgrade para PRO</p>
-                  <p className="text-sm text-muted-foreground">R$ 49,90/mês · Mais recursos</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => handleCheckout(plans[1])}
-                  disabled={checkoutLoading === "pro"}
-                >
-                  {checkoutLoading === "pro" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Upgrade"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          {/* Plan cards always visible */}
+          <div>
+            <p className="text-sm font-semibold text-foreground mb-3">Planos disponíveis</p>
+            {renderPlanCards()}
+          </div>
 
-          {/* Cancelar */}
-          <div className="pt-2 text-center">
+          {/* Cancel */}
+          <div className="pt-1 text-center">
             <Button variant="ghost" className="text-muted-foreground text-xs hover:text-destructive">
               <XCircle className="w-3.5 h-3.5 mr-1" />
               Cancelar assinatura
@@ -356,12 +376,12 @@ const SubscriptionPage = () => {
               <CardContent className="p-0 divide-y divide-border">
                 {payments.map((p) => (
                   <div key={p.id} className="flex items-center justify-between px-5 py-3.5">
-                    <div>
+                    <div className="space-y-0.5">
                       <p className="text-sm font-medium text-foreground">
                         {new Date(p.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        R$ {p.amount.toFixed(2).replace(".", ",")}
+                        R$ {p.amount.toFixed(2).replace(".", ",")} · Cartão •••• 7667
                       </p>
                     </div>
                     <Badge
