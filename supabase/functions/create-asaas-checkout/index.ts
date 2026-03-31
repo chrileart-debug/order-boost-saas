@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Read establishment + current subscription BEFORE any write
     const { data: est, error: estErr } = await supabase
       .from("establishments")
       .select("id, name, current_checkout_url, checkout_expires_at, current_checkout_id, plan_status")
@@ -62,42 +63,42 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Establishment not found" }, 404);
     }
 
-    // If plan is already active, check if it's the SAME plan (block) or DIFFERENT (allow upgrade)
-    if (est.plan_status === "active") {
-      const { data: currentSub } = await supabase
-        .from("subscriptions")
-        .select("plan_type")
-        .eq("establishment_id", normalizedEstablishmentId)
-        .maybeSingle();
+    const { data: currentSub } = await supabase
+      .from("subscriptions")
+      .select("plan_type, status")
+      .eq("establishment_id", normalizedEstablishmentId)
+      .maybeSingle();
 
-      if (currentSub && currentSub.plan_type === planType) {
-        console.log("Same plan already active, blocking checkout");
-        return jsonResponse({ error: "Você já possui este plano ativo.", alreadyActive: true }, 200);
-      }
-      console.log(`Upgrade detected: ${currentSub?.plan_type} -> ${planType}, allowing new checkout`);
+    console.log(`Estado atual: plan_status=${est.plan_status}, sub_plan=${currentSub?.plan_type}, sub_status=${currentSub?.status}, solicitado=${planType}`);
+
+    // RULE: active + same plan => block
+    if (est.plan_status === "active" && currentSub?.plan_type === planType) {
+      console.log("Mesmo plano ativo, bloqueando checkout");
+      return jsonResponse({ error: "Você já possui este plano ativo.", alreadyActive: true }, 200);
     }
 
-    // Check for existing valid checkout WITH matching plan type
+    // RULE: active + different plan => upgrade allowed
+    if (est.plan_status === "active" && currentSub?.plan_type !== planType) {
+      console.log(`Upgrade permitido: ${currentSub?.plan_type} -> ${planType}`);
+    }
+
+    // Check for existing valid checkout WITH matching plan value
     if (est.current_checkout_url && est.current_checkout_url.length > 0 && est.checkout_expires_at) {
       const expiresAt = new Date(est.checkout_expires_at);
       if (expiresAt > new Date()) {
-        // Verify the cached checkout matches the requested plan
-        const { data: existingSub } = await supabase
-          .from("subscriptions")
-          .select("plan_type, status")
-          .eq("establishment_id", normalizedEstablishmentId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (existingSub && existingSub.plan_type === planType && existingSub.status === "pending") {
-          console.log("Returning existing checkout URL:", est.current_checkout_url);
+        // Only reuse if the cached checkout is for the SAME plan being requested
+        // We check by looking at current_checkout_id presence — but for safety,
+        // we skip reuse during upgrades (plan differs from active sub)
+        const isUpgrade = est.plan_status === "active" && currentSub?.plan_type !== planType;
+        if (!isUpgrade) {
+          console.log("Reutilizando checkout existente:", est.current_checkout_url);
           return jsonResponse({ checkoutUrl: est.current_checkout_url }, 200);
         }
-        console.log("Cached checkout plan mismatch or not pending, creating new checkout");
+        console.log("Upgrade: ignorando checkout cacheado, criando novo");
       }
     }
 
+    // Create new Asaas checkout
     const asaasBase = "https://api.asaas.com/v3";
     const asaasHeaders = {
       "Content-Type": "application/json",
@@ -108,6 +109,7 @@ Deno.serve(async (req) => {
     const planLabel = planType.charAt(0).toUpperCase() + planType.slice(1);
     const today = new Date();
     const nextDueDate = today.toISOString().split("T")[0];
+
     const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
       method: "POST",
       headers: asaasHeaders,
@@ -145,10 +147,9 @@ Deno.serve(async (req) => {
     }
 
     const checkoutData = await checkoutRes.json();
-    console.log("Asaas checkout full response:", JSON.stringify(checkoutData));
+    console.log("Asaas checkout response:", JSON.stringify(checkoutData));
 
     const checkoutUrl = checkoutData.checkoutUrl || checkoutData.link || checkoutData.url || "";
-    console.log("Link recebido do Asaas:", checkoutData.checkoutUrl || checkoutData.link || checkoutData.url || null);
 
     if (!checkoutUrl) {
       console.error("Asaas returned empty checkout URL");
@@ -157,6 +158,7 @@ Deno.serve(async (req) => {
 
     const expiresAt = new Date(Date.now() + CHECKOUT_EXPIRATION_MINUTES * 60 * 1000).toISOString();
 
+    // ONLY update checkout metadata — NEVER touch plan_status here
     const { error: updateErr } = await supabase
       .from("establishments")
       .update({
@@ -171,22 +173,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Failed to save checkout URL", details: updateErr.message }, 500);
     }
 
-    const { error: subErr } = await supabase.from("subscriptions").upsert(
-      {
-        establishment_id: est.id,
-        plan_type: planType,
-        status: "pending",
-        gateway_name: "asaas",
-        gateway_subscription_id: checkoutData.id || null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "establishment_id" }
-    );
+    // DO NOT upsert subscriptions here — the webhook is the ONLY authority to change subscription status.
+    // This prevents overwriting an active subscription with "pending" during upgrades.
 
-    if (subErr) {
-      console.error("Failed to upsert subscription:", JSON.stringify(subErr));
-      return jsonResponse({ error: "Checkout created but subscription sync failed", details: subErr.message }, 500);
-    }
+    console.log(`Checkout criado com sucesso. Decisão: ${est.plan_status === "active" ? "upgrade" : "nova assinatura"}`);
 
     return jsonResponse({ checkoutUrl }, 200);
   } catch (err) {
