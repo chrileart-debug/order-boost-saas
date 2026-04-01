@@ -41,9 +41,14 @@ const SettingsPage = () => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => {
       setProfile(data);
-      if (data) setProfileForm({ full_name: data.full_name || "", phone: maskPhone(data.phone || "") });
+      if (data) {
+        const phoneValue = data.phone && data.phone.trim() !== "" 
+          ? data.phone 
+          : (establishment?.whatsapp || "");
+        setProfileForm({ full_name: data.full_name || "", phone: maskPhone(phoneValue) });
+      }
     });
-  }, [user]);
+  }, [user, establishment]);
 
   useEffect(() => {
     if (!establishment) return;
