@@ -190,6 +190,7 @@ const SettingsPage = () => {
   };
 
   const { refresh } = useEstablishment();
+  // Show skeleton while loading
 
   // Show skeleton while loading
   if (estLoading || profileLoading) {
