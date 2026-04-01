@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Store, User, Download, Clock } from "lucide-react";
+import { Store, User, Download, Clock, AlertTriangle, Link } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import ImageCropper from "@/components/ImageCropper";
 import MaskedInput from "@/components/MaskedInput";
@@ -60,6 +61,8 @@ const SettingsPage = () => {
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
+  const [slugError, setSlugError] = useState("");
+  const [originalSlug, setOriginalSlug] = useState("");
   const profileInitialized = useRef(false);
   const estInitialized = useRef(false);
 
@@ -94,6 +97,7 @@ const SettingsPage = () => {
       whatsapp: maskPhone(establishment.whatsapp || ""),
       cnpj: maskCnpj(establishment.cnpj || ""),
     });
+    setOriginalSlug(establishment.slug || "");
     if (establishment.operating_hours) {
       setOperatingHours(establishment.operating_hours as OperatingHours);
     }
@@ -152,7 +156,24 @@ const SettingsPage = () => {
       return;
     }
     setSavingEst(true);
+    setSlugError("");
     const slug = estForm.slug || estForm.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+
+    // Validate slug uniqueness if changed
+    if (slug !== originalSlug) {
+      const { data: existing } = await supabase
+        .from("establishments")
+        .select("id")
+        .eq("slug", slug)
+        .neq("id", establishment?.id || "")
+        .maybeSingle();
+      if (existing) {
+        setSlugError("Esta URL já está em uso por outra loja.");
+        setSavingEst(false);
+        return;
+      }
+    }
+
     const fullAddress = { ...address, numero };
     const payload: any = {
       name: estForm.name,
@@ -178,8 +199,8 @@ const SettingsPage = () => {
       } else {
         await supabase.from("establishments").insert(payload);
       }
-      // Allow re-init on next refresh
       estInitialized.current = false;
+      setOriginalSlug(slug);
       await refresh();
       toast({ title: "Estabelecimento salvo!" });
     } catch (err: any) {
@@ -252,17 +273,32 @@ const SettingsPage = () => {
               <Label>Nome do negócio</Label>
               <Input value={estForm.name} onChange={e => setEstForm({ ...estForm, name: e.target.value })} placeholder="Minha Loja" />
             </div>
-            <div className="space-y-2">
-              <Label>Slug (URL da loja)</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="flex items-center gap-1.5">
+                <Link className="w-3.5 h-3.5" /> URL da Loja (Slug)
+              </Label>
               <div className="flex items-center gap-1">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">{window.location.origin}/</span>
                 <Input
                   value={estForm.slug}
-                  onChange={e => setEstForm({ ...estForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-") })}
+                  onChange={e => {
+                    const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-");
+                    setEstForm({ ...estForm, slug: val });
+                    setSlugError("");
+                  }}
                   placeholder="minha-loja"
+                  className={slugError ? "border-destructive" : ""}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Este é o link público do seu cardápio.</p>
+              {slugError && <p className="text-xs text-destructive">{slugError}</p>}
+              {estForm.slug !== originalSlug && estForm.slug && !slugError && (
+                <Alert variant="default" className="mt-2 border-accent bg-accent/10">
+                  <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                  <AlertDescription className="text-xs text-accent-foreground">
+                    Atenção: Mudar a URL alterará o link de acesso dos seus clientes.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Nicho</Label>
