@@ -97,6 +97,7 @@ const SettingsPage = () => {
       whatsapp: maskPhone(establishment.whatsapp || ""),
       cnpj: maskCnpj(establishment.cnpj || ""),
     });
+    setOriginalSlug(establishment.slug || "");
     if (establishment.operating_hours) {
       setOperatingHours(establishment.operating_hours as OperatingHours);
     }
