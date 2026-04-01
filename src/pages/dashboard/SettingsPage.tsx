@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Store, User, Download, Clock, AlertTriangle, Link } from "lucide-react";
+import { Store, User, Download, Clock, AlertTriangle, Link, Copy, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import ImageCropper from "@/components/ImageCropper";
@@ -289,6 +289,21 @@ const SettingsPage = () => {
                   placeholder="minha-loja"
                   className={slugError ? "border-destructive" : ""}
                 />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => {
+                    const url = `${window.location.origin}/${estForm.slug}`;
+                    navigator.clipboard.writeText(url);
+                    toast({ title: "Link copiado!" });
+                  }}
+                  disabled={!estForm.slug}
+                  title="Copiar link da loja"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
               </div>
               {slugError && <p className="text-xs text-destructive">{slugError}</p>}
               {estForm.slug !== originalSlug && estForm.slug && !slugError && (
