@@ -81,9 +81,18 @@ Deno.serve(async (req) => {
         planType = "pro";
       }
 
+      // Calculate next_billing_date: today + 30 days (UTC-safe)
+      const today = new Date();
+      const nextBilling = new Date(today);
+      nextBilling.setDate(nextBilling.getDate() + 30);
+      const nextBillingISO = nextBilling.toISOString();
+
+      console.log(`Data de hoje: ${today.toISOString()}, Data calculada para vencimento: ${nextBillingISO}`);
+
       // Update establishment — ALWAYS set active on confirmed payment
       const estUpdate: Record<string, unknown> = {
         plan_status: "active",
+        cancel_at_period_end: false, // Clear any pending cancellation
       };
       if (payment.customer) {
         estUpdate.asaas_customer_id = payment.customer;
@@ -111,7 +120,7 @@ Deno.serve(async (req) => {
             status: "active",
             gateway_name: "asaas",
             gateway_subscription_id: payment.subscription || null,
-            next_billing_date: payment.dueDate || null,
+            next_billing_date: payment.dueDate || nextBillingISO,
             updated_at: new Date().toISOString(),
           },
           { onConflict: "establishment_id" }
@@ -129,7 +138,7 @@ Deno.serve(async (req) => {
         gateway_transaction_id: payment.id || null,
       });
 
-      console.log("Banco atualizado: plano ativado", planType);
+      console.log("Banco atualizado: plano ativado", planType, "próxima cobrança:", payment.dueDate || nextBillingISO);
     } else if (event === "PAYMENT_OVERDUE") {
       const { error: overdueUpdateError } = await supabase
         .from("establishments")

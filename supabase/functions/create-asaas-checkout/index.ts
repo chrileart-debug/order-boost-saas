@@ -110,6 +110,8 @@ Deno.serve(async (req) => {
     const today = new Date();
     const nextDueDate = today.toISOString().split("T")[0];
 
+    console.log(`Data de hoje: ${today.toISOString()}, nextDueDate para Asaas: ${nextDueDate}`);
+
     const checkoutRes = await fetch(`${asaasBase}/checkouts`, {
       method: "POST",
       headers: asaasHeaders,
