@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,27 +6,52 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Store, User, Download } from "lucide-react";
+import { Store, User, Download, Clock } from "lucide-react";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
 import ImageCropper from "@/components/ImageCropper";
 import MaskedInput from "@/components/MaskedInput";
 import { maskPhone, unmask, maskCep, maskCnpj } from "@/lib/masks";
 import OperatingHoursSection from "@/components/settings/OperatingHoursSection";
 import { type OperatingHours } from "@/lib/storeStatus";
-import { Clock } from "lucide-react";
-
 
 const niches = ["Açaí", "Pizzaria", "Hamburgueria", "Cookies", "Doceria", "Restaurante", "Sushi", "Padaria", "Cafeteria", "Outro"];
 
+const SettingsPageSkeleton = () => (
+  <div className="space-y-6 max-w-2xl">
+    <Skeleton className="h-8 w-48" />
+    {[1, 2, 3].map(i => (
+      <Card key={i}>
+        <CardHeader>
+          <Skeleton className="h-6 w-40" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
+
 const SettingsPage = () => {
   const { user } = useAuth();
-  const { establishment, refresh } = useEstablishment();
+  const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
+  const [profileLoading, setProfileLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [profileForm, setProfileForm] = useState({ full_name: "", phone: "" });
   const [estForm, setEstForm] = useState({ name: "", slug: "", niche: "", whatsapp: "", cnpj: "" });
-  const [formValid, setFormValid] = useState(true);
   const [cep, setCep] = useState("");
   const [address, setAddress] = useState<any>({});
   const [numero, setNumero] = useState("");
@@ -35,23 +60,33 @@ const SettingsPage = () => {
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
-  
+  const profileInitialized = useRef(false);
+  const estInitialized = useRef(false);
 
+  // Fetch profile once
   useEffect(() => {
     if (!user) return;
+    setProfileLoading(true);
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => {
       setProfile(data);
-      if (data) {
-        const phoneValue = data.phone && data.phone.trim() !== "" 
-          ? data.phone 
-          : (establishment?.whatsapp || "");
-        setProfileForm({ full_name: data.full_name || "", phone: maskPhone(phoneValue) });
-      }
+      profileInitialized.current = false; // allow re-init when data arrives
+      setProfileLoading(false);
     });
-  }, [user, establishment]);
+  }, [user]);
 
+  // Initialize profile form only once when both profile and establishment are ready
   useEffect(() => {
-    if (!establishment) return;
+    if (profileInitialized.current || !profile || estLoading) return;
+    const phoneValue = profile.phone && profile.phone.trim() !== ""
+      ? profile.phone
+      : (establishment?.whatsapp || "");
+    setProfileForm({ full_name: profile.full_name || "", phone: maskPhone(phoneValue) });
+    profileInitialized.current = true;
+  }, [profile, establishment, estLoading]);
+
+  // Initialize establishment form once
+  useEffect(() => {
+    if (estInitialized.current || !establishment) return;
     setEstForm({
       name: establishment.name || "",
       slug: establishment.slug || "",
@@ -68,6 +103,7 @@ const SettingsPage = () => {
       setCep(maskCep(addr.cep || ""));
       setNumero(addr.numero || "");
     }
+    estInitialized.current = true;
   }, [establishment]);
 
   const saveProfile = async () => {
@@ -142,6 +178,8 @@ const SettingsPage = () => {
       } else {
         await supabase.from("establishments").insert(payload);
       }
+      // Allow re-init on next refresh
+      estInitialized.current = false;
       await refresh();
       toast({ title: "Estabelecimento salvo!" });
     } catch (err: any) {
@@ -150,6 +188,13 @@ const SettingsPage = () => {
       setSavingEst(false);
     }
   };
+
+  const { refresh } = useEstablishment();
+
+  // Show skeleton while loading
+  if (estLoading || profileLoading) {
+    return <SettingsPageSkeleton />;
+  }
 
   const InstallSection = () => {
     const { canInstall, install, isIos } = usePwaInstall();
