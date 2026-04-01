@@ -292,9 +292,9 @@ const SettingsPage = () => {
               </div>
               {slugError && <p className="text-xs text-destructive">{slugError}</p>}
               {estForm.slug !== originalSlug && estForm.slug && !slugError && (
-                <Alert variant="default" className="mt-2 bg-amber-50 border-amber-200">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-xs text-amber-700">
+                <Alert variant="default" className="mt-2 border-accent bg-accent/10">
+                  <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                  <AlertDescription className="text-xs text-accent-foreground">
                     Atenção: Mudar a URL alterará o link de acesso dos seus clientes.
                   </AlertDescription>
                 </Alert>
