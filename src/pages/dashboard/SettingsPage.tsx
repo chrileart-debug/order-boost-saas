@@ -61,6 +61,8 @@ const SettingsPage = () => {
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [operatingHours, setOperatingHours] = useState<OperatingHours | null>(null);
+  const [slugError, setSlugError] = useState("");
+  const [originalSlug, setOriginalSlug] = useState("");
   const profileInitialized = useRef(false);
   const estInitialized = useRef(false);
 
