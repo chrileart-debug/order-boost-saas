@@ -273,17 +273,32 @@ const SettingsPage = () => {
               <Label>Nome do negócio</Label>
               <Input value={estForm.name} onChange={e => setEstForm({ ...estForm, name: e.target.value })} placeholder="Minha Loja" />
             </div>
-            <div className="space-y-2">
-              <Label>Slug (URL da loja)</Label>
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="flex items-center gap-1.5">
+                <Link className="w-3.5 h-3.5" /> URL da Loja (Slug)
+              </Label>
               <div className="flex items-center gap-1">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">{window.location.origin}/</span>
                 <Input
                   value={estForm.slug}
-                  onChange={e => setEstForm({ ...estForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-") })}
+                  onChange={e => {
+                    const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-");
+                    setEstForm({ ...estForm, slug: val });
+                    setSlugError("");
+                  }}
                   placeholder="minha-loja"
+                  className={slugError ? "border-destructive" : ""}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Este é o link público do seu cardápio.</p>
+              {slugError && <p className="text-xs text-destructive">{slugError}</p>}
+              {estForm.slug !== originalSlug && estForm.slug && !slugError && (
+                <Alert variant="default" className="mt-2 bg-amber-50 border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-xs text-amber-700">
+                    Atenção: Mudar a URL alterará o link de acesso dos seus clientes.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Nicho</Label>
