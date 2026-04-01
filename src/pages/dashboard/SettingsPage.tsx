@@ -46,7 +46,7 @@ const SettingsPageSkeleton = () => (
 
 const SettingsPage = () => {
   const { user } = useAuth();
-  const { establishment, loading: estLoading } = useEstablishment();
+  const { establishment, loading: estLoading, refresh } = useEstablishment();
   const { toast } = useToast();
   const [profileLoading, setProfileLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
