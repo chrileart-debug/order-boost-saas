@@ -230,6 +230,10 @@ const SettingsPage = () => {
               <Input value={profileForm.full_name} onChange={e => setProfileForm({ ...profileForm, full_name: e.target.value })} />
             </div>
             <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input value={user?.email || ""} readOnly disabled className="bg-muted cursor-not-allowed" />
+            </div>
+            <div className="space-y-2">
               <Label>Telefone</Label>
               <MaskedInput mask="phone" value={profileForm.phone} onValueChange={v => setProfileForm({ ...profileForm, phone: v })} placeholder="(00) 00000-0000" />
             </div>
