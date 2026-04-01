@@ -253,6 +253,18 @@ const SettingsPage = () => {
               <Input value={estForm.name} onChange={e => setEstForm({ ...estForm, name: e.target.value })} placeholder="Minha Loja" />
             </div>
             <div className="space-y-2">
+              <Label>Slug (URL da loja)</Label>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-muted-foreground whitespace-nowrap">{window.location.origin}/</span>
+                <Input
+                  value={estForm.slug}
+                  onChange={e => setEstForm({ ...estForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-") })}
+                  placeholder="minha-loja"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Este é o link público do seu cardápio.</p>
+            </div>
+            <div className="space-y-2">
               <Label>Nicho</Label>
               <select className="w-full rounded-lg border border-input px-3 py-2 text-sm bg-background" value={estForm.niche} onChange={e => setEstForm({ ...estForm, niche: e.target.value })}>
                 <option value="">Selecione...</option>
