@@ -156,7 +156,24 @@ const SettingsPage = () => {
       return;
     }
     setSavingEst(true);
+    setSlugError("");
     const slug = estForm.slug || estForm.name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+
+    // Validate slug uniqueness if changed
+    if (slug !== originalSlug) {
+      const { data: existing } = await supabase
+        .from("establishments")
+        .select("id")
+        .eq("slug", slug)
+        .neq("id", establishment?.id || "")
+        .maybeSingle();
+      if (existing) {
+        setSlugError("Esta URL já está em uso por outra loja.");
+        setSavingEst(false);
+        return;
+      }
+    }
+
     const fullAddress = { ...address, numero };
     const payload: any = {
       name: estForm.name,
@@ -182,8 +199,8 @@ const SettingsPage = () => {
       } else {
         await supabase.from("establishments").insert(payload);
       }
-      // Allow re-init on next refresh
       estInitialized.current = false;
+      setOriginalSlug(slug);
       await refresh();
       toast({ title: "Estabelecimento salvo!" });
     } catch (err: any) {
