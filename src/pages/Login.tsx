@@ -19,19 +19,36 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setLoading(false); return; }
+
+    // Block drivers from accessing owner panel
+    const { data: isDriver } = await supabase.rpc("has_role", { _user_id: session.user.id, _role: "driver" });
+    const { data: isOwner } = await supabase.rpc("has_role", { _user_id: session.user.id, _role: "owner" });
+
+    if (isDriver && !isOwner) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      toast({
+        title: "Acesso negado",
+        description: "Este e-mail está cadastrado como Motoboy. Para gerenciar um estabelecimento, use uma conta de Lojista.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data: est } = await supabase.from("establishments").select("onboarding_completed").eq("owner_id", session.user.id).maybeSingle();
+    setLoading(false);
+    if (!est || !est.onboarding_completed) {
+      navigate("/onboarding");
     } else {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: est } = await supabase.from("establishments").select("onboarding_completed").eq("owner_id", session.user.id).maybeSingle();
-        if (!est || !est.onboarding_completed) {
-          navigate("/onboarding");
-        } else {
-          navigate("/dashboard");
-        }
-      }
+      navigate("/dashboard");
     }
   };
 
