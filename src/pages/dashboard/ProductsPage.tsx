@@ -31,6 +31,8 @@ interface ComboItem { id: string; parent_product_id: string; child_product_id: s
 const ProductsPage = () => {
   const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const planLimits = getPlanLimits(establishment?.plan_name);
 
   const [activeTab, setActiveTab] = useState("products");
   const [categories, setCategories] = useState<Category[]>([]);
