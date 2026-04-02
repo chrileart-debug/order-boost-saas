@@ -144,8 +144,8 @@ Deno.serve(async (req) => {
 
     if (!checkoutRes.ok) {
       const errText = await checkoutRes.text();
-      console.error("Asaas checkout creation error:", errText);
-      return jsonResponse({ error: "Failed to create Asaas checkout", details: errText }, 502);
+      console.error(`Asaas checkout creation error [${checkoutRes.status} ${checkoutRes.statusText}]:`, errText);
+      return jsonResponse({ error: "Failed to create Asaas checkout", status: checkoutRes.status, details: errText }, 502);
     }
 
     const checkoutData = await checkoutRes.json();
