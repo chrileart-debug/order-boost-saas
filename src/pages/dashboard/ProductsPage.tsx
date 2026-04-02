@@ -530,7 +530,15 @@ const ProductsPage = () => {
   };
 
   const toggleGroupLink = (groupId: string) => {
-    setLinkedGroupIds(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
+    setLinkedGroupIds(prev => {
+      if (prev.includes(groupId)) return prev.filter(id => id !== groupId);
+      if (prev.length >= planLimits.maxModifierGroups) {
+        toast({ title: "Limite de complementos", description: `O plano ${establishment?.plan_name} permite no máximo ${planLimits.maxModifierGroups} grupos por produto. Faça upgrade para o PRO.`, variant: "destructive" });
+        return prev;
+      }
+      return [...prev, groupId];
+    });
+  };
   };
 
   /* ─── render ─── */
