@@ -539,7 +539,6 @@ const ProductsPage = () => {
       return [...prev, groupId];
     });
   };
-  };
 
   /* ─── render ─── */
   if (estLoading || loading) return (
