@@ -5,9 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/components/AuthProvider";
 import { EstablishmentProvider } from "@/components/EstablishmentProvider";
-import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import SelectPlanPage from "./pages/auth/SelectPlanPage";
 import Onboarding from "./pages/Onboarding";
 import DashboardLayout from "./pages/DashboardLayout";
 import DashboardHome from "./pages/dashboard/DashboardHome";
@@ -39,8 +39,10 @@ const App = () => (
         <AuthProvider>
           <EstablishmentProvider>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<Login />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/auth/select-plan" element={<SelectPlanPage />} />
+              <Route path="/auth/register" element={<Signup />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pedido/:id" element={<OrderTrackingPage />} />

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,16 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  const selectedPlan = searchParams.get("plan") || "essential";
+
+  // Store plan in sessionStorage so it survives the auth redirect
+  useEffect(() => {
+    if (selectedPlan) {
+      sessionStorage.setItem("selected_plan", selectedPlan);
+    }
+  }, [selectedPlan]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,18 +55,22 @@ const Signup = () => {
     }
   };
 
+  const planLabel = selectedPlan === "pro" ? "PRO" : "Essential";
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface px-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
+        <Link to="/auth/select-plan" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Voltar
+          Voltar aos planos
         </Link>
 
         <div className="bg-card rounded-2xl shadow-lg p-8 border border-border">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-foreground">Criar Conta</h1>
-            <p className="text-muted-foreground mt-2">Comece a vender em minutos</p>
+            <p className="text-muted-foreground mt-2">
+              Plano <span className="font-semibold text-primary">{planLabel}</span> — 7 dias grátis
+            </p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-4">
@@ -92,7 +106,7 @@ const Signup = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Já tem conta?{" "}
-            <Link to="/login" className="text-primary font-medium hover:underline">Entrar</Link>
+            <Link to="/" className="text-primary font-medium hover:underline">Entrar</Link>
           </p>
         </div>
       </div>

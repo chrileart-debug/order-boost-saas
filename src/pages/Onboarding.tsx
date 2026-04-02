@@ -88,11 +88,14 @@ const Onboarding = () => {
     }
     setSaving(true);
     const slug = name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
-    const payload = { name, slug, whatsapp: unmask(whatsapp), cnpj: unmask(cnpj), niche, owner_id: user.id };
+    const storedPlan = sessionStorage.getItem("selected_plan") || "essential";
+    const payload: any = { name, slug, whatsapp: unmask(whatsapp), cnpj: unmask(cnpj), niche, owner_id: user.id };
 
     if (establishmentId) {
       await supabase.from("establishments").update(payload).eq("id", establishmentId);
     } else {
+      payload.plan_name = storedPlan;
+      payload.plan_status = "trialing";
       const { data } = await supabase.from("establishments").insert(payload).select().single();
       if (data) setEstablishmentId(data.id);
     }
