@@ -168,9 +168,15 @@ const LogisticsPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Logística de Entrega</h1>
-        <Button onClick={openCreate} size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" /> Adicionar Regra
-        </Button>
+        {!planLimits.allowMultipleDeliveryRules && rules.length >= 1 ? (
+          <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 text-primary" onClick={() => navigate("/dashboard/subscription")}>
+            <Crown className="w-4 h-4" /> Limite do plano Essential
+          </Button>
+        ) : (
+          <Button onClick={openCreate} size="sm" className="gap-1.5">
+            <Plus className="w-4 h-4" /> Adicionar Regra
+          </Button>
+        )}
       </div>
 
       <p className="text-sm text-muted-foreground">
