@@ -240,6 +240,77 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_profiles: {
+        Row: {
+          address_city: string | null
+          address_neighborhood: string | null
+          address_number: string
+          address_street: string | null
+          cep: string | null
+          cnh_category: string | null
+          cnh_number: string | null
+          created_at: string | null
+          has_bag: boolean | null
+          has_machine: boolean | null
+          id: string
+          is_onboarding_complete: boolean | null
+          license_plate: string | null
+          profile_photo_url: string | null
+          rating_avg: number | null
+          total_deliveries: number | null
+          vehicle_model: string | null
+          vehicle_type: string | null
+        }
+        Insert: {
+          address_city?: string | null
+          address_neighborhood?: string | null
+          address_number: string
+          address_street?: string | null
+          cep?: string | null
+          cnh_category?: string | null
+          cnh_number?: string | null
+          created_at?: string | null
+          has_bag?: boolean | null
+          has_machine?: boolean | null
+          id: string
+          is_onboarding_complete?: boolean | null
+          license_plate?: string | null
+          profile_photo_url?: string | null
+          rating_avg?: number | null
+          total_deliveries?: number | null
+          vehicle_model?: string | null
+          vehicle_type?: string | null
+        }
+        Update: {
+          address_city?: string | null
+          address_neighborhood?: string | null
+          address_number?: string
+          address_street?: string | null
+          cep?: string | null
+          cnh_category?: string | null
+          cnh_number?: string | null
+          created_at?: string | null
+          has_bag?: boolean | null
+          has_machine?: boolean | null
+          id?: string
+          is_onboarding_complete?: boolean | null
+          license_plate?: string | null
+          profile_photo_url?: string | null
+          rating_avg?: number | null
+          total_deliveries?: number | null
+          vehicle_model?: string | null
+          vehicle_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: Json | null
@@ -342,6 +413,45 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_history: {
+        Row: {
+          driver_id: string | null
+          establishment_id: string | null
+          hired_at: string | null
+          id: string
+          is_active: boolean | null
+        }
+        Insert: {
+          driver_id?: string | null
+          establishment_id?: string | null
+          hired_at?: string | null
+          id?: string
+          is_active?: boolean | null
+        }
+        Update: {
+          driver_id?: string | null
+          establishment_id?: string | null
+          hired_at?: string | null
+          id?: string
+          is_active?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_history_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_history_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_items: {
         Row: {
           created_at: string
@@ -398,6 +508,101 @@ export type Database = {
           price?: number
         }
         Relationships: []
+      }
+      job_applications: {
+        Row: {
+          applied_at: string | null
+          driver_id: string | null
+          id: string
+          job_id: string | null
+          status: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          driver_id?: string | null
+          id?: string
+          job_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          driver_id?: string | null
+          id?: string
+          job_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          created_at: string | null
+          end_time: string | null
+          establishment_id: string | null
+          fixed_value: number | null
+          hiring_type: string | null
+          id: string
+          km_value: number | null
+          payment_type: string | null
+          requirements: Json | null
+          shift_type: string | null
+          start_time: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_time?: string | null
+          establishment_id?: string | null
+          fixed_value?: number | null
+          hiring_type?: string | null
+          id?: string
+          km_value?: number | null
+          payment_type?: string | null
+          requirements?: Json | null
+          shift_type?: string | null
+          start_time?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string | null
+          establishment_id?: string | null
+          fixed_value?: number | null
+          hiring_type?: string | null
+          id?: string
+          km_value?: number | null
+          payment_type?: string | null
+          requirements?: Json | null
+          shift_type?: string | null
+          start_time?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_item_options: {
         Row: {
