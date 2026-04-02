@@ -562,15 +562,21 @@ const ProductsPage = () => {
 
         {/* ═══════════ TAB: PRODUTOS ═══════════ */}
         <TabsContent value="products" className="space-y-6 mt-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+           <div className="flex items-center justify-between flex-wrap gap-2">
             <h1 className="text-2xl font-bold text-foreground">Produtos & Categorias</h1>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => { setCatName(""); setEditingCat(null); setCatDialog(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Categoria
               </Button>
-              <Button size="sm" onClick={openNewProduct}>
-                <Plus className="w-4 h-4 mr-1" /> Produto
-              </Button>
+              {products.length >= planLimits.maxProducts ? (
+                <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 text-primary" onClick={() => navigate("/dashboard/subscription")}>
+                  <Crown className="w-4 h-4" /> Limite atingido ({planLimits.maxProducts})
+                </Button>
+              ) : (
+                <Button size="sm" onClick={openNewProduct}>
+                  <Plus className="w-4 h-4 mr-1" /> Produto ({products.length}/{planLimits.maxProducts})
+                </Button>
+              )}
             </div>
           </div>
 
