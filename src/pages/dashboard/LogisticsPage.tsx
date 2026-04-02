@@ -266,10 +266,16 @@ const LogisticsPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Frete Grátis (por faixa de CEP)</SelectItem>
-                  <SelectItem value="fixed_zip">Valor fixo por faixa de CEP</SelectItem>
-                  <SelectItem value="fixed_global">Valor fixo global</SelectItem>
-                  <SelectItem value="per_km">Valor fixo por faixa de KM (escadinha)</SelectItem>
+                  {planLimits.allowMultipleDeliveryRules ? (
+                    <>
+                      <SelectItem value="free">Frete Grátis (por faixa de CEP)</SelectItem>
+                      <SelectItem value="fixed_zip">Valor fixo por faixa de CEP</SelectItem>
+                      <SelectItem value="fixed_global">Valor fixo global</SelectItem>
+                      <SelectItem value="per_km">Valor fixo por faixa de KM (escadinha)</SelectItem>
+                    </>
+                  ) : (
+                    <SelectItem value="fixed_global">Valor fixo global</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
