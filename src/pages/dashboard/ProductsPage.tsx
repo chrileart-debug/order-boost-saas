@@ -12,10 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search, Boxes, Minus } from "lucide-react";
+import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search, Boxes, Minus, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImageCropper from "@/components/ImageCropper";
+import { getPlanLimits } from "@/lib/planLimits";
+import UpgradeBanner from "@/components/UpgradeBanner";
+import { useNavigate } from "react-router-dom";
 
 /* ─── types ─── */
 interface Category { id: string; name: string; order_index: number; establishment_id: string }
