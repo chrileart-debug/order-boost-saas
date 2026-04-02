@@ -1,14 +1,35 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
   const { establishment, loading: estLoading } = useEstablishment();
   const navigate = useNavigate();
+  const [roleChecked, setRoleChecked] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
 
-  const isLoading = authLoading || estLoading;
+  useEffect(() => {
+    if (authLoading || !user) {
+      setRoleChecked(false);
+      return;
+    }
+
+    const checkRole = async () => {
+      const { data } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "owner",
+      });
+      setIsOwner(!!data);
+      setRoleChecked(true);
+    };
+
+    checkRole();
+  }, [user, authLoading]);
+
+  const isLoading = authLoading || estLoading || (!!user && !roleChecked);
 
   useEffect(() => {
     if (isLoading) return;
@@ -16,10 +37,14 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       navigate("/", { replace: true });
       return;
     }
+    if (!isOwner) {
+      navigate("/", { replace: true });
+      return;
+    }
     if (!establishment || !establishment.onboarding_completed) {
       navigate("/onboarding", { replace: true });
     }
-  }, [user, isLoading, establishment, navigate]);
+  }, [user, isLoading, isOwner, establishment, navigate]);
 
   if (isLoading) {
     return (
@@ -32,7 +57,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  if (!user || !establishment?.onboarding_completed) return null;
+  if (!user || !isOwner || !establishment?.onboarding_completed) return null;
 
   return <>{children}</>;
 };
