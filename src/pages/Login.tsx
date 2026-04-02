@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, Utensils } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -23,7 +23,6 @@ const Login = () => {
     if (error) {
       toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
     } else {
-      // Check onboarding status
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const { data: est } = await supabase.from("establishments").select("onboarding_completed").eq("owner_id", session.user.id).maybeSingle();
@@ -39,14 +38,14 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface px-4">
       <div className="w-full max-w-md">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Voltar
-        </Link>
+        <div className="flex items-center justify-center gap-2 mb-8">
+          <Utensils className="w-7 h-7 text-primary" />
+          <span className="text-2xl font-bold text-foreground">EPRATO</span>
+        </div>
 
         <div className="bg-card rounded-2xl shadow-lg p-8 border border-border">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground">Entrar no EPRATO</h1>
+            <h1 className="text-2xl font-bold text-foreground">Entrar</h1>
             <p className="text-muted-foreground mt-2">Acesse seu painel de controle</p>
           </div>
 
@@ -73,7 +72,7 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Não tem conta?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:underline">Criar conta</Link>
+            <Link to="/auth/select-plan" className="text-primary font-medium hover:underline">Cadastrar-se</Link>
           </p>
         </div>
       </div>

@@ -13,7 +13,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
       return;
     }
     if (!establishment || !establishment.onboarding_completed) {
