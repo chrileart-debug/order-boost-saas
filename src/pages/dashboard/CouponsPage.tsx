@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Ticket, BarChart3, Percent, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { getPlanLimits } from "@/lib/planLimits";
+import UpgradeBanner from "@/components/UpgradeBanner";
 
 const CouponsPage = () => {
   const { user } = useAuth();
