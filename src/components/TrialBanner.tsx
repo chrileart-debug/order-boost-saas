@@ -36,7 +36,7 @@ const TrialBanner = () => {
   }
 
   const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const days = Math.floor(totalHours / 24);
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   const hours = totalHours % 24;
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
