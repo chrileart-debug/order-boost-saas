@@ -12,10 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search, Boxes, Minus } from "lucide-react";
+import { Plus, Pencil, Trash2, ImageIcon, Package, Layers, BookOpen, Search, Boxes, Minus, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import ImageCropper from "@/components/ImageCropper";
+import { getPlanLimits } from "@/lib/planLimits";
+import UpgradeBanner from "@/components/UpgradeBanner";
+import { useNavigate } from "react-router-dom";
 
 /* ─── types ─── */
 interface Category { id: string; name: string; order_index: number; establishment_id: string }
@@ -28,6 +31,8 @@ interface ComboItem { id: string; parent_product_id: string; child_product_id: s
 const ProductsPage = () => {
   const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const planLimits = getPlanLimits(establishment?.plan_name);
 
   const [activeTab, setActiveTab] = useState("products");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -525,7 +530,15 @@ const ProductsPage = () => {
   };
 
   const toggleGroupLink = (groupId: string) => {
-    setLinkedGroupIds(prev => prev.includes(groupId) ? prev.filter(id => id !== groupId) : [...prev, groupId]);
+    setLinkedGroupIds(prev => {
+      if (prev.includes(groupId)) return prev.filter(id => id !== groupId);
+      if (prev.length >= planLimits.maxModifierGroups) {
+        toast({ title: "Limite de complementos", description: `O plano ${establishment?.plan_name} permite no máximo ${planLimits.maxModifierGroups} grupos por produto. Faça upgrade para o PRO.`, variant: "destructive" });
+        return prev;
+      }
+      return [...prev, groupId];
+    });
+  };
   };
 
   /* ─── render ─── */
@@ -557,15 +570,21 @@ const ProductsPage = () => {
 
         {/* ═══════════ TAB: PRODUTOS ═══════════ */}
         <TabsContent value="products" className="space-y-6 mt-4">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+           <div className="flex items-center justify-between flex-wrap gap-2">
             <h1 className="text-2xl font-bold text-foreground">Produtos & Categorias</h1>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => { setCatName(""); setEditingCat(null); setCatDialog(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Categoria
               </Button>
-              <Button size="sm" onClick={openNewProduct}>
-                <Plus className="w-4 h-4 mr-1" /> Produto
-              </Button>
+              {products.length >= planLimits.maxProducts ? (
+                <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 text-primary" onClick={() => navigate("/dashboard/subscription")}>
+                  <Crown className="w-4 h-4" /> Limite atingido ({planLimits.maxProducts})
+                </Button>
+              ) : (
+                <Button size="sm" onClick={openNewProduct}>
+                  <Plus className="w-4 h-4 mr-1" /> Produto ({products.length}/{planLimits.maxProducts})
+                </Button>
+              )}
             </div>
           </div>
 
@@ -803,20 +822,37 @@ const ProductsPage = () => {
                   </div>
                 </div>
               </div>
-              <div
-                className="border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
-                onClick={() => { setProdType("combo"); setProdTypeStep("form"); }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
-                    <Boxes className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">Agrupe produtos existentes para criar uma oferta conjunta com preço exclusivo.</p>
+              {planLimits.allowCombos ? (
+                <div
+                  className="border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                  onClick={() => { setProdType("combo"); setProdTypeStep("form"); }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
+                      <Boxes className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">Agrupe produtos existentes para criar uma oferta conjunta com preço exclusivo.</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border border-border rounded-xl p-5 opacity-60 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Boxes className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">Disponível no Plano PRO.</p>
+                      <Button size="sm" variant="outline" className="mt-2 gap-1.5 text-primary border-primary/30" onClick={(e) => { e.stopPropagation(); navigate("/dashboard/subscription"); }}>
+                        <Crown className="w-3.5 h-3.5" /> Fazer Upgrade
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

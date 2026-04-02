@@ -11,8 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Truck, Plus, Trash2, MapPin, Package } from "lucide-react";
+import { Truck, Plus, Trash2, MapPin, Package, Crown } from "lucide-react";
 import MaskedInput from "@/components/MaskedInput";
+import { getPlanLimits } from "@/lib/planLimits";
+import { useNavigate } from "react-router-dom";
 
 type DeliveryRule = {
   id: string;
@@ -39,6 +41,8 @@ const LogisticsPage = () => {
   const { user } = useAuth();
   const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const planLimits = getPlanLimits(establishment?.plan_name);
   const [rules, setRules] = useState<DeliveryRule[]>([]);
   const [dialog, setDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<DeliveryRule | null>(null);
@@ -164,9 +168,15 @@ const LogisticsPage = () => {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Logística de Entrega</h1>
-        <Button onClick={openCreate} size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" /> Adicionar Regra
-        </Button>
+        {!planLimits.allowMultipleDeliveryRules && rules.length >= 1 ? (
+          <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 text-primary" onClick={() => navigate("/dashboard/subscription")}>
+            <Crown className="w-4 h-4" /> Limite do plano Essential
+          </Button>
+        ) : (
+          <Button onClick={openCreate} size="sm" className="gap-1.5">
+            <Plus className="w-4 h-4" /> Adicionar Regra
+          </Button>
+        )}
       </div>
 
       <p className="text-sm text-muted-foreground">
@@ -256,10 +266,16 @@ const LogisticsPage = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Frete Grátis (por faixa de CEP)</SelectItem>
-                  <SelectItem value="fixed_zip">Valor fixo por faixa de CEP</SelectItem>
-                  <SelectItem value="fixed_global">Valor fixo global</SelectItem>
-                  <SelectItem value="per_km">Valor fixo por faixa de KM (escadinha)</SelectItem>
+                  {planLimits.allowMultipleDeliveryRules ? (
+                    <>
+                      <SelectItem value="free">Frete Grátis (por faixa de CEP)</SelectItem>
+                      <SelectItem value="fixed_zip">Valor fixo por faixa de CEP</SelectItem>
+                      <SelectItem value="fixed_global">Valor fixo global</SelectItem>
+                      <SelectItem value="per_km">Valor fixo por faixa de KM (escadinha)</SelectItem>
+                    </>
+                  ) : (
+                    <SelectItem value="fixed_global">Valor fixo global</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>

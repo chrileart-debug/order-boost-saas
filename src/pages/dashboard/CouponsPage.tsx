@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Ticket, BarChart3, Percent, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { getPlanLimits } from "@/lib/planLimits";
+import UpgradeBanner from "@/components/UpgradeBanner";
 
 const CouponsPage = () => {
   const { user } = useAuth();
@@ -175,6 +177,21 @@ const CouponsPage = () => {
     return (
       <div className="text-center py-12 text-muted-foreground">
         Configure seu estabelecimento primeiro.
+      </div>
+    );
+  }
+
+  const planLimits = getPlanLimits(establishment?.plan_name);
+
+  if (!planLimits.allowCoupons) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-foreground">Cupons</h1>
+        <Card>
+          <CardContent className="p-0">
+            <UpgradeBanner message="A criação de cupons de desconto está disponível no Plano PRO. Faça upgrade para criar campanhas promocionais." />
+          </CardContent>
+        </Card>
       </div>
     );
   }
