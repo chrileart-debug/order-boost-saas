@@ -814,20 +814,37 @@ const ProductsPage = () => {
                   </div>
                 </div>
               </div>
-              <div
-                className="border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
-                onClick={() => { setProdType("combo"); setProdTypeStep("form"); }}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
-                    <Boxes className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">Agrupe produtos existentes para criar uma oferta conjunta com preço exclusivo.</p>
+              {planLimits.allowCombos ? (
+                <div
+                  className="border border-border rounded-xl p-5 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+                  onClick={() => { setProdType("combo"); setProdTypeStep("form"); }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-accent/50 flex items-center justify-center shrink-0">
+                      <Boxes className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">Agrupe produtos existentes para criar uma oferta conjunta com preço exclusivo.</p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border border-border rounded-xl p-5 opacity-60 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <Boxes className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Combo / Kit de Oferta</h3>
+                      <p className="text-sm text-muted-foreground mt-0.5">Disponível no Plano PRO.</p>
+                      <Button size="sm" variant="outline" className="mt-2 gap-1.5 text-primary border-primary/30" onClick={(e) => { e.stopPropagation(); navigate("/dashboard/subscription"); }}>
+                        <Crown className="w-3.5 h-3.5" /> Fazer Upgrade
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
