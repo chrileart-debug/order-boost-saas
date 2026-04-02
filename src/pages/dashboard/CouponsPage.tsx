@@ -181,6 +181,21 @@ const CouponsPage = () => {
     );
   }
 
+  const planLimits = getPlanLimits(establishment?.plan_name);
+
+  if (!planLimits.allowCoupons) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-foreground">Cupons</h1>
+        <Card>
+          <CardContent className="p-0">
+            <UpgradeBanner message="A criação de cupons de desconto está disponível no Plano PRO. Faça upgrade para criar campanhas promocionais." />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
