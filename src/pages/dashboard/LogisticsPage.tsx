@@ -11,8 +11,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Truck, Plus, Trash2, MapPin, Package } from "lucide-react";
+import { Truck, Plus, Trash2, MapPin, Package, Crown } from "lucide-react";
 import MaskedInput from "@/components/MaskedInput";
+import { getPlanLimits } from "@/lib/planLimits";
+import { useNavigate } from "react-router-dom";
 
 type DeliveryRule = {
   id: string;
