@@ -41,6 +41,8 @@ const LogisticsPage = () => {
   const { user } = useAuth();
   const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const planLimits = getPlanLimits(establishment?.plan_name);
   const [rules, setRules] = useState<DeliveryRule[]>([]);
   const [dialog, setDialog] = useState(false);
   const [editingRule, setEditingRule] = useState<DeliveryRule | null>(null);
