@@ -837,18 +837,94 @@ const DriversPage = () => {
                 </div>
               )}
 
-              <p className="text-xs text-muted-foreground text-center">
-                Interessado na vaga: <strong>{selectedApplicant.job_title}</strong>
-              </p>
+              {/* Sub-tabs: Info / Avaliações / Comentários */}
+              <div className="flex gap-1 border-b">
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${applicantProfileTab === "info" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setApplicantProfileTab("info")}
+                >
+                  <Users className="w-4 h-4" /> Info
+                </button>
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${applicantProfileTab === "ratings" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setApplicantProfileTab("ratings")}
+                >
+                  <BarChart3 className="w-4 h-4" /> Avaliações
+                </button>
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${applicantProfileTab === "comments" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setApplicantProfileTab("comments")}
+                >
+                  <MessageSquare className="w-4 h-4" /> Comentários
+                </button>
+              </div>
 
-              {selectedApplicant.status === "approved" ? (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center text-sm text-amber-700">
-                  Aprovado — aguardando confirmação de presença do motorista.
+              {applicantProfileTab === "info" ? (
+                <>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Interessado na vaga: <strong>{selectedApplicant.job_title}</strong>
+                  </p>
+
+                  {selectedApplicant.status === "approved" ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center text-sm text-amber-700">
+                      Aprovado — aguardando confirmação de presença do motorista.
+                    </div>
+                  ) : (
+                    <Button className="w-full" onClick={() => handleApprove(selectedApplicant)} disabled={hiring}>
+                      {hiring ? "Aprovando..." : "Aprovar Motorista"}
+                    </Button>
+                  )}
+                </>
+              ) : loadingReviews ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ) : applicantProfileTab === "ratings" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-bold text-foreground">{avgRating}</div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <span>{reviews.length} avaliação(ões)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {ratingDistribution().reverse().map(d => (
+                      <div key={d.stars} className="flex items-center gap-2 text-sm">
+                        <span className="w-4 text-muted-foreground">{d.stars}</span>
+                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                        <Progress value={d.pct} className="h-2 flex-1" />
+                        <span className="w-6 text-right text-muted-foreground text-xs">{d.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {reviews.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma avaliação ainda.</p>
+                  )}
                 </div>
               ) : (
-                <Button className="w-full" onClick={() => handleApprove(selectedApplicant)} disabled={hiring}>
-                  {hiring ? "Aprovando..." : "Aprovar Motorista"}
-                </Button>
+                <div className="space-y-3">
+                  {reviews.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum comentário ainda.</p>
+                  ) : (
+                    reviews.filter(r => r.comment).map((r, i) => (
+                      <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">{r.establishment_name}</span>
+                          <div className="flex items-center gap-1">
+                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                            <span className="text-xs text-muted-foreground">{r.rating}</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{r.comment}</p>
+                        <p className="text-xs text-muted-foreground/60">{new Date(r.created_at).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
             </div>
           )}
