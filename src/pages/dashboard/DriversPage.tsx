@@ -532,10 +532,21 @@ const DriversPage = () => {
           <DialogHeader>
             <DialogTitle>Nova Vaga de Entregador</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-2">
-              <Label>Título da Vaga</Label>
+              <Label>Título da Vaga (opcional)</Label>
               <Input value={jobForm.title} onChange={e => setJobForm({ ...jobForm, title: e.target.value })} placeholder="Ex: Entregador Noturno" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Veículo *</Label>
+              <Select value={jobForm.vehicle_type} onValueChange={v => setJobForm({ ...jobForm, vehicle_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="moto">Moto</SelectItem>
+                  <SelectItem value="bike">Bike</SelectItem>
+                  <SelectItem value="carro">Carro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Turno</Label>
@@ -547,6 +558,20 @@ const DriversPage = () => {
                   <SelectItem value="night">Noturno</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Horário Início *</Label>
+                <Input type="time" value={jobForm.start_time} onChange={e => setJobForm({ ...jobForm, start_time: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário Fim *</Label>
+                <Input type="time" value={jobForm.end_time} onChange={e => setJobForm({ ...jobForm, end_time: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Data *</Label>
+              <Input type="date" value={jobForm.job_date} onChange={e => setJobForm({ ...jobForm, job_date: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Tipo de Contratação</Label>
@@ -570,18 +595,18 @@ const DriversPage = () => {
             </div>
             {jobForm.payment_type === "fixed" && (
               <div className="space-y-2">
-                <Label>Valor Fixo (R$)</Label>
+                <Label>Valor do Turno (R$) *</Label>
                 <Input type="number" step="0.01" value={jobForm.fixed_value} onChange={e => setJobForm({ ...jobForm, fixed_value: e.target.value })} placeholder="50.00" />
               </div>
             )}
             {jobForm.payment_type === "per_km" && (
               <div className="space-y-2">
-                <Label>Valor por KM (R$)</Label>
+                <Label>Valor por KM (R$) *</Label>
                 <Input type="number" step="0.01" value={jobForm.km_value} onChange={e => setJobForm({ ...jobForm, km_value: e.target.value })} placeholder="2.50" />
               </div>
             )}
             <Button className="w-full" onClick={handleCreateJob} disabled={savingJob}>
-              {savingJob ? "Criando..." : "Criar Vaga"}
+              {savingJob ? "Criando..." : "Publicar Vaga"}
             </Button>
           </div>
         </DialogContent>
