@@ -137,6 +137,8 @@ const DriversPage = () => {
     end_time: "",
     job_date: "",
   });
+  const [savingJob, setSavingJob] = useState(false);
+
   // Shift-end management
   const [endingJob, setEndingJob] = useState<Job | null>(null);
   const [endingDriverName, setEndingDriverName] = useState("");
