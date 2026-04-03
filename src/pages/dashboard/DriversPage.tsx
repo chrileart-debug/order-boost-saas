@@ -249,7 +249,7 @@ const DriversPage = () => {
           .from("job_applications")
           .select("driver_id")
           .in("job_id", activeJobIds)
-          .eq("status", "contracted");
+          .in("status", ["contracted", "confirmed"]);
         contractedDriverIds = (contracted || []).map(c => c.driver_id).filter(Boolean) as string[];
       }
     }
