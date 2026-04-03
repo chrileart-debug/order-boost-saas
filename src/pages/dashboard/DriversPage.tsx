@@ -150,7 +150,9 @@ const DriversPage = () => {
   const [finalBonus, setFinalBonus] = useState("");
   const [showFinalBonus, setShowFinalBonus] = useState(false);
   const [savingShiftEnd, setSavingShiftEnd] = useState(false);
-  const shiftEndProcessedRef = useRef<Set<string>>(new Set());
+  const endingJobIdRef = useRef<string | null>(null);
+  const reviewJobOpenRef = useRef(false);
+  const openingEndingJobRef = useRef(false);
 
   // Review after completion
   const [reviewJob, setReviewJob] = useState<Job | null>(null);
@@ -160,6 +162,70 @@ const DriversPage = () => {
   const [reviewTags, setReviewTags] = useState<string[]>([]);
   const [reviewComment, setReviewComment] = useState("");
   const [savingReview, setSavingReview] = useState(false);
+
+  useEffect(() => {
+    endingJobIdRef.current = endingJob?.id ?? null;
+  }, [endingJob]);
+
+  useEffect(() => {
+    reviewJobOpenRef.current = !!reviewJob;
+  }, [reviewJob]);
+
+  const prepareEndingJobSheet = useCallback((job: Job, driverName: string) => {
+    setEndingDriverName(driverName);
+    setEndingJob(job);
+    setShiftEndMode("choose");
+    setExtendMinutes(null);
+    setOfferBonus(false);
+    setBonusValue("");
+    setFinalBonus("");
+    setShowFinalBonus(false);
+  }, []);
+
+  const openEndingJobSheet = useCallback(async (jobId: string) => {
+    if (!establishment?.id || reviewJobOpenRef.current || openingEndingJobRef.current) return;
+    if (endingJobIdRef.current === jobId) return;
+
+    openingEndingJobRef.current = true;
+
+    try {
+      const { data: job } = await supabase
+        .from("jobs")
+        .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at, start_time, end_time, requirements, bonus_value, extended_minutes, extension_confirmed")
+        .eq("id", jobId)
+        .eq("establishment_id", establishment.id)
+        .eq("status", "ending")
+        .maybeSingle();
+
+      if (!job) return;
+
+      const { data: app } = await supabase
+        .from("job_applications")
+        .select("driver_id")
+        .eq("job_id", jobId)
+        .in("status", ["contracted", "confirmed"])
+        .limit(1)
+        .maybeSingle();
+
+      let driverName = "Motorista";
+
+      if (app?.driver_id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", app.driver_id)
+          .maybeSingle();
+
+        if (profile?.full_name) {
+          driverName = profile.full_name;
+        }
+      }
+
+      prepareEndingJobSheet(job as Job, driverName);
+    } finally {
+      openingEndingJobRef.current = false;
+    }
+  }, [establishment?.id, prepareEndingJobSheet]);
 
 
   useEffect(() => {
@@ -188,72 +254,69 @@ const DriversPage = () => {
     };
   }, [establishment?.id]);
 
-  // Realtime: listen for jobs status changing to 'ending' (set by DB function transition_job_statuses)
+  // Realtime: abre o drawer assim que a vaga deste lojista entrar em `ending`
   useEffect(() => {
     if (!establishment?.id) return;
 
-    // Check on mount for any jobs already in 'ending' status
-    const checkExistingEnding = async () => {
-      const { data: endingJobs } = await supabase
+    const syncEndingJob = async () => {
+      const { data: endingJob } = await supabase
         .from("jobs")
-        .select("id, title, status, end_time, bonus_value, extended_minutes, extension_confirmed, fixed_value, km_value, shift_type, hiring_type, payment_type, created_at, start_time, requirements")
+        .select("id")
         .eq("establishment_id", establishment.id)
         .eq("status", "ending")
-        .limit(1);
+        .order("end_time", { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
-      if (endingJobs?.length && !endingJob && !reviewJob) {
-        const job = endingJobs[0];
-        if (!shiftEndProcessedRef.current.has(job.id)) {
-          shiftEndProcessedRef.current.add(job.id);
-          const { data: apps } = await supabase
-            .from("job_applications").select("driver_id").eq("job_id", job.id)
-            .in("status", ["contracted", "confirmed"]).limit(1);
-          let name = "Motorista";
-          if (apps?.[0]?.driver_id) {
-            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", apps[0].driver_id).maybeSingle();
-            if (p) name = p.full_name;
-          }
-          setEndingDriverName(name);
-          setEndingJob(job as Job);
-          setShiftEndMode("choose");
-          setExtendMinutes(null);
-          setOfferBonus(false);
-          setBonusValue("");
-          setFinalBonus("");
-          setShowFinalBonus(false);
-        }
+      if (endingJob?.id) {
+        await openEndingJobSheet(endingJob.id);
       }
     };
-    checkExistingEnding();
 
-    // Realtime listener for jobs becoming 'ending'
-    const channel = supabase.channel("jobs-ending-realtime")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs" }, async (payload) => {
-        const updated = payload.new as any;
-        if (updated.status === "ending" && updated.establishment_id === establishment.id && !endingJob && !reviewJob) {
-          if (shiftEndProcessedRef.current.has(updated.id)) return;
-          shiftEndProcessedRef.current.add(updated.id);
-          const { data: apps } = await supabase
-            .from("job_applications").select("driver_id").eq("job_id", updated.id)
-            .in("status", ["contracted", "confirmed"]).limit(1);
-          let name = "Motorista";
-          if (apps?.[0]?.driver_id) {
-            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", apps[0].driver_id).maybeSingle();
-            if (p) name = p.full_name;
+    void syncEndingJob();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncEndingJob();
+      }
+    };
+
+    const channel = supabase
+      .channel(`jobs-ending-realtime-${establishment.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "jobs",
+          filter: `establishment_id=eq.${establishment.id}`,
+        },
+        (payload) => {
+          const previous = payload.old as { status?: string | null };
+          const updated = payload.new as { id: string; status: string | null };
+
+          if (previous?.status !== updated.status) {
+            void fetchJobs();
           }
-          setEndingDriverName(name);
-          setEndingJob(updated as Job);
-          setShiftEndMode("choose");
-          setExtendMinutes(null);
-          setOfferBonus(false);
-          setBonusValue("");
-          setFinalBonus("");
-          setShowFinalBonus(false);
-        }
-      }).subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [establishment?.id, endingJob, reviewJob]);
+          if (updated.status === "ending" && previous?.status !== "ending") {
+            void openEndingJobSheet(updated.id);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void syncEndingJob();
+        }
+      });
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      supabase.removeChannel(channel);
+    };
+  }, [establishment?.id, openEndingJobSheet]);
 
   const handleExtendShift = async () => {
     if (!endingJob || !extendMinutes) return;
