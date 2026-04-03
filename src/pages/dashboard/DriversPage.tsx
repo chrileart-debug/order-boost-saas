@@ -53,7 +53,7 @@ type FleetMember = {
   total_deliveries: number | null;
   cnh_number?: string | null;
   cnh_category?: string | null;
-  source: "contracted" | "history";
+  source: "active_shift" | "available" | "history";
 };
 
 type Job = {
