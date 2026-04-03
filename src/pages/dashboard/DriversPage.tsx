@@ -310,7 +310,7 @@ const DriversPage = () => {
       reviewComment,
     ].filter(Boolean).join(" — ");
 
-    const { error } = await supabase.from("establishment_reviews").insert({
+    const { error } = await supabase.from("driver_reviews").insert({
       driver_id: reviewDriverId,
       establishment_id: establishment.id,
       rating: reviewRating,
