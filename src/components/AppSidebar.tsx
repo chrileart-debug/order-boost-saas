@@ -19,6 +19,8 @@ import { NavLink } from "@/components/NavLink";
 import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
+
 const menuItems = [
   { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
   { title: "Pedidos", url: "/dashboard/orders", icon: ShoppingBag },
@@ -33,8 +35,20 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { establishment } = useEstablishment();
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.rpc("has_role", { _user_id: user.id, _role: "owner" }).then(({ data }) => {
+      setIsOwner(!!data);
+    });
+  }, [user]);
+
+  const visibleItems = menuItems.filter(
+    (item) => !ownerOnlyPaths.includes(item.url) || isOwner
+  );
 
   return (
     <Sidebar collapsible="icon">
