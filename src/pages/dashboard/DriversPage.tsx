@@ -1165,6 +1165,29 @@ const DriversPage = () => {
                   </div>
                 </div>
               )}
+
+              {shiftEndMode === "confirmed" && (
+                <div className="space-y-6 text-center py-6">
+                  <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle2 className="w-12 h-12 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground">Pagamento confirmado!</p>
+                    <p className="text-sm text-muted-foreground mt-1">O turno de {endingDriverName} foi encerrado com sucesso.</p>
+                    {endingJob && (
+                      <p className="text-lg font-semibold text-foreground mt-2">
+                        Total: R$ {((endingJob.fixed_value ?? 0) + (showFinalBonus && finalBonus ? parseFloat(finalBonus) : 0)).toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+                  <Button className="w-full" onClick={() => {
+                    setEndingJob(null);
+                  }}>
+                    <Star className="w-4 h-4 mr-2" />
+                    Avaliar Motorista
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </SheetContent>
