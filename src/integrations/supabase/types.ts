@@ -692,6 +692,7 @@ export type Database = {
           customer_name: string
           customer_phone: string | null
           discount: number | null
+          driver_id: string | null
           establishment_id: string
           id: string
           lat: number | null
@@ -699,6 +700,7 @@ export type Database = {
           observations: string | null
           payment_method: string | null
           shipping_fee: number | null
+          started_at: string | null
           status: string
           subtotal: number | null
           total_price: number | null
@@ -711,6 +713,7 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           discount?: number | null
+          driver_id?: string | null
           establishment_id: string
           id?: string
           lat?: number | null
@@ -718,6 +721,7 @@ export type Database = {
           observations?: string | null
           payment_method?: string | null
           shipping_fee?: number | null
+          started_at?: string | null
           status?: string
           subtotal?: number | null
           total_price?: number | null
@@ -730,6 +734,7 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           discount?: number | null
+          driver_id?: string | null
           establishment_id?: string
           id?: string
           lat?: number | null
@@ -737,6 +742,7 @@ export type Database = {
           observations?: string | null
           payment_method?: string | null
           shipping_fee?: number | null
+          started_at?: string | null
           status?: string
           subtotal?: number | null
           total_price?: number | null
