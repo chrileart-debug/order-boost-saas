@@ -394,8 +394,8 @@ const DriversPage = () => {
 
     setSavingJob(true);
 
-    const startDateTime = `${jobForm.job_date}T${jobForm.start_time}:00`;
-    const endDateTime = `${jobForm.job_date}T${jobForm.end_time}:00`;
+    const startDateTime = `${jobForm.job_date}T${jobForm.start_time}:00-03:00`;
+    const endDateTime = `${jobForm.job_date}T${jobForm.end_time}:00-03:00`;
 
     const payload = {
       title: jobForm.title || `Entregador ${vehicleLabel(jobForm.vehicle_type)}`,
