@@ -51,6 +51,7 @@ type FleetMember = {
   total_deliveries: number | null;
   cnh_number?: string | null;
   cnh_category?: string | null;
+  source: "contracted" | "history";
 };
 
 type Job = {
@@ -139,6 +140,26 @@ const DriversPage = () => {
     }
   }, [establishment?.id]);
 
+  // Realtime: listen for job_applications changes to auto-refresh fleet
+  useEffect(() => {
+    if (!establishment?.id) return;
+    const channel = supabase
+      .channel("fleet-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_applications" },
+        () => {
+          fetchFleet();
+          fetchApplicants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [establishment?.id]);
+
   const fetchAll = async () => {
     if (!establishment) return;
     setLoadingData(true);
@@ -207,32 +228,34 @@ const DriversPage = () => {
   const fetchFleet = async () => {
     if (!establishment) return;
 
-    // 1) fleet_history active
+    // 1) fleet_history (both active and inactive for history)
     const { data: fleetData } = await supabase
       .from("fleet_history")
       .select("id, driver_id, is_active, hired_at")
-      .eq("establishment_id", establishment.id)
-      .eq("is_active", true);
+      .eq("establishment_id", establishment.id);
 
-    // 2) contracted job_applications
+    // 2) contracted job_applications (active drivers)
     const { data: estJobs } = await supabase
       .from("jobs")
-      .select("id")
+      .select("id, status")
       .eq("establishment_id", establishment.id);
 
     let contractedDriverIds: string[] = [];
     if (estJobs?.length) {
-      const jobIds = estJobs.map(j => j.id);
-      const { data: contracted } = await supabase
-        .from("job_applications")
-        .select("driver_id")
-        .in("job_id", jobIds)
-        .eq("status", "contracted");
-      contractedDriverIds = (contracted || []).map(c => c.driver_id).filter(Boolean) as string[];
+      // Only look at jobs that are NOT finalized
+      const activeJobIds = estJobs.filter(j => j.status !== "finalizado").map(j => j.id);
+      if (activeJobIds.length) {
+        const { data: contracted } = await supabase
+          .from("job_applications")
+          .select("driver_id")
+          .in("job_id", activeJobIds)
+          .eq("status", "contracted");
+        contractedDriverIds = (contracted || []).map(c => c.driver_id).filter(Boolean) as string[];
+      }
     }
 
     const fleetDriverIds = (fleetData || []).map(f => f.driver_id).filter(Boolean) as string[];
-    const allDriverIds = [...new Set([...fleetDriverIds, ...contractedDriverIds])];
+    const allDriverIds = [...new Set([...contractedDriverIds, ...fleetDriverIds])];
 
     if (!allDriverIds.length) { setFleet([]); return; }
 
@@ -244,15 +267,17 @@ const DriversPage = () => {
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
     const driverMap = new Map((driverProfiles || []).map(d => [d.id, d]));
     const fleetMap = new Map((fleetData || []).map(f => [f.driver_id!, f]));
+    const contractedSet = new Set(contractedDriverIds);
 
     const result: FleetMember[] = allDriverIds.map(driverId => {
       const profile = profileMap.get(driverId);
       const driver = driverMap.get(driverId);
       const fh = fleetMap.get(driverId);
+      const isContracted = contractedSet.has(driverId);
       return {
         fleet_id: fh?.id || driverId,
         driver_id: driverId,
-        is_active: true,
+        is_active: isContracted || (fh?.is_active ?? false),
         hired_at: fh?.hired_at || new Date().toISOString(),
         full_name: profile?.full_name || "Sem nome",
         phone: profile?.phone || null,
@@ -263,7 +288,15 @@ const DriversPage = () => {
         total_deliveries: driver?.total_deliveries ?? 0,
         cnh_number: driver?.cnh_number || null,
         cnh_category: driver?.cnh_category || null,
+        source: isContracted ? "contracted" : "history",
       };
+    });
+
+    // Sort: contracted (active) first
+    result.sort((a, b) => {
+      if (a.source === "contracted" && b.source !== "contracted") return -1;
+      if (a.source !== "contracted" && b.source === "contracted") return 1;
+      return 0;
     });
 
     setFleet(result);
@@ -452,7 +485,11 @@ const DriversPage = () => {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {fleet.map(m => (
-                <Card key={m.fleet_id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openFleetProfile(m)}>
+                <Card
+                  key={m.fleet_id}
+                  className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "contracted" ? "border-green-400 ring-1 ring-green-200" : ""}`}
+                  onClick={() => openFleetProfile(m)}
+                >
                   <CardContent className="flex items-center gap-4 p-4">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={getAvatarUrl(m.profile_photo_url)} />
@@ -472,7 +509,13 @@ const DriversPage = () => {
                         </div>
                       )}
                     </div>
-                    <Badge variant="outline" className="text-green-600 border-green-300">Ativo</Badge>
+                    {m.source === "contracted" ? (
+                      <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 shrink-0 text-[10px]">Em Serviço</Badge>
+                    ) : m.is_active ? (
+                      <Badge variant="outline" className="text-green-600 border-green-300 shrink-0 text-[10px]">Ativo</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">Histórico</Badge>
+                    )}
                   </CardContent>
                 </Card>
               ))}
