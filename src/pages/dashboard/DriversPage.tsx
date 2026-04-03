@@ -142,7 +142,7 @@ const DriversPage = () => {
   // Shift-end management
   const [endingJob, setEndingJob] = useState<Job | null>(null);
   const [endingDriverName, setEndingDriverName] = useState("");
-  const [shiftEndMode, setShiftEndMode] = useState<"choose" | "extend" | "finalize">("choose");
+  const [shiftEndMode, setShiftEndMode] = useState<"choose" | "extend" | "finalize" | "confirmed">("choose");
   const [extendMinutes, setExtendMinutes] = useState<number | null>(null);
   const [offerBonus, setOfferBonus] = useState(false);
   const [bonusValue, setBonusValue] = useState("");
