@@ -1,105 +1,59 @@
 
 
-## Reestruturação: Remoção de LP, Novo Fluxo de Registro e Tabela de Roles
+## Plano: Padronizar UI com Drawers e Ajustar Frotas Ativas
 
-### Sobre o user_role — Decisão de Segurança
+### Contexto
+A página DriversPage usa Dialogs (modais centrais). O pedido é migrar tudo para Drawers (slide-over da direita), adicionar FAB para criação de vagas, permitir edição de vagas, mostrar motoristas com status "contracted" na frota, e exibir avaliações/comentários de outros estabelecimentos no perfil do motorista.
 
-Armazenar roles diretamente na tabela `profiles` é um vetor de ataque conhecido (privilege escalation). Como a tabela `profiles` tem RLS permissiva para UPDATE pelo próprio usuário, um usuário malicioso poderia alterar seu `user_role` de `driver` para `owner` via API.
+### Alterações
 
-A solução segura é criar uma **tabela separada `user_roles`** com RLS restritiva + uma função `SECURITY DEFINER` para consultas. Isso atende perfeitamente ao seu caso de diferenciar `owner` e `driver` entre projetos.
+#### 1. Migrar todos os modais para Sheet/Drawer (slide-over direita)
+- Substituir os dois `Dialog` existentes (perfil do motorista interessado e criação de vaga) por componentes `Sheet` com `side="right"`
+- Usar animação suave nativa do Sheet (já configurada com slide-in/out)
 
----
+#### 2. Aba Minha Frota - Motoristas ativos em tempo real
+- Atualizar `fetchFleet` para também buscar motoristas cujas `job_applications` tenham `status = 'contracted'` nas vagas do estabelecimento, além dos que já estão em `fleet_history`
+- Unificar a listagem removendo duplicatas por `driver_id`
+- Ao clicar em um motorista da frota, abrir um Sheet com perfil completo contendo:
+  - Foto grande, veículo, bag, CNH
+  - Sub-abas internas (Tabs): **Avaliações** e **Comentários**
+  - Buscar dados da tabela `establishment_reviews` filtrando por `driver_id` para exibir rating médio (gráfico de barras simples com distribuição 1-5 estrelas) e comentários de outros estabelecimentos
 
-### Migration (Banco de Dados)
+#### 3. Aba Minhas Vagas - FAB e Edição
+- Remover o botão "Nova Vaga" do topo
+- Adicionar FAB (botão redondo flutuante) no canto inferior direito com ícone `+`
+- FAB abre o Sheet de criação de vaga
+- Tornar os cards de vagas clicáveis para abrir o mesmo Sheet em modo edição (preencher formulário com dados existentes, salvar com `update` ao invés de `insert`)
 
-```sql
--- 1. Tabela de roles separada (padrão seguro)
-CREATE TYPE public.app_role AS ENUM ('owner', 'driver');
-
-CREATE TABLE public.user_roles (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  role app_role NOT NULL,
-  UNIQUE (user_id, role)
-);
-
-ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
-
--- Apenas leitura para o próprio usuário
-CREATE POLICY "Users can view own roles" ON public.user_roles
-  FOR SELECT TO authenticated
-  USING (auth.uid() = user_id);
-
--- Inserção apenas via service_role (triggers/edge functions)
--- Nenhuma policy de INSERT para authenticated = só backend insere
-
--- 2. Função segura para checar role
-CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND role = _role
-  )
-$$;
-
--- 3. Trigger para atribuir 'owner' automaticamente no signup
-CREATE OR REPLACE FUNCTION public.assign_owner_role()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public AS $$
-BEGIN
-  INSERT INTO public.user_roles (user_id, role) VALUES (NEW.id, 'owner');
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trigger_assign_owner_role
-  AFTER INSERT ON public.profiles
-  FOR EACH ROW EXECUTE FUNCTION public.assign_owner_role();
-
--- 4. Coluna plan_name na establishments (se não existir)
-ALTER TABLE public.establishments
-  ADD COLUMN IF NOT EXISTS plan_name text NOT NULL DEFAULT 'essential';
-```
-
-O trigger em `profiles` garante que todo novo usuário do EPRATO receba `role = 'owner'` automaticamente. Quando o projeto de Motoboys existir, ele usará um trigger diferente para atribuir `'driver'`.
-
----
-
-### Arquivos Modificados
-
-| Arquivo | Ação |
-|---|---|
-| `src/pages/Index.tsx` | **Deletar** |
-| `src/App.tsx` | Rota `/` aponta para Login; adicionar `/auth/select-plan` e `/auth/register`; remover import Index |
-| `src/pages/Login.tsx` | Remover link "Voltar" (agora é home); link de cadastro → `/auth/select-plan` |
-| `src/pages/auth/SelectPlanPage.tsx` | **Novo** — Cards Essential (R$29,90) e PRO (R$59,90) com "Começar 7 dias grátis" |
-| `src/pages/Signup.tsx` | Refatorar para `/auth/register?plan=X`; guardar plano em sessionStorage |
-| `src/pages/Onboarding.tsx` | Em `saveStep1`, incluir `plan_name` e `plan_status: 'trialing'` no insert/update |
-| `src/components/ProtectedRoute.tsx` | Redirect de não-autenticados para `/` (já funciona, apenas validar) |
-
-### Fluxo do Usuário
-
-```text
-/ (Login)
-  └─ "Cadastrar-se" → /auth/select-plan
-       └─ Clica plano → /auth/register?plan=essential|pro
-            └─ Cria conta → signup + trigger atribui role 'owner'
-                 └─ /onboarding → cria establishment com plan_name + plan_status='trialing'
-                      └─ /dashboard
-```
-
-### SelectPlanPage — Design
-
-- Dois cards lado a lado (desktop) / empilhados (mobile)
-- Essential: R$29,90/mês — features básicas
-- PRO: R$59,90/mês — badge "Popular", features premium
-- Botão: "Começar 7 dias grátis" → redireciona para `/auth/register?plan=X`
-- Estilo iFood: fundo cinza claro, cards brancos, sombras suaves, botões na cor primária
+#### 4. Perfil do Motorista na Frota (Sheet completo)
+- Criar estado para `selectedFleetMember`
+- Sheet com:
+  - Avatar grande (h-24 w-24)
+  - Nome, veículo, bag, entregas
+  - Tabs internas: "Avaliações" com gráfico de barras de distribuição de notas e média, "Comentários" listando `establishment_reviews.comment` com nome do estabelecimento e data
 
 ### Detalhes Técnicos
 
-- O plano escolhido é passado via query param e salvo em `sessionStorage` para sobreviver ao redirect pós-signup
-- O trigger `set_trial_period` existente já define `trial_ends_at = NOW() + 7 days`
-- A função `has_role()` poderá ser usada em RLS policies futuras para bloquear drivers do painel admin
+**Arquivo modificado:** `src/pages/dashboard/DriversPage.tsx`
+
+**Novos imports:** `Sheet, SheetContent, SheetHeader, SheetTitle` de `@/components/ui/sheet`
+
+**Novos estados:**
+- `selectedFleetMember: FleetMember | null`
+- `editingJob: Job | null` (para modo edição)
+- `reviews: Review[]` (avaliações do motorista selecionado)
+
+**Query de avaliações:**
+```sql
+SELECT er.rating, er.comment, er.created_at, e.name as establishment_name
+FROM establishment_reviews er
+JOIN establishments e ON e.id = er.establishment_id
+WHERE er.driver_id = :driver_id
+```
+
+**Query ampliada de frota:** Além de `fleet_history`, buscar `job_applications` com `status = 'contracted'` nas vagas do estabelecimento e unir os dois conjuntos.
+
+**FAB CSS:** `fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg`
+
+**Edição de vaga:** Reutilizar o formulário do Sheet, populando `jobForm` com os dados da vaga selecionada. Ao salvar, usar `.update()` se `editingJob` existir, `.insert()` caso contrário.
 
