@@ -99,7 +99,18 @@ const DriversPage = () => {
 
   // Job creation
   const [jobDialog, setJobDialog] = useState(false);
-  const [jobForm, setJobForm] = useState({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "" });
+  const [jobForm, setJobForm] = useState({
+    title: "",
+    shift_type: "full",
+    hiring_type: "freelancer",
+    payment_type: "fixed",
+    fixed_value: "",
+    km_value: "",
+    vehicle_type: "moto",
+    start_time: "",
+    end_time: "",
+    job_date: "",
+  });
   const [savingJob, setSavingJob] = useState(false);
 
   useEffect(() => {
@@ -261,25 +272,44 @@ const DriversPage = () => {
 
   const handleCreateJob = async () => {
     if (!establishment) return;
+    if (!jobForm.vehicle_type || !jobForm.start_time || !jobForm.end_time || !jobForm.job_date) {
+      toast({ title: "Campos obrigatórios", description: "Preencha tipo de veículo, valor, horário e data.", variant: "destructive" });
+      return;
+    }
+    if (jobForm.payment_type === "fixed" && !jobForm.fixed_value) {
+      toast({ title: "Campo obrigatório", description: "Preencha o valor do turno.", variant: "destructive" });
+      return;
+    }
+    if (jobForm.payment_type === "per_km" && !jobForm.km_value) {
+      toast({ title: "Campo obrigatório", description: "Preencha o valor por KM.", variant: "destructive" });
+      return;
+    }
+
     setSavingJob(true);
+
+    const startDateTime = `${jobForm.job_date}T${jobForm.start_time}:00`;
+    const endDateTime = `${jobForm.job_date}T${jobForm.end_time}:00`;
 
     const { error } = await supabase.from("jobs").insert({
       establishment_id: establishment.id,
-      title: jobForm.title || "Vaga de Entregador",
+      title: jobForm.title || `Entregador ${vehicleLabel(jobForm.vehicle_type)}`,
       shift_type: jobForm.shift_type,
       hiring_type: jobForm.hiring_type,
       payment_type: jobForm.payment_type,
       fixed_value: jobForm.fixed_value ? parseFloat(jobForm.fixed_value) : null,
       km_value: jobForm.km_value ? parseFloat(jobForm.km_value) : null,
+      start_time: startDateTime,
+      end_time: endDateTime,
+      requirements: { vehicle_type: jobForm.vehicle_type },
       status: "open",
     } as any);
 
     if (error) {
       toast({ title: "Erro ao criar vaga", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Vaga criada com sucesso!" });
+      toast({ title: "Vaga publicada!", description: "Os motoristas da região já podem vê-la no Radar." });
       setJobDialog(false);
-      setJobForm({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "" });
+      setJobForm({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "", vehicle_type: "moto", start_time: "", end_time: "", job_date: "" });
       fetchJobs();
     }
     setSavingJob(false);
@@ -502,10 +532,21 @@ const DriversPage = () => {
           <DialogHeader>
             <DialogTitle>Nova Vaga de Entregador</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-2">
-              <Label>Título da Vaga</Label>
+              <Label>Título da Vaga (opcional)</Label>
               <Input value={jobForm.title} onChange={e => setJobForm({ ...jobForm, title: e.target.value })} placeholder="Ex: Entregador Noturno" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Veículo *</Label>
+              <Select value={jobForm.vehicle_type} onValueChange={v => setJobForm({ ...jobForm, vehicle_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="moto">Moto</SelectItem>
+                  <SelectItem value="bike">Bike</SelectItem>
+                  <SelectItem value="carro">Carro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Turno</Label>
@@ -517,6 +558,20 @@ const DriversPage = () => {
                   <SelectItem value="night">Noturno</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Horário Início *</Label>
+                <Input type="time" value={jobForm.start_time} onChange={e => setJobForm({ ...jobForm, start_time: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Horário Fim *</Label>
+                <Input type="time" value={jobForm.end_time} onChange={e => setJobForm({ ...jobForm, end_time: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Data *</Label>
+              <Input type="date" value={jobForm.job_date} onChange={e => setJobForm({ ...jobForm, job_date: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Tipo de Contratação</Label>
@@ -540,18 +595,18 @@ const DriversPage = () => {
             </div>
             {jobForm.payment_type === "fixed" && (
               <div className="space-y-2">
-                <Label>Valor Fixo (R$)</Label>
+                <Label>Valor do Turno (R$) *</Label>
                 <Input type="number" step="0.01" value={jobForm.fixed_value} onChange={e => setJobForm({ ...jobForm, fixed_value: e.target.value })} placeholder="50.00" />
               </div>
             )}
             {jobForm.payment_type === "per_km" && (
               <div className="space-y-2">
-                <Label>Valor por KM (R$)</Label>
+                <Label>Valor por KM (R$) *</Label>
                 <Input type="number" step="0.01" value={jobForm.km_value} onChange={e => setJobForm({ ...jobForm, km_value: e.target.value })} placeholder="2.50" />
               </div>
             )}
             <Button className="w-full" onClick={handleCreateJob} disabled={savingJob}>
-              {savingJob ? "Criando..." : "Criar Vaga"}
+              {savingJob ? "Criando..." : "Publicar Vaga"}
             </Button>
           </div>
         </DialogContent>
