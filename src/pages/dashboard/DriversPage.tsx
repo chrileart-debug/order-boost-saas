@@ -140,7 +140,7 @@ const DriversPage = () => {
       .from("job_applications")
       .select("id, driver_id, status, job_id")
       .in("job_id", jobIds)
-      .eq("status", "interested");
+      .in("status", ["interested", "approved"]);
 
     if (!apps?.length) { setApplicants([]); return; }
 
