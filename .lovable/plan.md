@@ -1,59 +1,73 @@
 
 
-## Plano: Padronizar UI com Drawers e Ajustar Frotas Ativas
+## Plano: Corrigir Badge "Em Serviço" e Automatizar fleet_history
 
-### Contexto
-A página DriversPage usa Dialogs (modais centrais). O pedido é migrar tudo para Drawers (slide-over da direita), adicionar FAB para criação de vagas, permitir edição de vagas, mostrar motoristas com status "contracted" na frota, e exibir avaliações/comentários de outros estabelecimentos no perfil do motorista.
+### Problema
+1. Motoristas com jobs `completed` continuam com badge "Em Serviço" porque o frontend filtra jobs com `status !== "finalizado"` (string errada) em vez de excluir `completed`/`cancelled`.
+2. A tabela `fleet_history` nunca é populada -- nenhum trigger existe para fazer UPSERT quando jobs mudam de status.
 
-### Alterações
+### Correções
 
-#### 1. Migrar todos os modais para Sheet/Drawer (slide-over direita)
-- Substituir os dois `Dialog` existentes (perfil do motorista interessado e criação de vaga) por componentes `Sheet` com `side="right"`
-- Usar animação suave nativa do Sheet (já configurada com slide-in/out)
+#### 1. Database Trigger -- Automatizar fleet_history (Migration SQL)
 
-#### 2. Aba Minha Frota - Motoristas ativos em tempo real
-- Atualizar `fetchFleet` para também buscar motoristas cujas `job_applications` tenham `status = 'contracted'` nas vagas do estabelecimento, além dos que já estão em `fleet_history`
-- Unificar a listagem removendo duplicatas por `driver_id`
-- Ao clicar em um motorista da frota, abrir um Sheet com perfil completo contendo:
-  - Foto grande, veículo, bag, CNH
-  - Sub-abas internas (Tabs): **Avaliações** e **Comentários**
-  - Buscar dados da tabela `establishment_reviews` filtrando por `driver_id` para exibir rating médio (gráfico de barras simples com distribuição 1-5 estrelas) e comentários de outros estabelecimentos
+Criar trigger na tabela `jobs` que:
+- Quando `status` muda para `contracted`: faz UPSERT em `fleet_history` com `(establishment_id, driver_id, is_active = true)`
+- Quando `status` muda para `completed` ou `cancelled`: faz UPDATE em `fleet_history` setando `is_active = false` para aquele par `(establishment_id, driver_id)`
 
-#### 3. Aba Minhas Vagas - FAB e Edição
-- Remover o botão "Nova Vaga" do topo
-- Adicionar FAB (botão redondo flutuante) no canto inferior direito com ícone `+`
-- FAB abre o Sheet de criação de vaga
-- Tornar os cards de vagas clicáveis para abrir o mesmo Sheet em modo edição (preencher formulário com dados existentes, salvar com `update` ao invés de `insert`)
-
-#### 4. Perfil do Motorista na Frota (Sheet completo)
-- Criar estado para `selectedFleetMember`
-- Sheet com:
-  - Avatar grande (h-24 w-24)
-  - Nome, veículo, bag, entregas
-  - Tabs internas: "Avaliações" com gráfico de barras de distribuição de notas e média, "Comentários" listando `establishment_reviews.comment` com nome do estabelecimento e data
-
-### Detalhes Técnicos
-
-**Arquivo modificado:** `src/pages/dashboard/DriversPage.tsx`
-
-**Novos imports:** `Sheet, SheetContent, SheetHeader, SheetTitle` de `@/components/ui/sheet`
-
-**Novos estados:**
-- `selectedFleetMember: FleetMember | null`
-- `editingJob: Job | null` (para modo edição)
-- `reviews: Review[]` (avaliações do motorista selecionado)
-
-**Query de avaliações:**
 ```sql
-SELECT er.rating, er.comment, er.created_at, e.name as establishment_name
-FROM establishment_reviews er
-JOIN establishments e ON e.id = er.establishment_id
-WHERE er.driver_id = :driver_id
+CREATE OR REPLACE FUNCTION public.sync_fleet_history()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
+AS $$
+BEGIN
+  IF NEW.status = 'contracted' AND NEW.driver_id IS NOT NULL THEN
+    INSERT INTO fleet_history (establishment_id, driver_id, is_active, hired_at)
+    VALUES (NEW.establishment_id, NEW.driver_id, true, now())
+    ON CONFLICT ON CONSTRAINT fleet_history_establishment_driver
+    DO UPDATE SET is_active = true, hired_at = now();
+  END IF;
+
+  IF NEW.status IN ('completed', 'cancelled') AND NEW.driver_id IS NOT NULL THEN
+    UPDATE fleet_history
+    SET is_active = false
+    WHERE establishment_id = NEW.establishment_id
+      AND driver_id = NEW.driver_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_sync_fleet_history
+  AFTER INSERT OR UPDATE OF status ON jobs
+  FOR EACH ROW EXECUTE FUNCTION sync_fleet_history();
 ```
 
-**Query ampliada de frota:** Além de `fleet_history`, buscar `job_applications` com `status = 'contracted'` nas vagas do estabelecimento e unir os dois conjuntos.
+Tambem precisa criar uma UNIQUE constraint em `fleet_history(establishment_id, driver_id)` para o ON CONFLICT funcionar:
+```sql
+ALTER TABLE fleet_history
+  ADD CONSTRAINT fleet_history_establishment_driver
+  UNIQUE (establishment_id, driver_id);
+```
 
-**FAB CSS:** `fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg`
+#### 2. Frontend -- Corrigir fetchFleet e Badge (DriversPage.tsx)
 
-**Edição de vaga:** Reutilizar o formulário do Sheet, populando `jobForm` com os dados da vaga selecionada. Ao salvar, usar `.update()` se `editingJob` existir, `.insert()` caso contrário.
+**fetchFleet**: Simplificar a lógica para usar `fleet_history` como fonte da verdade. Ainda buscar jobs ativos para determinar quem está "Em Serviço" vs "Disponível":
+- Buscar todos os registros de `fleet_history` do estabelecimento
+- Buscar jobs do estabelecimento com status IN (`contracted`, `ending`) para saber quem está ativo agora
+- Badge "Em Serviço": somente se o motorista tem job com status `contracted` ou `ending`
+- Badge "Histórico": se `fleet_history.is_active = false`
+- Badge "Disponível": se `fleet_history.is_active = true` mas sem job ativo
+
+**Mudança no `source`**: Renomear/ajustar o campo `source` do FleetMember para refletir o status real do job vinculado (`"active_shift"` | `"available"` | `"history"`).
+
+**Correção do filtro**: Substituir `j.status !== "finalizado"` por `["contracted", "ending"].includes(j.status)` para filtrar apenas jobs realmente ativos.
+
+### Arquivos Modificados
+- Nova migration SQL (trigger + constraint)
+- `src/pages/dashboard/DriversPage.tsx` (fetchFleet + badge rendering)
+
+### Detalhes Técnicos
+- O trigger usa SECURITY DEFINER para bypassar RLS
+- A constraint UNIQUE garante idempotência do UPSERT
+- O realtime listener existente em `job_applications` continua funcionando; adicionamos refresh no listener de `jobs` também
 
