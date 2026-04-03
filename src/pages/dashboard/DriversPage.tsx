@@ -121,6 +121,7 @@ const DriversPage = () => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [fleetProfileTab, setFleetProfileTab] = useState<"ratings" | "comments">("ratings");
+  const [applicantProfileTab, setApplicantProfileTab] = useState<"info" | "ratings" | "comments">("info");
 
   // Job creation/editing
   const [jobSheet, setJobSheet] = useState(false);
