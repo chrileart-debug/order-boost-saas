@@ -732,7 +732,7 @@ const DriversPage = () => {
               {fleet.map(m => (
                 <Card
                   key={m.fleet_id}
-                  className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "contracted" ? "border-green-400 ring-1 ring-green-200" : ""}`}
+                  className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "active_shift" ? "border-green-400 ring-1 ring-green-200" : ""}`}
                   onClick={() => openFleetProfile(m)}
                 >
                   <CardContent className="flex items-center gap-4 p-4">
