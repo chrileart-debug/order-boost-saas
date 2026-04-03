@@ -285,23 +285,21 @@ const DriversPage = () => {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Turno finalizado!", description: "O turno foi encerrado com sucesso." });
-    // Directly open review without relying on realtime
+    // Show confirmed step with check icon — don't jump to review yet
     const { data: apps } = await supabase.from("job_applications").select("driver_id")
       .eq("job_id", endingJob.id).in("status", ["contracted", "confirmed"]).limit(1);
-    const completedJob = { ...endingJob, status: "completed" };
-    setEndingJob(null);
-    fetchJobs();
     if (apps?.[0]?.driver_id) {
       const driverId = apps[0].driver_id;
       const { data: p } = await supabase.from("profiles").select("full_name").eq("id", driverId!).maybeSingle();
       setReviewDriverId(driverId);
       setReviewDriverName(p?.full_name || "Motorista");
-      setReviewJob(completedJob as Job);
+      setReviewJob({ ...endingJob, status: "completed" } as Job);
       setReviewRating(5);
       setReviewTags([]);
       setReviewComment("");
     }
+    setShiftEndMode("confirmed");
+    fetchJobs();
   };
 
   const handleSubmitReview = async () => {
