@@ -69,6 +69,9 @@ type Job = {
   start_time: string | null;
   end_time: string | null;
   requirements: any;
+  bonus_value: number | null;
+  extended_minutes: number | null;
+  extension_confirmed: boolean | null;
 };
 
 type Review = {
