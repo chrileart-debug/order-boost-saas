@@ -485,7 +485,11 @@ const DriversPage = () => {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {fleet.map(m => (
-                <Card key={m.fleet_id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openFleetProfile(m)}>
+                <Card
+                  key={m.fleet_id}
+                  className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "contracted" ? "border-green-400 ring-1 ring-green-200" : ""}`}
+                  onClick={() => openFleetProfile(m)}
+                >
                   <CardContent className="flex items-center gap-4 p-4">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={getAvatarUrl(m.profile_photo_url)} />
@@ -505,7 +509,13 @@ const DriversPage = () => {
                         </div>
                       )}
                     </div>
-                    <Badge variant="outline" className="text-green-600 border-green-300">Ativo</Badge>
+                    {m.source === "contracted" ? (
+                      <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 shrink-0 text-[10px]">Em Serviço</Badge>
+                    ) : m.is_active ? (
+                      <Badge variant="outline" className="text-green-600 border-green-300 shrink-0 text-[10px]">Ativo</Badge>
+                    ) : (
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">Histórico</Badge>
+                    )}
                   </CardContent>
                 </Card>
               ))}
