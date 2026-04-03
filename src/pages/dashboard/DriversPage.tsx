@@ -137,7 +137,26 @@ const DriversPage = () => {
     end_time: "",
     job_date: "",
   });
-  const [savingJob, setSavingJob] = useState(false);
+  // Shift-end management
+  const [endingJob, setEndingJob] = useState<Job | null>(null);
+  const [endingDriverName, setEndingDriverName] = useState("");
+  const [shiftEndMode, setShiftEndMode] = useState<"choose" | "extend" | "finalize">("choose");
+  const [extendMinutes, setExtendMinutes] = useState<number | null>(null);
+  const [offerBonus, setOfferBonus] = useState(false);
+  const [bonusValue, setBonusValue] = useState("");
+  const [finalBonus, setFinalBonus] = useState("");
+  const [savingShiftEnd, setSavingShiftEnd] = useState(false);
+  const shiftEndProcessedRef = useRef<Set<string>>(new Set());
+
+  // Review after completion
+  const [reviewJob, setReviewJob] = useState<Job | null>(null);
+  const [reviewDriverId, setReviewDriverId] = useState<string | null>(null);
+  const [reviewDriverName, setReviewDriverName] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTags, setReviewTags] = useState<string[]>([]);
+  const [reviewComment, setReviewComment] = useState("");
+  const [savingReview, setSavingReview] = useState(false);
+
 
   useEffect(() => {
     if (establishment?.id) {
