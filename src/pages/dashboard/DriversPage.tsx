@@ -140,6 +140,26 @@ const DriversPage = () => {
     }
   }, [establishment?.id]);
 
+  // Realtime: listen for job_applications changes to auto-refresh fleet
+  useEffect(() => {
+    if (!establishment?.id) return;
+    const channel = supabase
+      .channel("fleet-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "job_applications" },
+        () => {
+          fetchFleet();
+          fetchApplicants();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [establishment?.id]);
+
   const fetchAll = async () => {
     if (!establishment) return;
     setLoadingData(true);
