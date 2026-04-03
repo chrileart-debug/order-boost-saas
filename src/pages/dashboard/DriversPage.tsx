@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3, Clock, DollarSign, CheckCircle2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3, Clock, DollarSign, CheckCircle2, MoreVertical, Trash2, EyeOff, Copy } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -105,6 +106,30 @@ const getAvatarUrl = (path: string | null) => {
   return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
 };
 
+const jobStatusLabel = (status: string | null) => {
+  switch (status) {
+    case "open": return "Aberta";
+    case "draft": return "Rascunho";
+    case "contracted": return "Contratada";
+    case "ending": return "Encerrando";
+    case "completed": return "Finalizada";
+    case "cancelled": return "Cancelada";
+    default: return status || "—";
+  }
+};
+
+const jobStatusVariant = (status: string | null): "default" | "secondary" | "destructive" | "outline" => {
+  switch (status) {
+    case "open": return "default";
+    case "draft": return "outline";
+    case "contracted": return "default";
+    case "ending": return "destructive";
+    case "completed": return "secondary";
+    case "cancelled": return "secondary";
+    default: return "secondary";
+  }
+};
+
 const DriversPage = () => {
   const { establishment, loading: estLoading } = useEstablishment();
   const { toast } = useToast();
@@ -162,6 +187,10 @@ const DriversPage = () => {
   const [reviewTags, setReviewTags] = useState<string[]>([]);
   const [reviewComment, setReviewComment] = useState("");
   const [savingReview, setSavingReview] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  // Active tab for FAB visibility
+  const [activeTab, setActiveTab] = useState("interested");
 
   useEffect(() => {
     endingJobIdRef.current = endingJob?.id ?? null;
@@ -376,19 +405,22 @@ const DriversPage = () => {
   };
 
   const handleSubmitReview = async () => {
-    if (!reviewDriverId || !establishment) return;
+    if (!reviewDriverId || !establishment || savingReview) return;
     setSavingReview(true);
     const fullComment = [
       reviewTags.length ? `Tags: ${reviewTags.join(", ")}` : "",
       reviewComment,
     ].filter(Boolean).join(" — ");
 
-    const { error } = await supabase.from("driver_reviews").insert({
+    // UPSERT based on job_id to prevent duplicates
+    const { error } = await supabase.from("driver_reviews").upsert({
       driver_id: reviewDriverId,
       establishment_id: establishment.id,
       rating: reviewRating,
       comment: fullComment || null,
-    });
+      job_id: reviewJob?.id || null,
+    } as any, { onConflict: "driver_id,establishment_id,job_id" });
+
     setSavingReview(false);
     if (error) {
       toast({ title: "Erro ao avaliar", description: error.message, variant: "destructive" });
@@ -472,7 +504,6 @@ const DriversPage = () => {
   const fetchFleet = async () => {
     if (!establishment) return;
 
-    // 1) fleet_history as source of truth
     const { data: fleetData } = await supabase
       .from("fleet_history")
       .select("id, driver_id, is_active, hired_at")
@@ -482,7 +513,6 @@ const DriversPage = () => {
 
     const fleetDriverIds = fleetData.map(f => f.driver_id).filter(Boolean) as string[];
 
-    // 2) Check which drivers have active shifts (contracted/ending)
     const { data: activeJobs } = await supabase
       .from("jobs")
       .select("id, driver_id, status")
@@ -530,7 +560,6 @@ const DriversPage = () => {
       };
     });
 
-    // Sort: active_shift first, then available, then history
     const order = { active_shift: 0, available: 1, history: 2 };
     result.sort((a, b) => order[a.source] - order[b.source]);
 
@@ -549,7 +578,6 @@ const DriversPage = () => {
 
   const fetchReviews = async (driverId: string) => {
     setLoadingReviews(true);
-    // Fetch from both tables: driver_reviews (owner→driver) and establishment_reviews (driver→establishment, but we want reviews ABOUT this driver)
     const [{ data: driverRevs }, { data: estRevs }] = await Promise.all([
       supabase.from("driver_reviews").select("rating, comment, created_at, establishment_id").eq("driver_id", driverId),
       supabase.from("establishment_reviews").select("rating, comment, created_at, establishment_id").eq("driver_id", driverId),
@@ -577,8 +605,6 @@ const DriversPage = () => {
     if (!establishment) return;
     setHiring(true);
 
-    // ONLY update job_applications — never touch the jobs table here.
-    // The driver will claim the job via the claim_job RPC (first come, first served).
     const { error } = await supabase
       .from("job_applications")
       .update({ status: "approved" } as any)
@@ -596,6 +622,11 @@ const DriversPage = () => {
 
   const openJobSheet = (job?: Job) => {
     if (job) {
+      // Only allow editing drafts
+      if (job.status !== "draft") {
+        toast({ title: "Edição bloqueada", description: "Apenas vagas em rascunho podem ser editadas.", variant: "destructive" });
+        return;
+      }
       setEditingJob(job);
       const startDate = job.start_time ? new Date(job.start_time) : null;
       const endDate = job.end_time ? new Date(job.end_time) : null;
@@ -618,7 +649,7 @@ const DriversPage = () => {
     setJobSheet(true);
   };
 
-  const handleSaveJob = async () => {
+  const handleSaveJob = async (statusOverride?: string) => {
     if (!establishment) return;
     if (!jobForm.vehicle_type || !jobForm.start_time || !jobForm.end_time || !jobForm.job_date) {
       toast({ title: "Campos obrigatórios", description: "Preencha tipo de veículo, valor, horário e data.", variant: "destructive" });
@@ -633,10 +664,20 @@ const DriversPage = () => {
       return;
     }
 
-    setSavingJob(true);
-
+    // Validate: start_time must be in the future for new jobs / publishing
+    const targetStatus = statusOverride || (editingJob ? editingJob.status : "open");
     const startDateTime = `${jobForm.job_date}T${jobForm.start_time}:00-03:00`;
     const endDateTime = `${jobForm.job_date}T${jobForm.end_time}:00-03:00`;
+
+    if (targetStatus === "open") {
+      const startMoment = new Date(startDateTime);
+      if (startMoment <= new Date()) {
+        toast({ title: "Data inválida", description: "O horário de início deve ser no futuro.", variant: "destructive" });
+        return;
+      }
+    }
+
+    setSavingJob(true);
 
     const payload = {
       title: jobForm.title || `Entregador ${vehicleLabel(jobForm.vehicle_type)}`,
@@ -652,20 +693,70 @@ const DriversPage = () => {
 
     let error;
     if (editingJob) {
-      ({ error } = await supabase.from("jobs").update(payload as any).eq("id", editingJob.id));
+      ({ error } = await supabase.from("jobs").update({ ...payload, status: targetStatus } as any).eq("id", editingJob.id));
     } else {
-      ({ error } = await supabase.from("jobs").insert({ ...payload, establishment_id: establishment.id, status: "open" } as any));
+      ({ error } = await supabase.from("jobs").insert({ ...payload, establishment_id: establishment.id, status: targetStatus } as any));
     }
 
     if (error) {
       toast({ title: "Erro ao salvar vaga", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: editingJob ? "Vaga atualizada!" : "Vaga publicada!", description: editingJob ? "As alterações foram salvas." : "Os motoristas da região já podem vê-la no Radar." });
+      const msg = targetStatus === "draft" ? "Rascunho salvo!" : editingJob ? "Vaga atualizada!" : "Vaga publicada!";
+      const desc = targetStatus === "draft" ? "Você pode publicar depois." : "Os motoristas da região já podem vê-la no Radar.";
+      toast({ title: msg, description: desc });
       setJobSheet(false);
       setEditingJob(null);
       fetchJobs();
     }
     setSavingJob(false);
+  };
+
+  // Job actions
+  const handleDeleteJob = async (job: Job, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Tem certeza que deseja excluir esta vaga?")) return;
+    const { error } = await supabase.from("jobs").delete().eq("id", job.id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Vaga excluída!" });
+      fetchJobs();
+    }
+  };
+
+  const handleHideJob = async (job: Job, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("jobs").update({ status: "draft" } as any).eq("id", job.id);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Vaga retirada do ar", description: "Agora está como rascunho." });
+      fetchJobs();
+    }
+  };
+
+  const handleDuplicateJob = async (job: Job, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!establishment) return;
+    const { error } = await supabase.from("jobs").insert({
+      title: `${job.title} (cópia)`,
+      establishment_id: establishment.id,
+      shift_type: job.shift_type,
+      hiring_type: job.hiring_type,
+      payment_type: job.payment_type,
+      fixed_value: job.fixed_value,
+      km_value: job.km_value,
+      start_time: job.start_time,
+      end_time: job.end_time,
+      requirements: job.requirements,
+      status: "draft",
+    } as any);
+    if (error) {
+      toast({ title: "Erro ao duplicar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Vaga duplicada!", description: "Criada como rascunho." });
+      fetchJobs();
+    }
   };
 
   const openFleetProfile = (member: FleetMember) => {
@@ -676,7 +767,7 @@ const DriversPage = () => {
 
   // Rating distribution for chart
   const ratingDistribution = () => {
-    const dist = [0, 0, 0, 0, 0]; // 1-5
+    const dist = [0, 0, 0, 0, 0];
     reviews.forEach(r => {
       if (r.rating >= 1 && r.rating <= 5) dist[r.rating - 1]++;
     });
@@ -687,6 +778,9 @@ const DriversPage = () => {
   const avgRating = reviews.length > 0
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
     : "—";
+
+  // Today's date for min validation on date input
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   if (estLoading || !establishment) {
     return (
@@ -704,7 +798,7 @@ const DriversPage = () => {
     <div className="space-y-6 animate-fade-in relative">
       <h1 className="text-2xl font-bold text-foreground">Motoristas</h1>
 
-      <Tabs defaultValue="interested" className="w-full">
+      <Tabs defaultValue="interested" className="w-full" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="fleet" className="gap-1.5"><UserCheck className="w-4 h-4" /> Minha Frota</TabsTrigger>
           <TabsTrigger value="interested" className="gap-1.5"><Users className="w-4 h-4" /> Interessados</TabsTrigger>
@@ -806,7 +900,7 @@ const DriversPage = () => {
         </TabsContent>
 
         {/* ============ MINHAS VAGAS ============ */}
-        <TabsContent value="jobs" className="mt-4 space-y-4">
+        <TabsContent value="jobs" className="mt-4 space-y-4 pb-20">
           {loadingData ? (
             <div className="grid gap-3">{[1,2].map(i => <Skeleton key={i} className="h-20" />)}</div>
           ) : jobs.length === 0 ? (
@@ -820,9 +914,9 @@ const DriversPage = () => {
           ) : (
             <div className="grid gap-3">
               {jobs.map(j => (
-                <Card key={j.id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openJobSheet(j)}>
+                <Card key={j.id} className={`hover:border-primary/30 transition-colors ${j.status === "draft" ? "cursor-pointer" : ""}`} onClick={() => j.status === "draft" && openJobSheet(j)}>
                   <CardContent className="flex items-center justify-between p-4">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm text-foreground">{j.title}</h3>
                       <p className="text-xs text-muted-foreground mt-1">
                         {j.shift_type === "full" ? "Integral" : j.shift_type === "part" ? "Meio Período" : j.shift_type || "—"}
@@ -831,24 +925,48 @@ const DriversPage = () => {
                         {j.fixed_value != null && ` · R$ ${Number(j.fixed_value).toFixed(2)}`}
                       </p>
                     </div>
-                    <Badge variant={j.status === "open" ? "default" : "secondary"}>
-                      {j.status === "open" ? "Aberta" : j.status === "closed" ? "Fechada" : j.status || "—"}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={jobStatusVariant(j.status)}>
+                        {jobStatusLabel(j.status)}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {j.status === "open" && (
+                            <DropdownMenuItem onClick={(e) => handleHideJob(j, e as any)}>
+                              <EyeOff className="w-4 h-4 mr-2" /> Tirar do ar
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={(e) => handleDuplicateJob(j, e as any)}>
+                            <Copy className="w-4 h-4 mr-2" /> Duplicar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive" onClick={(e) => handleDeleteJob(j, e as any)}>
+                            <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
-
-          {/* FAB */}
-          <Button
-            className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg p-0"
-            onClick={() => openJobSheet()}
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
         </TabsContent>
       </Tabs>
+
+      {/* FAB - Fixed position, always visible on jobs tab */}
+      {activeTab === "jobs" && (
+        <Button
+          className="fixed bottom-4 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
+          onClick={() => openJobSheet()}
+        >
+          <Plus className="w-6 h-6" />
+        </Button>
+      )}
 
       {/* ============ SHEET PERFIL MOTORISTA INTERESSADO ============ */}
       <Sheet open={!!selectedApplicant} onOpenChange={(open) => !open && setSelectedApplicant(null)}>
@@ -867,48 +985,22 @@ const DriversPage = () => {
                 {selectedApplicant.rating_avg != null && (
                   <div className="flex items-center gap-1 text-sm">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-medium">{Number(selectedApplicant.rating_avg).toFixed(1)}</span>
+                    <span>{Number(selectedApplicant.rating_avg).toFixed(1)}</span>
                     <span className="text-muted-foreground">· {selectedApplicant.total_deliveries} entregas</span>
                   </div>
                 )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  {vehicleIcon(selectedApplicant.vehicle_type)}
-                  <span>{vehicleLabel(selectedApplicant.vehicle_type)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{selectedApplicant.has_bag ? "Possui Bag" : "Sem Bag"}</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <CreditCard className="w-4 h-4" />
-                  <span>{selectedApplicant.has_machine ? "Possui Maquininha" : "Sem Maquininha"}</span>
-                </div>
-                {(selectedApplicant.address_neighborhood || selectedApplicant.address_city) && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="w-4 h-4" />
-                    <span>{[selectedApplicant.address_neighborhood, selectedApplicant.address_city].filter(Boolean).join(", ")}</span>
-                  </div>
+                {selectedApplicant.status === "approved" && (
+                  <Badge className="bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100">Aguardando Confirmação</Badge>
                 )}
               </div>
 
-              {(selectedApplicant.cnh_number || selectedApplicant.cnh_category) && (
-                <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
-                  <p className="font-medium text-foreground">CNH</p>
-                  {selectedApplicant.cnh_number && <p className="text-muted-foreground">Número: {selectedApplicant.cnh_number}</p>}
-                  {selectedApplicant.cnh_category && <p className="text-muted-foreground">Categoria: {selectedApplicant.cnh_category}</p>}
-                </div>
-              )}
-
-              {/* Sub-tabs: Info / Avaliações / Comentários */}
-              <div className="flex gap-1 border-b">
+              {/* Sub-tabs */}
+              <div className="flex gap-2 border-b">
                 <button
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${applicantProfileTab === "info" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                   onClick={() => setApplicantProfileTab("info")}
                 >
-                  <Users className="w-4 h-4" /> Info
+                  <ShieldCheck className="w-4 h-4" /> Info
                 </button>
                 <button
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${applicantProfileTab === "ratings" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
@@ -924,72 +1016,84 @@ const DriversPage = () => {
                 </button>
               </div>
 
-              {applicantProfileTab === "info" ? (
-                <>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Interessado na vaga: <strong>{selectedApplicant.job_title}</strong>
-                  </p>
-
-                  {selectedApplicant.status === "approved" ? (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center text-sm text-amber-700">
-                      Aprovado — aguardando confirmação de presença do motorista.
+              {applicantProfileTab === "info" && (
+                <div className="space-y-3">
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Veículo:</span>
+                      <span className="flex items-center gap-1 text-foreground">{vehicleIcon(selectedApplicant.vehicle_type)} {vehicleLabel(selectedApplicant.vehicle_type)}</span>
                     </div>
-                  ) : (
+                    {selectedApplicant.has_bag && <div className="flex items-center gap-2"><span className="text-muted-foreground">Bag térmica:</span><Badge variant="secondary" className="text-xs">Sim</Badge></div>}
+                    {selectedApplicant.has_machine && <div className="flex items-center gap-2"><span className="text-muted-foreground">Maquininha:</span><Badge variant="secondary" className="text-xs">Sim</Badge></div>}
+                    {selectedApplicant.cnh_number && <div className="flex items-center gap-2"><span className="text-muted-foreground">CNH:</span><span className="text-foreground">{selectedApplicant.cnh_number}</span></div>}
+                    {selectedApplicant.cnh_category && <div className="flex items-center gap-2"><span className="text-muted-foreground">Categoria:</span><span className="text-foreground">{selectedApplicant.cnh_category}</span></div>}
+                    {selectedApplicant.address_neighborhood && <div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-muted-foreground" /><span className="text-foreground">{selectedApplicant.address_neighborhood}{selectedApplicant.address_city ? `, ${selectedApplicant.address_city}` : ""}</span></div>}
+                    {selectedApplicant.phone && <div className="flex items-center gap-2"><span className="text-muted-foreground">Telefone:</span><span className="text-foreground">{selectedApplicant.phone}</span></div>}
+                  </div>
+
+                  {selectedApplicant.status !== "approved" && (
                     <Button className="w-full" onClick={() => handleApprove(selectedApplicant)} disabled={hiring}>
                       {hiring ? "Aprovando..." : "Aprovar Motorista"}
                     </Button>
                   )}
-                </>
-              ) : loadingReviews ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
                 </div>
-              ) : applicantProfileTab === "ratings" ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl font-bold text-foreground">{avgRating}</div>
-                    <div className="text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                        <span>{reviews.length} avaliação(ões)</span>
+              )}
+
+              {applicantProfileTab === "ratings" && (
+                loadingReviews ? (
+                  <div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl font-bold text-foreground">{avgRating}</div>
+                      <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          <span>{reviews.length} avaliação(ões)</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    {ratingDistribution().reverse().map(d => (
-                      <div key={d.stars} className="flex items-center gap-2 text-sm">
-                        <span className="w-4 text-muted-foreground">{d.stars}</span>
-                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                        <Progress value={d.pct} className="h-2 flex-1" />
-                        <span className="w-6 text-right text-muted-foreground text-xs">{d.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {reviews.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma avaliação ainda.</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {reviews.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum comentário ainda.</p>
-                  ) : (
-                    reviews.filter(r => r.comment).map((r, i) => (
-                      <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">{r.establishment_name}</span>
-                          <div className="flex items-center gap-1">
-                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                            <span className="text-xs text-muted-foreground">{r.rating}</span>
-                          </div>
+                    <div className="space-y-2">
+                      {ratingDistribution().reverse().map(d => (
+                        <div key={d.stars} className="flex items-center gap-2 text-sm">
+                          <span className="w-4 text-muted-foreground">{d.stars}</span>
+                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                          <Progress value={d.pct} className="h-2 flex-1" />
+                          <span className="w-6 text-right text-muted-foreground text-xs">{d.count}</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">{r.comment}</p>
-                        <p className="text-xs text-muted-foreground/60">{new Date(r.created_at).toLocaleDateString("pt-BR")}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
+                      ))}
+                    </div>
+                    {reviews.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhuma avaliação ainda.</p>
+                    )}
+                  </div>
+                )
+              )}
+
+              {applicantProfileTab === "comments" && (
+                loadingReviews ? (
+                  <div className="space-y-2"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {reviews.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum comentário ainda.</p>
+                    ) : (
+                      reviews.filter(r => r.comment).map((r, i) => (
+                        <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">{r.establishment_name}</span>
+                            <div className="flex items-center gap-1">
+                              <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                              <span className="text-xs text-muted-foreground">{r.rating}</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{r.comment}</p>
+                          <p className="text-xs text-muted-foreground/60">{new Date(r.created_at).toLocaleDateString("pt-BR")}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )
               )}
             </div>
           )}
@@ -1142,7 +1246,7 @@ const DriversPage = () => {
             </div>
             <div className="space-y-2">
               <Label>Data *</Label>
-              <Input type="date" value={jobForm.job_date} onChange={e => setJobForm({ ...jobForm, job_date: e.target.value })} />
+              <Input type="date" value={jobForm.job_date} min={todayStr} onChange={e => setJobForm({ ...jobForm, job_date: e.target.value })} />
             </div>
             <div className="space-y-2">
               <Label>Tipo de Contratação</Label>
@@ -1176,9 +1280,14 @@ const DriversPage = () => {
                 <Input type="number" step="0.01" value={jobForm.km_value} onChange={e => setJobForm({ ...jobForm, km_value: e.target.value })} placeholder="2.50" />
               </div>
             )}
-            <Button className="w-full" onClick={handleSaveJob} disabled={savingJob}>
-              {savingJob ? "Salvando..." : editingJob ? "Salvar Alterações" : "Publicar Vaga"}
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => handleSaveJob("draft")} disabled={savingJob}>
+                {savingJob ? "Salvando..." : "Salvar Rascunho"}
+              </Button>
+              <Button className="flex-1" onClick={() => handleSaveJob("open")} disabled={savingJob}>
+                {savingJob ? "Publicando..." : "Publicar"}
+              </Button>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -1271,7 +1380,6 @@ const DriversPage = () => {
 
               {shiftEndMode === "finalize" && (
                 <div className="space-y-4">
-                  {/* Valor fixo do turno */}
                   <div className="bg-muted/50 rounded-lg p-4">
                     <p className="text-sm text-muted-foreground">Valor do turno</p>
                     <p className="text-2xl font-bold text-foreground">
@@ -1279,7 +1387,6 @@ const DriversPage = () => {
                     </p>
                   </div>
 
-                  {/* Toggle bônus */}
                   <div className="flex items-center justify-between">
                     <Label htmlFor="bonus-toggle" className="text-sm font-medium">Adicionar Bônus/Gratificação?</Label>
                     <Switch
@@ -1339,9 +1446,9 @@ const DriversPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* ============ SHEET AVALIAÇÃO DO MOTORISTA ============ */}
-      <Sheet open={!!reviewJob} onOpenChange={(open) => { if (!open) { setReviewJob(null); setReviewDriverId(null); } }}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+      {/* ============ SHEET AVALIAÇÃO DO MOTORISTA (NON-DISMISSIBLE) ============ */}
+      <Sheet open={!!reviewJob} onOpenChange={() => { /* Prevent dismissal - must submit review */ }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Star className="w-5 h-5 text-yellow-500" />
@@ -1349,58 +1456,71 @@ const DriversPage = () => {
             </SheetTitle>
           </SheetHeader>
           {reviewJob && (
-            <div className="space-y-5 mt-4">
-              <div className="text-center">
-                <p className="text-lg font-semibold text-foreground">{reviewDriverName}</p>
-                <p className="text-sm text-muted-foreground">Vaga: {reviewJob.title}</p>
+            reviewLoading ? (
+              <div className="space-y-4 mt-6">
+                <div className="flex flex-col items-center gap-3">
+                  <Skeleton className="h-16 w-16 rounded-full" />
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-20 w-full" />
               </div>
+            ) : (
+              <div className="space-y-5 mt-4">
+                <div className="text-center">
+                  <p className="text-lg font-semibold text-foreground">{reviewDriverName}</p>
+                  <p className="text-sm text-muted-foreground">Vaga: {reviewJob.title}</p>
+                </div>
 
-              {/* Stars */}
-              <div className="flex justify-center gap-2">
-                {[1, 2, 3, 4, 5].map(s => (
-                  <button key={s} onClick={() => setReviewRating(s)} className="transition-transform hover:scale-110">
-                    <Star
-                      className={`w-10 h-10 ${s <= reviewRating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/30"}`}
-                    />
-                  </button>
-                ))}
-              </div>
-
-              {/* Quick tags */}
-              <div>
-                <Label className="text-sm">Tags rápidas</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {["Pontual", "Educado", "Ágil", "Cuidadoso", "Proativo"].map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => toggleReviewTag(tag)}
-                      className={`rounded-full px-3 py-1.5 text-sm border transition-all ${
-                        reviewTags.includes(tag)
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background text-foreground border-border hover:border-primary/50"
-                      }`}
-                    >
-                      {tag}
+                {/* Stars */}
+                <div className="flex justify-center gap-2">
+                  {[1, 2, 3, 4, 5].map(s => (
+                    <button key={s} onClick={() => setReviewRating(s)} className="transition-transform hover:scale-110">
+                      <Star
+                        className={`w-10 h-10 ${s <= reviewRating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/30"}`}
+                      />
                     </button>
                   ))}
                 </div>
-              </div>
 
-              {/* Comment */}
-              <div className="space-y-2">
-                <Label>Comentário (opcional)</Label>
-                <Textarea
-                  placeholder="Como foi a experiência com este motorista?"
-                  value={reviewComment}
-                  onChange={e => setReviewComment(e.target.value)}
-                  rows={3}
-                />
-              </div>
+                {/* Quick tags */}
+                <div>
+                  <Label className="text-sm">Tags rápidas</Label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {["Pontual", "Educado", "Ágil", "Cuidadoso", "Proativo"].map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleReviewTag(tag)}
+                        className={`rounded-full px-3 py-1.5 text-sm border transition-all ${
+                          reviewTags.includes(tag)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background text-foreground border-border hover:border-primary/50"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              <Button className="w-full" onClick={handleSubmitReview} disabled={savingReview}>
-                {savingReview ? "Enviando..." : "Enviar Avaliação"}
-              </Button>
-            </div>
+                {/* Comment */}
+                <div className="space-y-2">
+                  <Label>Comentário (opcional)</Label>
+                  <Textarea
+                    placeholder="Como foi a experiência com este motorista?"
+                    value={reviewComment}
+                    onChange={e => setReviewComment(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+
+                <Button className="w-full" onClick={handleSubmitReview} disabled={savingReview}>
+                  {savingReview ? "Enviando..." : "Enviar Avaliação"}
+                </Button>
+              </div>
+            )
           )}
         </SheetContent>
       </Sheet>
