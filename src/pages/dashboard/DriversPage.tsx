@@ -1126,22 +1126,42 @@ const DriversPage = () => {
 
               {shiftEndMode === "finalize" && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Bônus de gratificação (R$) — opcional</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={finalBonus}
-                      onChange={e => setFinalBonus(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Valor extra para o motorista como reconhecimento.</p>
+                  {/* Valor fixo do turno */}
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">Valor do turno</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      R$ {(endingJob.fixed_value ?? 0).toFixed(2)}
+                    </p>
                   </div>
+
+                  {/* Toggle bônus */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="bonus-toggle" className="text-sm font-medium">Adicionar Bônus/Gratificação?</Label>
+                    <Switch
+                      id="bonus-toggle"
+                      checked={showFinalBonus}
+                      onCheckedChange={(v) => { setShowFinalBonus(v); if (!v) setFinalBonus(""); }}
+                    />
+                  </div>
+
+                  {showFinalBonus && (
+                    <div className="space-y-2">
+                      <Label>Valor do bônus (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={finalBonus}
+                        onChange={e => setFinalBonus(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Valor extra como reconhecimento. Não altera o valor do turno.</p>
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <Button variant="outline" className="flex-1" onClick={() => setShiftEndMode("choose")}>Voltar</Button>
                     <Button className="flex-1" onClick={handleFinalizeShift} disabled={savingShiftEnd}>
-                      {savingShiftEnd ? "Finalizando..." : "Finalizar Turno"}
+                      {savingShiftEnd ? "Finalizando..." : "Confirmar e Finalizar"}
                     </Button>
                   </div>
                 </div>
