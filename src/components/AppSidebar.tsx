@@ -38,17 +38,25 @@ export function AppSidebar() {
   const { signOut, user } = useAuth();
   const { establishment } = useEstablishment();
   const [isOwner, setIsOwner] = useState(false);
+  const [roleLoaded, setRoleLoaded] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setIsOwner(false);
+      setRoleLoaded(false);
+      return;
+    }
+    // Fetch role immediately and cache result
     supabase.rpc("has_role", { _user_id: user.id, _role: "owner" }).then(({ data }) => {
       setIsOwner(!!data);
+      setRoleLoaded(true);
     });
   }, [user]);
 
-  const visibleItems = menuItems.filter(
-    (item) => !ownerOnlyPaths.includes(item.url) || isOwner
-  );
+  // Show all items while loading role to avoid flash, filter once loaded
+  const visibleItems = !roleLoaded
+    ? menuItems.filter((item) => !ownerOnlyPaths.includes(item.url))
+    : menuItems.filter((item) => !ownerOnlyPaths.includes(item.url) || isOwner);
 
   return (
     <Sidebar collapsible="icon">

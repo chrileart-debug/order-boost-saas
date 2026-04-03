@@ -99,7 +99,18 @@ const DriversPage = () => {
 
   // Job creation
   const [jobDialog, setJobDialog] = useState(false);
-  const [jobForm, setJobForm] = useState({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "" });
+  const [jobForm, setJobForm] = useState({
+    title: "",
+    shift_type: "full",
+    hiring_type: "freelancer",
+    payment_type: "fixed",
+    fixed_value: "",
+    km_value: "",
+    vehicle_type: "moto",
+    start_time: "",
+    end_time: "",
+    job_date: "",
+  });
   const [savingJob, setSavingJob] = useState(false);
 
   useEffect(() => {
