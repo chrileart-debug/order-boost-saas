@@ -235,8 +235,8 @@ const OrdersPage = () => {
       supabase.from("driver_profiles").select("id, vehicle_type, profile_photo_url, rating_avg").in("id", driverIds),
     ]);
 
-    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-    const driverMap = new Map((driverProfiles || []).map(d => [d.id, d]));
+    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+    const driverMap = new Map((driverProfiles || []).map((d: any) => [d.id, d]));
 
     const result: FleetDriver[] = driverIds.map(id => {
       const profile = profileMap.get(id);
