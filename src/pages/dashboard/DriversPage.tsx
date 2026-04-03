@@ -272,25 +272,44 @@ const DriversPage = () => {
 
   const handleCreateJob = async () => {
     if (!establishment) return;
+    if (!jobForm.vehicle_type || !jobForm.start_time || !jobForm.end_time || !jobForm.job_date) {
+      toast({ title: "Campos obrigatórios", description: "Preencha tipo de veículo, valor, horário e data.", variant: "destructive" });
+      return;
+    }
+    if (jobForm.payment_type === "fixed" && !jobForm.fixed_value) {
+      toast({ title: "Campo obrigatório", description: "Preencha o valor do turno.", variant: "destructive" });
+      return;
+    }
+    if (jobForm.payment_type === "per_km" && !jobForm.km_value) {
+      toast({ title: "Campo obrigatório", description: "Preencha o valor por KM.", variant: "destructive" });
+      return;
+    }
+
     setSavingJob(true);
+
+    const startDateTime = `${jobForm.job_date}T${jobForm.start_time}:00`;
+    const endDateTime = `${jobForm.job_date}T${jobForm.end_time}:00`;
 
     const { error } = await supabase.from("jobs").insert({
       establishment_id: establishment.id,
-      title: jobForm.title || "Vaga de Entregador",
+      title: jobForm.title || `Entregador ${vehicleLabel(jobForm.vehicle_type)}`,
       shift_type: jobForm.shift_type,
       hiring_type: jobForm.hiring_type,
       payment_type: jobForm.payment_type,
       fixed_value: jobForm.fixed_value ? parseFloat(jobForm.fixed_value) : null,
       km_value: jobForm.km_value ? parseFloat(jobForm.km_value) : null,
+      start_time: startDateTime,
+      end_time: endDateTime,
+      requirements: { vehicle_type: jobForm.vehicle_type },
       status: "open",
     } as any);
 
     if (error) {
       toast({ title: "Erro ao criar vaga", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Vaga criada com sucesso!" });
+      toast({ title: "Vaga publicada!", description: "Os motoristas da região já podem vê-la no Radar." });
       setJobDialog(false);
-      setJobForm({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "" });
+      setJobForm({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "", vehicle_type: "moto", start_time: "", end_time: "", job_date: "" });
       fetchJobs();
     }
     setSavingJob(false);
