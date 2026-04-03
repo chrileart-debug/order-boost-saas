@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,7 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Truck, Ban, MapPin, CreditCard, ShieldCheck } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3 } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -48,6 +49,8 @@ type FleetMember = {
   profile_photo_url: string | null;
   rating_avg: number | null;
   total_deliveries: number | null;
+  cnh_number?: string | null;
+  cnh_category?: string | null;
 };
 
 type Job = {
@@ -60,6 +63,16 @@ type Job = {
   fixed_value: number | null;
   km_value: number | null;
   created_at: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  requirements: any;
+};
+
+type Review = {
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  establishment_name: string;
 };
 
 const vehicleIcon = (type: string | null) => {
@@ -97,8 +110,15 @@ const DriversPage = () => {
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [hiring, setHiring] = useState(false);
 
-  // Job creation
-  const [jobDialog, setJobDialog] = useState(false);
+  // Fleet profile sheet
+  const [selectedFleetMember, setSelectedFleetMember] = useState<FleetMember | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [fleetProfileTab, setFleetProfileTab] = useState<"ratings" | "comments">("ratings");
+
+  // Job creation/editing
+  const [jobSheet, setJobSheet] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [jobForm, setJobForm] = useState({
     title: "",
     shift_type: "full",
@@ -186,32 +206,54 @@ const DriversPage = () => {
 
   const fetchFleet = async () => {
     if (!establishment) return;
+
+    // 1) fleet_history active
     const { data: fleetData } = await supabase
       .from("fleet_history")
       .select("id, driver_id, is_active, hired_at")
       .eq("establishment_id", establishment.id)
       .eq("is_active", true);
 
-    if (!fleetData?.length) { setFleet([]); return; }
+    // 2) contracted job_applications
+    const { data: estJobs } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("establishment_id", establishment.id);
 
-    const driverIds = fleetData.map(f => f.driver_id).filter(Boolean) as string[];
+    let contractedDriverIds: string[] = [];
+    if (estJobs?.length) {
+      const jobIds = estJobs.map(j => j.id);
+      const { data: contracted } = await supabase
+        .from("job_applications")
+        .select("driver_id")
+        .in("job_id", jobIds)
+        .eq("status", "contracted");
+      contractedDriverIds = (contracted || []).map(c => c.driver_id).filter(Boolean) as string[];
+    }
+
+    const fleetDriverIds = (fleetData || []).map(f => f.driver_id).filter(Boolean) as string[];
+    const allDriverIds = [...new Set([...fleetDriverIds, ...contractedDriverIds])];
+
+    if (!allDriverIds.length) { setFleet([]); return; }
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, phone").in("id", driverIds),
-      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries").in("id", driverIds),
+      supabase.from("profiles").select("id, full_name, phone").in("id", allDriverIds),
+      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_number, cnh_category").in("id", allDriverIds),
     ]);
 
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
     const driverMap = new Map((driverProfiles || []).map(d => [d.id, d]));
+    const fleetMap = new Map((fleetData || []).map(f => [f.driver_id!, f]));
 
-    const result: FleetMember[] = fleetData.map(f => {
-      const profile = profileMap.get(f.driver_id!);
-      const driver = driverMap.get(f.driver_id!);
+    const result: FleetMember[] = allDriverIds.map(driverId => {
+      const profile = profileMap.get(driverId);
+      const driver = driverMap.get(driverId);
+      const fh = fleetMap.get(driverId);
       return {
-        fleet_id: f.id,
-        driver_id: f.driver_id!,
-        is_active: f.is_active ?? true,
-        hired_at: f.hired_at || "",
+        fleet_id: fh?.id || driverId,
+        driver_id: driverId,
+        is_active: true,
+        hired_at: fh?.hired_at || new Date().toISOString(),
         full_name: profile?.full_name || "Sem nome",
         phone: profile?.phone || null,
         vehicle_type: driver?.vehicle_type || null,
@@ -219,6 +261,8 @@ const DriversPage = () => {
         profile_photo_url: driver?.profile_photo_url || null,
         rating_avg: driver?.rating_avg ?? null,
         total_deliveries: driver?.total_deliveries ?? 0,
+        cnh_number: driver?.cnh_number || null,
+        cnh_category: driver?.cnh_category || null,
       };
     });
 
@@ -229,10 +273,32 @@ const DriversPage = () => {
     if (!establishment) return;
     const { data } = await supabase
       .from("jobs")
-      .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at")
+      .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at, start_time, end_time, requirements")
       .eq("establishment_id", establishment.id)
       .order("created_at", { ascending: false });
     setJobs((data || []) as Job[]);
+  };
+
+  const fetchReviews = async (driverId: string) => {
+    setLoadingReviews(true);
+    const { data } = await supabase
+      .from("establishment_reviews")
+      .select("rating, comment, created_at, establishment_id")
+      .eq("driver_id", driverId);
+
+    if (!data?.length) { setReviews([]); setLoadingReviews(false); return; }
+
+    const estIds = [...new Set(data.map(r => r.establishment_id))];
+    const { data: ests } = await supabase.from("establishments").select("id, name").in("id", estIds);
+    const estMap = new Map((ests || []).map(e => [e.id, e.name]));
+
+    setReviews(data.map(r => ({
+      rating: r.rating,
+      comment: r.comment,
+      created_at: r.created_at,
+      establishment_name: estMap.get(r.establishment_id) || "Estabelecimento",
+    })));
+    setLoadingReviews(false);
   };
 
   const handleApprove = async (applicant: Applicant) => {
@@ -254,7 +320,31 @@ const DriversPage = () => {
     setHiring(false);
   };
 
-  const handleCreateJob = async () => {
+  const openJobSheet = (job?: Job) => {
+    if (job) {
+      setEditingJob(job);
+      const startDate = job.start_time ? new Date(job.start_time) : null;
+      const endDate = job.end_time ? new Date(job.end_time) : null;
+      setJobForm({
+        title: job.title || "",
+        shift_type: job.shift_type || "full",
+        hiring_type: job.hiring_type || "freelancer",
+        payment_type: job.payment_type || "fixed",
+        fixed_value: job.fixed_value != null ? String(job.fixed_value) : "",
+        km_value: job.km_value != null ? String(job.km_value) : "",
+        vehicle_type: job.requirements?.vehicle_type || "moto",
+        start_time: startDate ? startDate.toTimeString().slice(0, 5) : "",
+        end_time: endDate ? endDate.toTimeString().slice(0, 5) : "",
+        job_date: startDate ? startDate.toISOString().slice(0, 10) : "",
+      });
+    } else {
+      setEditingJob(null);
+      setJobForm({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "", vehicle_type: "moto", start_time: "", end_time: "", job_date: "" });
+    }
+    setJobSheet(true);
+  };
+
+  const handleSaveJob = async () => {
     if (!establishment) return;
     if (!jobForm.vehicle_type || !jobForm.start_time || !jobForm.end_time || !jobForm.job_date) {
       toast({ title: "Campos obrigatórios", description: "Preencha tipo de veículo, valor, horário e data.", variant: "destructive" });
@@ -274,8 +364,7 @@ const DriversPage = () => {
     const startDateTime = `${jobForm.job_date}T${jobForm.start_time}:00`;
     const endDateTime = `${jobForm.job_date}T${jobForm.end_time}:00`;
 
-    const { error } = await supabase.from("jobs").insert({
-      establishment_id: establishment.id,
+    const payload = {
       title: jobForm.title || `Entregador ${vehicleLabel(jobForm.vehicle_type)}`,
       shift_type: jobForm.shift_type,
       hiring_type: jobForm.hiring_type,
@@ -285,19 +374,45 @@ const DriversPage = () => {
       start_time: startDateTime,
       end_time: endDateTime,
       requirements: { vehicle_type: jobForm.vehicle_type },
-      status: "open",
-    } as any);
+    };
+
+    let error;
+    if (editingJob) {
+      ({ error } = await supabase.from("jobs").update(payload as any).eq("id", editingJob.id));
+    } else {
+      ({ error } = await supabase.from("jobs").insert({ ...payload, establishment_id: establishment.id, status: "open" } as any));
+    }
 
     if (error) {
-      toast({ title: "Erro ao criar vaga", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao salvar vaga", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Vaga publicada!", description: "Os motoristas da região já podem vê-la no Radar." });
-      setJobDialog(false);
-      setJobForm({ title: "", shift_type: "full", hiring_type: "freelancer", payment_type: "fixed", fixed_value: "", km_value: "", vehicle_type: "moto", start_time: "", end_time: "", job_date: "" });
+      toast({ title: editingJob ? "Vaga atualizada!" : "Vaga publicada!", description: editingJob ? "As alterações foram salvas." : "Os motoristas da região já podem vê-la no Radar." });
+      setJobSheet(false);
+      setEditingJob(null);
       fetchJobs();
     }
     setSavingJob(false);
   };
+
+  const openFleetProfile = (member: FleetMember) => {
+    setSelectedFleetMember(member);
+    setFleetProfileTab("ratings");
+    fetchReviews(member.driver_id);
+  };
+
+  // Rating distribution for chart
+  const ratingDistribution = () => {
+    const dist = [0, 0, 0, 0, 0]; // 1-5
+    reviews.forEach(r => {
+      if (r.rating >= 1 && r.rating <= 5) dist[r.rating - 1]++;
+    });
+    const max = Math.max(...dist, 1);
+    return dist.map((count, i) => ({ stars: i + 1, count, pct: (count / max) * 100 }));
+  };
+
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+    : "—";
 
   if (estLoading || !establishment) {
     return (
@@ -312,7 +427,7 @@ const DriversPage = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in relative">
       <h1 className="text-2xl font-bold text-foreground">Motoristas</h1>
 
       <Tabs defaultValue="interested" className="w-full">
@@ -337,7 +452,7 @@ const DriversPage = () => {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {fleet.map(m => (
-                <Card key={m.fleet_id}>
+                <Card key={m.fleet_id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openFleetProfile(m)}>
                   <CardContent className="flex items-center gap-4 p-4">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={getAvatarUrl(m.profile_photo_url)} />
@@ -408,12 +523,6 @@ const DriversPage = () => {
 
         {/* ============ MINHAS VAGAS ============ */}
         <TabsContent value="jobs" className="mt-4 space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" className="gap-1.5" onClick={() => setJobDialog(true)}>
-              <Plus className="w-4 h-4" /> Nova Vaga
-            </Button>
-          </div>
-
           {loadingData ? (
             <div className="grid gap-3">{[1,2].map(i => <Skeleton key={i} className="h-20" />)}</div>
           ) : jobs.length === 0 ? (
@@ -421,15 +530,13 @@ const DriversPage = () => {
               <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-2">
                 <Briefcase className="w-10 h-10 text-muted-foreground/40" />
                 <p className="text-muted-foreground">Nenhuma vaga criada.</p>
-                <Button variant="outline" size="sm" className="gap-1.5 mt-2" onClick={() => setJobDialog(true)}>
-                  <Plus className="w-4 h-4" /> Criar primeira vaga
-                </Button>
+                <p className="text-xs text-muted-foreground">Clique no botão + para criar sua primeira vaga.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3">
               {jobs.map(j => (
-                <Card key={j.id}>
+                <Card key={j.id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => openJobSheet(j)}>
                   <CardContent className="flex items-center justify-between p-4">
                     <div>
                       <h3 className="font-medium text-sm text-foreground">{j.title}</h3>
@@ -448,17 +555,25 @@ const DriversPage = () => {
               ))}
             </div>
           )}
+
+          {/* FAB */}
+          <Button
+            className="fixed bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg p-0"
+            onClick={() => openJobSheet()}
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
         </TabsContent>
       </Tabs>
 
-      {/* ============ MODAL PERFIL DO MOTORISTA ============ */}
-      <Dialog open={!!selectedApplicant} onOpenChange={(open) => !open && setSelectedApplicant(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Perfil do Motorista</DialogTitle>
-          </DialogHeader>
+      {/* ============ SHEET PERFIL MOTORISTA INTERESSADO ============ */}
+      <Sheet open={!!selectedApplicant} onOpenChange={(open) => !open && setSelectedApplicant(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Perfil do Motorista</SheetTitle>
+          </SheetHeader>
           {selectedApplicant && (
-            <div className="space-y-5">
+            <div className="space-y-5 mt-4">
               <div className="flex flex-col items-center gap-3">
                 <Avatar className="h-24 w-24">
                   <AvatarImage src={getAvatarUrl(selectedApplicant.profile_photo_url)} />
@@ -518,16 +633,117 @@ const DriversPage = () => {
               )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
-      {/* ============ MODAL CRIAR VAGA ============ */}
-      <Dialog open={jobDialog} onOpenChange={setJobDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nova Vaga de Entregador</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
+      {/* ============ SHEET PERFIL FROTA ============ */}
+      <Sheet open={!!selectedFleetMember} onOpenChange={(open) => !open && setSelectedFleetMember(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Perfil do Motorista</SheetTitle>
+          </SheetHeader>
+          {selectedFleetMember && (
+            <div className="space-y-5 mt-4">
+              <div className="flex flex-col items-center gap-3">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={getAvatarUrl(selectedFleetMember.profile_photo_url)} />
+                  <AvatarFallback className="text-2xl">{selectedFleetMember.full_name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <h2 className="text-lg font-semibold text-foreground">{selectedFleetMember.full_name}</h2>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">{vehicleIcon(selectedFleetMember.vehicle_type)} {vehicleLabel(selectedFleetMember.vehicle_type)}</span>
+                  {selectedFleetMember.has_bag && <Badge variant="secondary" className="text-xs">Bag</Badge>}
+                  <span>· {selectedFleetMember.total_deliveries} entregas</span>
+                </div>
+              </div>
+
+              {(selectedFleetMember.cnh_number || selectedFleetMember.cnh_category) && (
+                <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
+                  <p className="font-medium text-foreground">CNH</p>
+                  {selectedFleetMember.cnh_number && <p className="text-muted-foreground">Número: {selectedFleetMember.cnh_number}</p>}
+                  {selectedFleetMember.cnh_category && <p className="text-muted-foreground">Categoria: {selectedFleetMember.cnh_category}</p>}
+                </div>
+              )}
+
+              {/* Sub-tabs: Avaliações / Comentários */}
+              <div className="flex gap-2 border-b">
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${fleetProfileTab === "ratings" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setFleetProfileTab("ratings")}
+                >
+                  <BarChart3 className="w-4 h-4" /> Avaliações
+                </button>
+                <button
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${fleetProfileTab === "comments" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => setFleetProfileTab("comments")}
+                >
+                  <MessageSquare className="w-4 h-4" /> Comentários
+                </button>
+              </div>
+
+              {loadingReviews ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ) : fleetProfileTab === "ratings" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-bold text-foreground">{avgRating}</div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <span>{reviews.length} avaliação(ões)</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {ratingDistribution().reverse().map(d => (
+                      <div key={d.stars} className="flex items-center gap-2 text-sm">
+                        <span className="w-4 text-muted-foreground">{d.stars}</span>
+                        <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                        <Progress value={d.pct} className="h-2 flex-1" />
+                        <span className="w-6 text-right text-muted-foreground text-xs">{d.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {reviews.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma avaliação ainda.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviews.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum comentário ainda.</p>
+                  ) : (
+                    reviews.filter(r => r.comment).map((r, i) => (
+                      <div key={i} className="bg-muted/50 rounded-lg p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">{r.establishment_name}</span>
+                          <div className="flex items-center gap-1">
+                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                            <span className="text-xs text-muted-foreground">{r.rating}</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{r.comment}</p>
+                        <p className="text-xs text-muted-foreground/60">{new Date(r.created_at).toLocaleDateString("pt-BR")}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* ============ SHEET CRIAR/EDITAR VAGA ============ */}
+      <Sheet open={jobSheet} onOpenChange={(open) => { if (!open) { setJobSheet(false); setEditingJob(null); } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingJob ? "Editar Vaga" : "Nova Vaga de Entregador"}</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 mt-4">
             <div className="space-y-2">
               <Label>Título da Vaga (opcional)</Label>
               <Input value={jobForm.title} onChange={e => setJobForm({ ...jobForm, title: e.target.value })} placeholder="Ex: Entregador Noturno" />
@@ -600,12 +816,12 @@ const DriversPage = () => {
                 <Input type="number" step="0.01" value={jobForm.km_value} onChange={e => setJobForm({ ...jobForm, km_value: e.target.value })} placeholder="2.50" />
               </div>
             )}
-            <Button className="w-full" onClick={handleCreateJob} disabled={savingJob}>
-              {savingJob ? "Criando..." : "Publicar Vaga"}
+            <Button className="w-full" onClick={handleSaveJob} disabled={savingJob}>
+              {savingJob ? "Salvando..." : editingJob ? "Salvar Alterações" : "Publicar Vaga"}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
