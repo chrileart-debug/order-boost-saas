@@ -1023,6 +1023,185 @@ const DriversPage = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* ============ SHEET FINAL DE TURNO ============ */}
+      <Sheet open={!!endingJob} onOpenChange={(open) => { if (!open) setEndingJob(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-500" />
+              O turno encerrou
+            </SheetTitle>
+          </SheetHeader>
+          {endingJob && (
+            <div className="space-y-5 mt-4">
+              <div className="bg-muted/50 rounded-lg p-4 text-center">
+                <p className="text-sm text-muted-foreground">Motorista</p>
+                <p className="text-lg font-semibold text-foreground">{endingDriverName}</p>
+                <p className="text-xs text-muted-foreground mt-1">Vaga: {endingJob.title}</p>
+              </div>
+
+              {shiftEndMode === "choose" && (
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full h-14 text-base gap-2"
+                    onClick={() => setShiftEndMode("extend")}
+                  >
+                    <Clock className="w-5 h-5" />
+                    Estender Turno
+                  </Button>
+                  <Button
+                    className="w-full h-14 text-base gap-2"
+                    onClick={() => setShiftEndMode("finalize")}
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    Finalizar e Pagar
+                  </Button>
+                </div>
+              )}
+
+              {shiftEndMode === "extend" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Tempo extra</Label>
+                    <div className="grid grid-cols-4 gap-2 mt-2">
+                      {[10, 20, 30, 60].map(min => (
+                        <button
+                          key={min}
+                          onClick={() => setExtendMinutes(min)}
+                          className={`rounded-xl border-2 p-3 text-center transition-all ${
+                            extendMinutes === min
+                              ? "border-primary bg-primary/10 text-primary font-bold"
+                              : "border-border bg-background text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          <span className="text-lg font-semibold">{min}</span>
+                          <span className="block text-xs text-muted-foreground">min</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Oferecer Bônus?</Label>
+                    <Switch checked={offerBonus} onCheckedChange={setOfferBonus} />
+                  </div>
+
+                  {offerBonus && (
+                    <div className="space-y-2">
+                      <Label>Valor do bônus (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="10.00"
+                        value={bonusValue}
+                        onChange={e => setBonusValue(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setShiftEndMode("choose")}>Voltar</Button>
+                    <Button className="flex-1" onClick={handleExtendShift} disabled={!extendMinutes || savingShiftEnd}>
+                      {savingShiftEnd ? "Enviando..." : "Enviar Proposta"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {shiftEndMode === "finalize" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Bônus de gratificação (R$) — opcional</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={finalBonus}
+                      onChange={e => setFinalBonus(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Valor extra para o motorista como reconhecimento.</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setShiftEndMode("choose")}>Voltar</Button>
+                    <Button className="flex-1" onClick={handleFinalizeShift} disabled={savingShiftEnd}>
+                      {savingShiftEnd ? "Finalizando..." : "Finalizar Turno"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* ============ SHEET AVALIAÇÃO DO MOTORISTA ============ */}
+      <Sheet open={!!reviewJob} onOpenChange={(open) => { if (!open) { setReviewJob(null); setReviewDriverId(null); } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              Avaliar Motorista
+            </SheetTitle>
+          </SheetHeader>
+          {reviewJob && (
+            <div className="space-y-5 mt-4">
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">{reviewDriverName}</p>
+                <p className="text-sm text-muted-foreground">Vaga: {reviewJob.title}</p>
+              </div>
+
+              {/* Stars */}
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button key={s} onClick={() => setReviewRating(s)} className="transition-transform hover:scale-110">
+                    <Star
+                      className={`w-10 h-10 ${s <= reviewRating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/30"}`}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Quick tags */}
+              <div>
+                <Label className="text-sm">Tags rápidas</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {["Pontual", "Educado", "Ágil", "Cuidadoso", "Proativo"].map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleReviewTag(tag)}
+                      className={`rounded-full px-3 py-1.5 text-sm border transition-all ${
+                        reviewTags.includes(tag)
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div className="space-y-2">
+                <Label>Comentário (opcional)</Label>
+                <Textarea
+                  placeholder="Como foi a experiência com este motorista?"
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <Button className="w-full" onClick={handleSubmitReview} disabled={savingReview}>
+                {savingReview ? "Enviando..." : "Enviar Avaliação"}
+              </Button>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };
