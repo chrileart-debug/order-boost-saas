@@ -311,6 +311,33 @@ export type Database = {
           },
         ]
       }
+      driver_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          driver_id: string
+          establishment_id: string
+          id: string
+          rating: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          driver_id: string
+          establishment_id: string
+          id?: string
+          rating?: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          driver_id?: string
+          establishment_id?: string
+          id?: string
+          rating?: number
+        }
+        Relationships: []
+      }
       establishment_reviews: {
         Row: {
           comment: string | null
