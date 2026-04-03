@@ -465,57 +465,51 @@ const DriversPage = () => {
   const fetchFleet = async () => {
     if (!establishment) return;
 
-    // 1) fleet_history (both active and inactive for history)
+    // 1) fleet_history as source of truth
     const { data: fleetData } = await supabase
       .from("fleet_history")
       .select("id, driver_id, is_active, hired_at")
       .eq("establishment_id", establishment.id);
 
-    // 2) contracted job_applications (active drivers)
-    const { data: estJobs } = await supabase
+    if (!fleetData?.length) { setFleet([]); return; }
+
+    const fleetDriverIds = fleetData.map(f => f.driver_id).filter(Boolean) as string[];
+
+    // 2) Check which drivers have active shifts (contracted/ending)
+    const { data: activeJobs } = await supabase
       .from("jobs")
-      .select("id, status")
-      .eq("establishment_id", establishment.id);
+      .select("id, driver_id, status")
+      .eq("establishment_id", establishment.id)
+      .in("status", ["contracted", "ending"]);
 
-    let contractedDriverIds: string[] = [];
-    if (estJobs?.length) {
-      // Only look at jobs that are NOT finalized
-      const activeJobIds = estJobs.filter(j => j.status !== "finalizado").map(j => j.id);
-      if (activeJobIds.length) {
-        const { data: contracted } = await supabase
-          .from("job_applications")
-          .select("driver_id")
-          .in("job_id", activeJobIds)
-          .in("status", ["contracted", "confirmed"]);
-        contractedDriverIds = (contracted || []).map(c => c.driver_id).filter(Boolean) as string[];
-      }
-    }
-
-    const fleetDriverIds = (fleetData || []).map(f => f.driver_id).filter(Boolean) as string[];
-    const allDriverIds = [...new Set([...contractedDriverIds, ...fleetDriverIds])];
-
-    if (!allDriverIds.length) { setFleet([]); return; }
+    const activeShiftDriverIds = new Set(
+      (activeJobs || []).map(j => j.driver_id).filter(Boolean) as string[]
+    );
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, phone").in("id", allDriverIds),
-      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_number, cnh_category").in("id", allDriverIds),
+      supabase.from("profiles").select("id, full_name, phone").in("id", fleetDriverIds),
+      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_number, cnh_category").in("id", fleetDriverIds),
     ]);
 
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
     const driverMap = new Map((driverProfiles || []).map(d => [d.id, d]));
-    const fleetMap = new Map((fleetData || []).map(f => [f.driver_id!, f]));
-    const contractedSet = new Set(contractedDriverIds);
 
-    const result: FleetMember[] = allDriverIds.map(driverId => {
+    const result: FleetMember[] = fleetData.map(fh => {
+      const driverId = fh.driver_id!;
       const profile = profileMap.get(driverId);
       const driver = driverMap.get(driverId);
-      const fh = fleetMap.get(driverId);
-      const isContracted = contractedSet.has(driverId);
+      const hasActiveShift = activeShiftDriverIds.has(driverId);
+
+      let source: FleetMember["source"];
+      if (hasActiveShift) source = "active_shift";
+      else if (fh.is_active) source = "available";
+      else source = "history";
+
       return {
-        fleet_id: fh?.id || driverId,
+        fleet_id: fh.id,
         driver_id: driverId,
-        is_active: isContracted || (fh?.is_active ?? false),
-        hired_at: fh?.hired_at || new Date().toISOString(),
+        is_active: fh.is_active ?? false,
+        hired_at: fh.hired_at || new Date().toISOString(),
         full_name: profile?.full_name || "Sem nome",
         phone: profile?.phone || null,
         vehicle_type: driver?.vehicle_type || null,
@@ -525,16 +519,13 @@ const DriversPage = () => {
         total_deliveries: driver?.total_deliveries ?? 0,
         cnh_number: driver?.cnh_number || null,
         cnh_category: driver?.cnh_category || null,
-        source: isContracted ? "contracted" : "history",
+        source,
       };
     });
 
-    // Sort: contracted (active) first
-    result.sort((a, b) => {
-      if (a.source === "contracted" && b.source !== "contracted") return -1;
-      if (a.source !== "contracted" && b.source === "contracted") return 1;
-      return 0;
-    });
+    // Sort: active_shift first, then available, then history
+    const order = { active_shift: 0, available: 1, history: 2 };
+    result.sort((a, b) => order[a.source] - order[b.source]);
 
     setFleet(result);
   };
