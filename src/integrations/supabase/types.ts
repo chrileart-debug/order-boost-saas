@@ -318,6 +318,7 @@ export type Database = {
           driver_id: string
           establishment_id: string
           id: string
+          job_id: string | null
           rating: number
         }
         Insert: {
@@ -326,6 +327,7 @@ export type Database = {
           driver_id: string
           establishment_id: string
           id?: string
+          job_id?: string | null
           rating?: number
         }
         Update: {
@@ -334,9 +336,18 @@ export type Database = {
           driver_id?: string
           establishment_id?: string
           id?: string
+          job_id?: string | null
           rating?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "driver_reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       establishment_reviews: {
         Row: {
@@ -345,6 +356,7 @@ export type Database = {
           driver_id: string
           establishment_id: string
           id: string
+          job_id: string | null
           rating: number
         }
         Insert: {
@@ -353,6 +365,7 @@ export type Database = {
           driver_id: string
           establishment_id: string
           id?: string
+          job_id?: string | null
           rating?: number
         }
         Update: {
@@ -361,6 +374,7 @@ export type Database = {
           driver_id?: string
           establishment_id?: string
           id?: string
+          job_id?: string | null
           rating?: number
         }
         Relationships: [
@@ -376,6 +390,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_reviews_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -1162,6 +1183,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_job: {
+        Args: { _application_id: string; _driver_id: string; _job_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
