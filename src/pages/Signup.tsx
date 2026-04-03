@@ -50,12 +50,15 @@ const Signup = () => {
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
     } else {
+      // Role 'owner' will be assigned during onboarding (saveStep1)
+      // Check if this email already belongs to a driver
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { error: roleError } = await supabase.from("user_roles").insert(
-          { user_id: session.user.id, role: "owner" as any }
-        );
-        if (roleError && roleError.code === "23505") {
+        const { data: isDriver } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "driver" as any,
+        });
+        if (isDriver) {
           await supabase.auth.signOut();
           toast({
             title: "Acesso negado",
