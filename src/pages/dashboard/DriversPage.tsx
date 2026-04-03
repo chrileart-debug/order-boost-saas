@@ -577,7 +577,8 @@ const DriversPage = () => {
     if (!establishment) return;
     setHiring(true);
 
-    // 1. Update application status to approved
+    // ONLY update job_applications — never touch the jobs table here.
+    // The driver will claim the job via the claim_job RPC (first come, first served).
     const { error } = await supabase
       .from("job_applications")
       .update({ status: "approved" } as any)
@@ -585,20 +586,8 @@ const DriversPage = () => {
 
     if (error) {
       toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
-      setHiring(false);
-      return;
-    }
-
-    // 2. Update the job: set status to 'contracted' and save the driver_id
-    const { error: jobError } = await supabase
-      .from("jobs")
-      .update({ status: "contracted", driver_id: applicant.driver_id } as any)
-      .eq("id", applicant.job_id);
-
-    if (jobError) {
-      toast({ title: "Erro ao atualizar vaga", description: jobError.message, variant: "destructive" });
     } else {
-      toast({ title: "Motorista aprovado!", description: `${applicant.full_name} foi aprovado e a vaga está agora em andamento.` });
+      toast({ title: "Motorista aprovado!", description: `${applicant.full_name} foi aprovado. Aguardando confirmação do motorista.` });
       setSelectedApplicant(null);
       fetchAll();
     }
