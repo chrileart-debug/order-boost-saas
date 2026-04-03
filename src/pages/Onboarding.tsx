@@ -99,10 +99,19 @@ const Onboarding = () => {
       const { data } = await supabase.from("establishments").insert(payload).select().single();
       if (data) setEstablishmentId(data.id);
       // Ensure owner role exists
-      await supabase.from("user_roles").upsert(
-        { user_id: user.id, role: "owner" as any },
-        { onConflict: "user_id,role" }
+      const { error: roleError } = await supabase.from("user_roles").insert(
+        { user_id: user.id, role: "owner" as any }
       );
+      if (roleError && roleError.code === "23505") {
+        toast({
+          title: "Acesso negado",
+          description: "Este e-mail já está cadastrado como Motoboy. Use outro e-mail para criar um estabelecimento.",
+          variant: "destructive",
+        });
+        await supabase.auth.signOut();
+        navigate("/");
+        return;
+      }
     }
     setSaving(false);
     setStep(2);

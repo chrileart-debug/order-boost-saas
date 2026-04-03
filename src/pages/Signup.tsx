@@ -50,13 +50,20 @@ const Signup = () => {
     if (error) {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
     } else {
-      // Fallback: ensure owner role is assigned (trigger should handle it, but just in case)
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        await supabase.from("user_roles").upsert(
-          { user_id: session.user.id, role: "owner" as any },
-          { onConflict: "user_id,role" }
+        const { error: roleError } = await supabase.from("user_roles").insert(
+          { user_id: session.user.id, role: "owner" as any }
         );
+        if (roleError && roleError.code === "23505") {
+          await supabase.auth.signOut();
+          toast({
+            title: "Acesso negado",
+            description: "Este e-mail já está cadastrado como Motoboy. Para gerenciar um estabelecimento, use outro e-mail.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
       toast({ title: "Conta criada!", description: "Bem-vindo ao EPRATO!" });
       navigate("/onboarding");
