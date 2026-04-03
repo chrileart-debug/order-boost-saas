@@ -713,7 +713,7 @@ const DriversPage = () => {
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {applicants.map(a => (
-                <Card key={a.application_id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => setSelectedApplicant(a)}>
+                <Card key={a.application_id} className="cursor-pointer hover:border-primary/30 transition-colors" onClick={() => { setSelectedApplicant(a); setApplicantProfileTab("info"); fetchReviews(a.driver_id); }}>
                   <CardContent className="flex items-center gap-4 p-4">
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={getAvatarUrl(a.profile_photo_url)} />
