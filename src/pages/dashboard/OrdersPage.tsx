@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX, Bike, Car, Ban, Star } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 const statusConfig = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning/10 text-warning" },
@@ -27,8 +32,41 @@ interface OrderItem {
   order_item_options?: { option_name: string; option_price: number }[];
 }
 
+type FleetDriver = {
+  driver_id: string;
+  full_name: string;
+  vehicle_type: string | null;
+  profile_photo_url: string | null;
+  rating_avg: number | null;
+};
+
+const vehicleIcon = (type: string | null) => {
+  switch (type) {
+    case "moto": return <Bike className="w-4 h-4" />;
+    case "carro": return <Car className="w-4 h-4" />;
+    case "bike": return <Bike className="w-4 h-4" />;
+    default: return <Ban className="w-4 h-4 text-muted-foreground" />;
+  }
+};
+
+const vehicleLabel = (type: string | null) => {
+  switch (type) {
+    case "moto": return "Moto";
+    case "carro": return "Carro";
+    case "bike": return "Bike";
+    default: return "Nenhum";
+  }
+};
+
+const getAvatarUrl = (path: string | null) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+};
+
 const OrdersPage = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
   const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
   const [establishment, setEstablishment] = useState<any>(null);
@@ -38,15 +76,17 @@ const OrdersPage = () => {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [audioUnlocked, setAudioUnlocked] = useState(false);
 
+  // Driver selection modal
+  const [driverModalOrderId, setDriverModalOrderId] = useState<string | null>(null);
+  const [fleetDrivers, setFleetDrivers] = useState<FleetDriver[]>([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [assigningDriver, setAssigningDriver] = useState(false);
+
   /* ─── Audio setup ─── */
   const unlockAudio = useCallback(() => {
     if (audioUnlocked) return;
     const url = establishment?.notification_sound_url;
-    if (!url) {
-      console.warn("[Audio] Nenhuma URL de som configurada no estabelecimento.");
-      return;
-    }
-    console.log("[Audio] Tentando desbloquear áudio com URL:", url);
+    if (!url) return;
     const audio = new Audio(url);
     audio.volume = 0.01;
     audio.play().then(() => {
@@ -55,10 +95,7 @@ const OrdersPage = () => {
       audio.currentTime = 0;
       audioRef.current = audio;
       setAudioUnlocked(true);
-      console.log("[Audio] ✅ Áudio desbloqueado com sucesso!");
-    }).catch((err) => {
-      console.error("[Audio] ❌ Falha ao desbloquear áudio:", err);
-    });
+    }).catch(() => {});
   }, [audioUnlocked, establishment?.notification_sound_url]);
 
   useEffect(() => {
@@ -74,25 +111,11 @@ const OrdersPage = () => {
   }, [establishment?.notification_sound_url, unlockAudio]);
 
   const playNotificationSound = useCallback(() => {
-    if (!soundEnabled) {
-      console.log("[Audio] Som desativado pelo usuário.");
-      return;
-    }
-    if (!audioRef.current) {
-      console.warn("[Audio] Elemento de áudio não inicializado.");
-      return;
-    }
-    if (!audioUnlocked) {
-      console.warn("[Audio] Áudio ainda não desbloqueado. Clique no botão 'Ativar Sons'.");
-      return;
-    }
-    console.log("[Audio] 🔔 Tocando som de notificação...");
+    if (!soundEnabled || !audioRef.current || !audioUnlocked) return;
     const audio = audioRef.current;
     audio.currentTime = 0;
     audio.volume = 1;
-    audio.play().catch((err) => {
-      console.error("[Audio] Erro ao tocar som:", err);
-    });
+    audio.play().catch(() => {});
   }, [soundEnabled, audioUnlocked]);
 
   /* ─── Fetch orders ─── */
@@ -137,8 +160,6 @@ const OrdersPage = () => {
   useEffect(() => {
     if (!establishment?.id) return;
 
-    console.log("[Realtime] 🔌 Inscrevendo canal para establishment:", establishment.id);
-
     const channel = supabase
       .channel(`orders-realtime-${establishment.id}`)
       .on(
@@ -150,12 +171,8 @@ const OrdersPage = () => {
           filter: `establishment_id=eq.${establishment.id}`,
         },
         async (payload) => {
-          console.log("[Realtime] 🔔 Evento recebido!", payload);
-          console.log("[Realtime] Tipo do evento:", payload.eventType);
-
           if (payload.eventType === "INSERT") {
             const newOrder = payload.new as any;
-            console.log("Novo pedido detectado via Realtime:", newOrder.id);
             if (newOrder.status === "pending") {
               playNotificationSound();
             }
@@ -172,30 +189,94 @@ const OrdersPage = () => {
             }
           } else if (payload.eventType === "UPDATE") {
             const updated = payload.new as any;
-            console.log("[Realtime] ✏️ Pedido atualizado:", { id: updated.id, status: updated.status });
             setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
           }
         }
       )
-      .subscribe((status) => {
-        console.log("[Realtime] 📡 Status da inscrição:", status);
-      });
+      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [establishment?.id, playNotificationSound]);
 
-  const updateStatus = async (orderId: string, newStatus: string) => {
-    const { error: dbError } = await supabase.from("orders").update({ status: newStatus }).eq("id", orderId);
+  const updateStatus = async (orderId: string, newStatus: string, extraFields?: Record<string, any>) => {
+    const updateData: any = { status: newStatus, ...extraFields };
+    const { error: dbError } = await supabase.from("orders").update(updateData).eq("id", orderId);
     if (dbError) {
       console.error("Erro ao atualizar status:", dbError.message);
       return;
     }
-    setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    setOrders(orders.map(o => o.id === orderId ? { ...o, ...updateData } : o));
   };
 
   const nextStatus: Record<string, string> = { pending: "preparing", preparing: "shipping", shipping: "completed" };
+
+  /* ─── Fetch fleet drivers for modal ─── */
+  const openDriverModal = async (orderId: string) => {
+    if (!establishment) return;
+    setDriverModalOrderId(orderId);
+    setLoadingDrivers(true);
+
+    const { data: fleetData } = await supabase
+      .from("fleet_history")
+      .select("driver_id")
+      .eq("establishment_id", establishment.id)
+      .eq("is_active", true);
+
+    if (!fleetData?.length) {
+      setFleetDrivers([]);
+      setLoadingDrivers(false);
+      return;
+    }
+
+    const driverIds = fleetData.map(f => f.driver_id).filter(Boolean) as string[];
+
+    const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
+      supabase.from("profiles").select("id, full_name").in("id", driverIds),
+      supabase.from("driver_profiles").select("id, vehicle_type, profile_photo_url, rating_avg").in("id", driverIds),
+    ]);
+
+    const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+    const driverMap = new Map((driverProfiles || []).map(d => [d.id, d]));
+
+    const result: FleetDriver[] = driverIds.map(id => {
+      const profile = profileMap.get(id);
+      const driver = driverMap.get(id);
+      return {
+        driver_id: id,
+        full_name: profile?.full_name || "Sem nome",
+        vehicle_type: driver?.vehicle_type || null,
+        profile_photo_url: driver?.profile_photo_url || null,
+        rating_avg: driver?.rating_avg ?? null,
+      };
+    });
+
+    setFleetDrivers(result);
+    setLoadingDrivers(false);
+  };
+
+  const handleAssignDriver = async (driver: FleetDriver) => {
+    if (!driverModalOrderId) return;
+    setAssigningDriver(true);
+
+    await updateStatus(driverModalOrderId, "shipping", { driver_id: driver.driver_id } as any);
+
+    toast({
+      title: "Motorista designado!",
+      description: `${driver.full_name} foi atribuído ao pedido.`,
+    });
+
+    setDriverModalOrderId(null);
+    setAssigningDriver(false);
+  };
+
+  const handleAdvance = (orderId: string, currentStatus: string) => {
+    if (currentStatus === "preparing") {
+      // Open driver selection modal instead of advancing directly
+      openDriverModal(orderId);
+    } else {
+      updateStatus(orderId, nextStatus[currentStatus]);
+    }
+  };
 
   const handlePrint = useCallback((order: any) => {
     const items = orderItems[order.id] || [];
@@ -291,8 +372,8 @@ const OrdersPage = () => {
                       <span className="hidden sm:inline">Imprimir</span>
                     </Button>
                     {nextStatus[order.status] && (
-                      <Button size="sm" onClick={() => updateStatus(order.id, nextStatus[order.status])}>
-                        Avançar
+                      <Button size="sm" onClick={() => handleAdvance(order.id, order.status)}>
+                        {order.status === "preparing" ? "Despachar" : "Avançar"}
                       </Button>
                     )}
                   </div>
@@ -425,6 +506,64 @@ const OrdersPage = () => {
           <TabsContent key={s} value={s}>{renderOrders(s)}</TabsContent>
         ))}
       </Tabs>
+
+      {/* Driver Selection Modal */}
+      <Dialog open={!!driverModalOrderId} onOpenChange={(open) => !open && setDriverModalOrderId(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Selecionar Motorista</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Escolha um motorista da sua frota para despachar este pedido.
+          </p>
+
+          {loadingDrivers ? (
+            <div className="space-y-3 mt-2">
+              {[1, 2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)}
+            </div>
+          ) : fleetDrivers.length === 0 ? (
+            <div className="text-center py-6">
+              <Truck className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Nenhum motorista ativo na sua frota.</p>
+              <p className="text-xs text-muted-foreground mt-1">Contrate motoristas na página de Motoristas.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto">
+              {fleetDrivers.map(driver => (
+                <Card
+                  key={driver.driver_id}
+                  className="cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => !assigningDriver && handleAssignDriver(driver)}
+                >
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <Avatar className="h-14 w-14">
+                      <AvatarImage src={getAvatarUrl(driver.profile_photo_url)} className="object-cover" />
+                      <AvatarFallback className="text-lg">{driver.full_name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm text-foreground truncate">{driver.full_name}</h3>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          {vehicleIcon(driver.vehicle_type)} {vehicleLabel(driver.vehicle_type)}
+                        </span>
+                        {driver.rating_avg != null && (
+                          <span className="flex items-center gap-0.5">
+                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
+                            {Number(driver.rating_avg).toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" disabled={assigningDriver}>
+                      Selecionar
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
