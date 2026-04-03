@@ -394,6 +394,11 @@ const DriversPage = () => {
                         {a.has_bag && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Bag</Badge>}
                       </div>
                     </div>
+                    {a.status === "approved" ? (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100 shrink-0 text-[10px]">Aguardando Confirmação</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-blue-600 border-blue-300 shrink-0 text-[10px]">Novo</Badge>
+                    )}
                   </CardContent>
                 </Card>
               ))}
