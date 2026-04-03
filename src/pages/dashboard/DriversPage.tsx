@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3, Clock, DollarSign, CheckCircle2 } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -67,6 +69,9 @@ type Job = {
   start_time: string | null;
   end_time: string | null;
   requirements: any;
+  bonus_value: number | null;
+  extended_minutes: number | null;
+  extension_confirmed: boolean | null;
 };
 
 type Review = {
@@ -134,6 +139,27 @@ const DriversPage = () => {
   });
   const [savingJob, setSavingJob] = useState(false);
 
+  // Shift-end management
+  const [endingJob, setEndingJob] = useState<Job | null>(null);
+  const [endingDriverName, setEndingDriverName] = useState("");
+  const [shiftEndMode, setShiftEndMode] = useState<"choose" | "extend" | "finalize">("choose");
+  const [extendMinutes, setExtendMinutes] = useState<number | null>(null);
+  const [offerBonus, setOfferBonus] = useState(false);
+  const [bonusValue, setBonusValue] = useState("");
+  const [finalBonus, setFinalBonus] = useState("");
+  const [savingShiftEnd, setSavingShiftEnd] = useState(false);
+  const shiftEndProcessedRef = useRef<Set<string>>(new Set());
+
+  // Review after completion
+  const [reviewJob, setReviewJob] = useState<Job | null>(null);
+  const [reviewDriverId, setReviewDriverId] = useState<string | null>(null);
+  const [reviewDriverName, setReviewDriverName] = useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewTags, setReviewTags] = useState<string[]>([]);
+  const [reviewComment, setReviewComment] = useState("");
+  const [savingReview, setSavingReview] = useState(false);
+
+
   useEffect(() => {
     if (establishment?.id) {
       fetchAll();
@@ -159,6 +185,139 @@ const DriversPage = () => {
       supabase.removeChannel(channel);
     };
   }, [establishment?.id]);
+
+  // Shift-end monitoring: check every 30s for jobs past end_time + 1 min
+  useEffect(() => {
+    if (!establishment?.id) return;
+    const checkEndingJobs = async () => {
+      const { data: activeJobs } = await supabase
+        .from("jobs")
+        .select("id, title, status, end_time, bonus_value, extended_minutes, extension_confirmed, fixed_value, km_value, shift_type, hiring_type, payment_type, created_at, start_time, requirements")
+        .eq("establishment_id", establishment.id)
+        .in("status", ["open", "contracted", "confirmed"]);
+
+      if (!activeJobs?.length) return;
+      const now = new Date();
+      for (const job of activeJobs) {
+        if (!job.end_time) continue;
+        const endPlusOne = new Date(new Date(job.end_time).getTime() + 60000);
+        if (now >= endPlusOne && !shiftEndProcessedRef.current.has(job.id) && !endingJob && !reviewJob) {
+          shiftEndProcessedRef.current.add(job.id);
+          const { data: apps } = await supabase
+            .from("job_applications").select("driver_id").eq("job_id", job.id)
+            .in("status", ["contracted", "confirmed"]).limit(1);
+          let name = "Motorista";
+          if (apps?.[0]?.driver_id) {
+            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", apps[0].driver_id).maybeSingle();
+            if (p) name = p.full_name;
+          }
+          setEndingDriverName(name);
+          setEndingJob(job as Job);
+          setShiftEndMode("choose");
+          setExtendMinutes(null);
+          setOfferBonus(false);
+          setBonusValue("");
+          setFinalBonus("");
+          break;
+        }
+      }
+    };
+    checkEndingJobs();
+    const interval = setInterval(checkEndingJobs, 30000);
+    return () => clearInterval(interval);
+  }, [establishment?.id, endingJob, reviewJob]);
+
+  // Listen for job completion to trigger review
+  useEffect(() => {
+    if (!establishment?.id) return;
+    const channel = supabase.channel("job-complete-review")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs" }, async (payload) => {
+        const updated = payload.new as any;
+        if (updated.status === "completed" && updated.establishment_id === establishment.id && !reviewJob) {
+          const { data: apps } = await supabase.from("job_applications").select("driver_id")
+            .eq("job_id", updated.id).in("status", ["contracted", "confirmed"]).limit(1);
+          if (apps?.[0]?.driver_id) {
+            const driverId = apps[0].driver_id;
+            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", driverId!).maybeSingle();
+            setReviewDriverId(driverId);
+            setReviewDriverName(p?.full_name || "Motorista");
+            setReviewJob(updated as Job);
+            setReviewRating(5);
+            setReviewTags([]);
+            setReviewComment("");
+          }
+        }
+      }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [establishment?.id, reviewJob]);
+
+  const handleExtendShift = async () => {
+    if (!endingJob || !extendMinutes) return;
+    setSavingShiftEnd(true);
+    const bonus = offerBonus && bonusValue ? parseFloat(bonusValue) : 0;
+    const { error } = await supabase.from("jobs").update({
+      extended_minutes: extendMinutes,
+      bonus_value: bonus,
+      extension_confirmed: false,
+      status: "open",
+    } as any).eq("id", endingJob.id);
+    setSavingShiftEnd(false);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Extensão enviada!", description: "Aguardando aceite do piloto..." });
+      setEndingJob(null);
+      fetchJobs();
+    }
+  };
+
+  const handleFinalizeShift = async () => {
+    if (!endingJob) return;
+    setSavingShiftEnd(true);
+    const bonus = finalBonus ? parseFloat(finalBonus) : 0;
+    const { error } = await supabase.from("jobs").update({
+      status: "completed",
+      bonus_value: (endingJob.bonus_value || 0) + bonus,
+    } as any).eq("id", endingJob.id);
+    setSavingShiftEnd(false);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Turno finalizado!", description: "O turno foi encerrado com sucesso." });
+      // The review drawer will open via realtime listener
+      setEndingJob(null);
+      fetchJobs();
+    }
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewDriverId || !establishment) return;
+    setSavingReview(true);
+    const fullComment = [
+      reviewTags.length ? `Tags: ${reviewTags.join(", ")}` : "",
+      reviewComment,
+    ].filter(Boolean).join(" — ");
+
+    const { error } = await supabase.from("establishment_reviews").insert({
+      driver_id: reviewDriverId,
+      establishment_id: establishment.id,
+      rating: reviewRating,
+      comment: fullComment || null,
+    });
+    setSavingReview(false);
+    if (error) {
+      toast({ title: "Erro ao avaliar", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Avaliação enviada!", description: "Obrigado pelo feedback." });
+      setReviewJob(null);
+      setReviewDriverId(null);
+    }
+  };
+
+  const toggleReviewTag = (tag: string) => {
+    setReviewTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
+  };
+
 
   const fetchAll = async () => {
     if (!establishment) return;
@@ -306,7 +465,7 @@ const DriversPage = () => {
     if (!establishment) return;
     const { data } = await supabase
       .from("jobs")
-      .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at, start_time, end_time, requirements")
+      .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at, start_time, end_time, requirements, bonus_value, extended_minutes, extension_confirmed")
       .eq("establishment_id", establishment.id)
       .order("created_at", { ascending: false });
     setJobs((data || []) as Job[]);
@@ -863,6 +1022,185 @@ const DriversPage = () => {
               {savingJob ? "Salvando..." : editingJob ? "Salvar Alterações" : "Publicar Vaga"}
             </Button>
           </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ============ SHEET FINAL DE TURNO ============ */}
+      <Sheet open={!!endingJob} onOpenChange={(open) => { if (!open) setEndingJob(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-500" />
+              O turno encerrou
+            </SheetTitle>
+          </SheetHeader>
+          {endingJob && (
+            <div className="space-y-5 mt-4">
+              <div className="bg-muted/50 rounded-lg p-4 text-center">
+                <p className="text-sm text-muted-foreground">Motorista</p>
+                <p className="text-lg font-semibold text-foreground">{endingDriverName}</p>
+                <p className="text-xs text-muted-foreground mt-1">Vaga: {endingJob.title}</p>
+              </div>
+
+              {shiftEndMode === "choose" && (
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full h-14 text-base gap-2"
+                    onClick={() => setShiftEndMode("extend")}
+                  >
+                    <Clock className="w-5 h-5" />
+                    Estender Turno
+                  </Button>
+                  <Button
+                    className="w-full h-14 text-base gap-2"
+                    onClick={() => setShiftEndMode("finalize")}
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    Finalizar e Pagar
+                  </Button>
+                </div>
+              )}
+
+              {shiftEndMode === "extend" && (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Tempo extra</Label>
+                    <div className="grid grid-cols-4 gap-2 mt-2">
+                      {[10, 20, 30, 60].map(min => (
+                        <button
+                          key={min}
+                          onClick={() => setExtendMinutes(min)}
+                          className={`rounded-xl border-2 p-3 text-center transition-all ${
+                            extendMinutes === min
+                              ? "border-primary bg-primary/10 text-primary font-bold"
+                              : "border-border bg-background text-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          <span className="text-lg font-semibold">{min}</span>
+                          <span className="block text-xs text-muted-foreground">min</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Oferecer Bônus?</Label>
+                    <Switch checked={offerBonus} onCheckedChange={setOfferBonus} />
+                  </div>
+
+                  {offerBonus && (
+                    <div className="space-y-2">
+                      <Label>Valor do bônus (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="10.00"
+                        value={bonusValue}
+                        onChange={e => setBonusValue(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setShiftEndMode("choose")}>Voltar</Button>
+                    <Button className="flex-1" onClick={handleExtendShift} disabled={!extendMinutes || savingShiftEnd}>
+                      {savingShiftEnd ? "Enviando..." : "Enviar Proposta"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {shiftEndMode === "finalize" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Bônus de gratificação (R$) — opcional</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={finalBonus}
+                      onChange={e => setFinalBonus(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">Valor extra para o motorista como reconhecimento.</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setShiftEndMode("choose")}>Voltar</Button>
+                    <Button className="flex-1" onClick={handleFinalizeShift} disabled={savingShiftEnd}>
+                      {savingShiftEnd ? "Finalizando..." : "Finalizar Turno"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* ============ SHEET AVALIAÇÃO DO MOTORISTA ============ */}
+      <Sheet open={!!reviewJob} onOpenChange={(open) => { if (!open) { setReviewJob(null); setReviewDriverId(null); } }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500" />
+              Avaliar Motorista
+            </SheetTitle>
+          </SheetHeader>
+          {reviewJob && (
+            <div className="space-y-5 mt-4">
+              <div className="text-center">
+                <p className="text-lg font-semibold text-foreground">{reviewDriverName}</p>
+                <p className="text-sm text-muted-foreground">Vaga: {reviewJob.title}</p>
+              </div>
+
+              {/* Stars */}
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button key={s} onClick={() => setReviewRating(s)} className="transition-transform hover:scale-110">
+                    <Star
+                      className={`w-10 h-10 ${s <= reviewRating ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground/30"}`}
+                    />
+                  </button>
+                ))}
+              </div>
+
+              {/* Quick tags */}
+              <div>
+                <Label className="text-sm">Tags rápidas</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {["Pontual", "Educado", "Ágil", "Cuidadoso", "Proativo"].map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleReviewTag(tag)}
+                      className={`rounded-full px-3 py-1.5 text-sm border transition-all ${
+                        reviewTags.includes(tag)
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div className="space-y-2">
+                <Label>Comentário (opcional)</Label>
+                <Textarea
+                  placeholder="Como foi a experiência com este motorista?"
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <Button className="w-full" onClick={handleSubmitReview} disabled={savingReview}>
+                {savingReview ? "Enviando..." : "Enviar Avaliação"}
+              </Button>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     </div>

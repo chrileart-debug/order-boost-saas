@@ -592,10 +592,13 @@ export type Database = {
       }
       jobs: {
         Row: {
+          bonus_value: number | null
           created_at: string | null
           description: string | null
           end_time: string | null
           establishment_id: string | null
+          extended_minutes: number | null
+          extension_confirmed: boolean | null
           fixed_value: number | null
           hiring_type: string | null
           id: string
@@ -608,10 +611,13 @@ export type Database = {
           title: string
         }
         Insert: {
+          bonus_value?: number | null
           created_at?: string | null
           description?: string | null
           end_time?: string | null
           establishment_id?: string | null
+          extended_minutes?: number | null
+          extension_confirmed?: boolean | null
           fixed_value?: number | null
           hiring_type?: string | null
           id?: string
@@ -624,10 +630,13 @@ export type Database = {
           title: string
         }
         Update: {
+          bonus_value?: number | null
           created_at?: string | null
           description?: string | null
           end_time?: string | null
           establishment_id?: string | null
+          extended_minutes?: number | null
+          extension_confirmed?: boolean | null
           fixed_value?: number | null
           hiring_type?: string | null
           id?: string
@@ -1130,6 +1139,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      transition_job_statuses: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "owner" | "driver"
