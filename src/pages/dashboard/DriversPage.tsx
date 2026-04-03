@@ -754,10 +754,10 @@ const DriversPage = () => {
                         </div>
                       )}
                     </div>
-                    {m.source === "contracted" ? (
+                    {m.source === "active_shift" ? (
                       <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 shrink-0 text-[10px]">Em Serviço</Badge>
-                    ) : m.is_active ? (
-                      <Badge variant="outline" className="text-green-600 border-green-300 shrink-0 text-[10px]">Ativo</Badge>
+                    ) : m.source === "available" ? (
+                      <Badge variant="outline" className="text-green-600 border-green-300 shrink-0 text-[10px]">Disponível</Badge>
                     ) : (
                       <Badge variant="secondary" className="shrink-0 text-[10px]">Histórico</Badge>
                     )}
