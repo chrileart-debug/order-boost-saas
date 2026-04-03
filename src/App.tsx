@@ -14,6 +14,7 @@ import DashboardHome from "./pages/dashboard/DashboardHome";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import LogisticsPage from "./pages/dashboard/LogisticsPage";
+import DriversPage from "./pages/dashboard/DriversPage";
 import CouponsPage from "./pages/dashboard/CouponsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import SubscriptionPage from "./pages/dashboard/SubscriptionPage";
