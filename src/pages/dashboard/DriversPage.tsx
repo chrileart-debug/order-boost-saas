@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3, Clock, DollarSign, CheckCircle2 } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
