@@ -622,6 +622,7 @@ export type Database = {
           bonus_value: number | null
           created_at: string | null
           description: string | null
+          driver_id: string | null
           end_time: string | null
           establishment_id: string | null
           extended_minutes: number | null
@@ -641,6 +642,7 @@ export type Database = {
           bonus_value?: number | null
           created_at?: string | null
           description?: string | null
+          driver_id?: string | null
           end_time?: string | null
           establishment_id?: string | null
           extended_minutes?: number | null
@@ -660,6 +662,7 @@ export type Database = {
           bonus_value?: number | null
           created_at?: string | null
           description?: string | null
+          driver_id?: string | null
           end_time?: string | null
           establishment_id?: string | null
           extended_minutes?: number | null
