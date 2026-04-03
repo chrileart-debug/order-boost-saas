@@ -188,22 +188,22 @@ const DriversPage = () => {
     };
   }, [establishment?.id]);
 
-  // Shift-end monitoring: check every 30s for jobs past end_time + 1 min
+  // Realtime: listen for jobs status changing to 'ending' (set by DB function transition_job_statuses)
   useEffect(() => {
     if (!establishment?.id) return;
-    const checkEndingJobs = async () => {
-      const { data: activeJobs } = await supabase
+
+    // Check on mount for any jobs already in 'ending' status
+    const checkExistingEnding = async () => {
+      const { data: endingJobs } = await supabase
         .from("jobs")
         .select("id, title, status, end_time, bonus_value, extended_minutes, extension_confirmed, fixed_value, km_value, shift_type, hiring_type, payment_type, created_at, start_time, requirements")
         .eq("establishment_id", establishment.id)
-        .in("status", ["open", "contracted", "confirmed"]);
+        .eq("status", "ending")
+        .limit(1);
 
-      if (!activeJobs?.length) return;
-      const now = new Date();
-      for (const job of activeJobs) {
-        if (!job.end_time) continue;
-        const endPlusOne = new Date(new Date(job.end_time).getTime() + 60000);
-        if (now >= endPlusOne && !shiftEndProcessedRef.current.has(job.id) && !endingJob && !reviewJob) {
+      if (endingJobs?.length && !endingJob && !reviewJob) {
+        const job = endingJobs[0];
+        if (!shiftEndProcessedRef.current.has(job.id)) {
           shiftEndProcessedRef.current.add(job.id);
           const { data: apps } = await supabase
             .from("job_applications").select("driver_id").eq("job_id", job.id)
@@ -220,38 +220,40 @@ const DriversPage = () => {
           setOfferBonus(false);
           setBonusValue("");
           setFinalBonus("");
-          break;
+          setShowFinalBonus(false);
         }
       }
     };
-    checkEndingJobs();
-    const interval = setInterval(checkEndingJobs, 30000);
-    return () => clearInterval(interval);
-  }, [establishment?.id, endingJob, reviewJob]);
+    checkExistingEnding();
 
-  // Listen for job completion to trigger review
-  useEffect(() => {
-    if (!establishment?.id) return;
-    const channel = supabase.channel("job-complete-review")
+    // Realtime listener for jobs becoming 'ending'
+    const channel = supabase.channel("jobs-ending-realtime")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs" }, async (payload) => {
         const updated = payload.new as any;
-        if (updated.status === "completed" && updated.establishment_id === establishment.id && !reviewJob) {
-          const { data: apps } = await supabase.from("job_applications").select("driver_id")
-            .eq("job_id", updated.id).in("status", ["contracted", "confirmed"]).limit(1);
+        if (updated.status === "ending" && updated.establishment_id === establishment.id && !endingJob && !reviewJob) {
+          if (shiftEndProcessedRef.current.has(updated.id)) return;
+          shiftEndProcessedRef.current.add(updated.id);
+          const { data: apps } = await supabase
+            .from("job_applications").select("driver_id").eq("job_id", updated.id)
+            .in("status", ["contracted", "confirmed"]).limit(1);
+          let name = "Motorista";
           if (apps?.[0]?.driver_id) {
-            const driverId = apps[0].driver_id;
-            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", driverId!).maybeSingle();
-            setReviewDriverId(driverId);
-            setReviewDriverName(p?.full_name || "Motorista");
-            setReviewJob(updated as Job);
-            setReviewRating(5);
-            setReviewTags([]);
-            setReviewComment("");
+            const { data: p } = await supabase.from("profiles").select("full_name").eq("id", apps[0].driver_id).maybeSingle();
+            if (p) name = p.full_name;
           }
+          setEndingDriverName(name);
+          setEndingJob(updated as Job);
+          setShiftEndMode("choose");
+          setExtendMinutes(null);
+          setOfferBonus(false);
+          setBonusValue("");
+          setFinalBonus("");
+          setShowFinalBonus(false);
         }
       }).subscribe();
+
     return () => { supabase.removeChannel(channel); };
-  }, [establishment?.id, reviewJob]);
+  }, [establishment?.id, endingJob, reviewJob]);
 
   const handleExtendShift = async () => {
     if (!endingJob || !extendMinutes) return;
