@@ -485,23 +485,27 @@ const DriversPage = () => {
 
   const fetchReviews = async (driverId: string) => {
     setLoadingReviews(true);
-    const { data } = await supabase
-      .from("establishment_reviews")
-      .select("rating, comment, created_at, establishment_id")
-      .eq("driver_id", driverId);
+    // Fetch from both tables: driver_reviews (owner→driver) and establishment_reviews (driver→establishment, but we want reviews ABOUT this driver)
+    const [{ data: driverRevs }, { data: estRevs }] = await Promise.all([
+      supabase.from("driver_reviews").select("rating, comment, created_at, establishment_id").eq("driver_id", driverId),
+      supabase.from("establishment_reviews").select("rating, comment, created_at, establishment_id").eq("driver_id", driverId),
+    ]);
 
-    if (!data?.length) { setReviews([]); setLoadingReviews(false); return; }
+    const allRevs = [...(driverRevs || []), ...(estRevs || [])];
+    if (!allRevs.length) { setReviews([]); setLoadingReviews(false); return; }
 
-    const estIds = [...new Set(data.map(r => r.establishment_id))];
+    const estIds = [...new Set(allRevs.map(r => r.establishment_id))];
     const { data: ests } = await supabase.from("establishments").select("id, name").in("id", estIds);
     const estMap = new Map((ests || []).map(e => [e.id, e.name]));
 
-    setReviews(data.map(r => ({
+    const mapped = allRevs.map(r => ({
       rating: r.rating,
       comment: r.comment,
       created_at: r.created_at,
       establishment_name: estMap.get(r.establishment_id) || "Estabelecimento",
-    })));
+    }));
+    mapped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    setReviews(mapped);
     setLoadingReviews(false);
   };
 
