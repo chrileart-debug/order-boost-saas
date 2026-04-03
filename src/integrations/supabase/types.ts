@@ -311,6 +311,48 @@ export type Database = {
           },
         ]
       }
+      establishment_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          driver_id: string
+          establishment_id: string
+          id: string
+          rating: number
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          driver_id: string
+          establishment_id: string
+          id?: string
+          rating?: number
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          driver_id?: string
+          establishment_id?: string
+          id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_reviews_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "establishment_reviews_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: Json | null
@@ -551,6 +593,7 @@ export type Database = {
       jobs: {
         Row: {
           created_at: string | null
+          description: string | null
           end_time: string | null
           establishment_id: string | null
           fixed_value: number | null
@@ -566,6 +609,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
           end_time?: string | null
           establishment_id?: string | null
           fixed_value?: number | null
@@ -581,6 +625,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          description?: string | null
           end_time?: string | null
           establishment_id?: string | null
           fixed_value?: number | null

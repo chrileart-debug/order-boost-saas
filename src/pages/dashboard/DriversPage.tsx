@@ -140,7 +140,7 @@ const DriversPage = () => {
       .from("job_applications")
       .select("id, driver_id, status, job_id")
       .in("job_id", jobIds)
-      .eq("status", "interested");
+      .in("status", ["interested", "approved"]);
 
     if (!apps?.length) { setApplicants([]); return; }
 
@@ -235,35 +235,19 @@ const DriversPage = () => {
     setJobs((data || []) as Job[]);
   };
 
-  const handleHire = async (applicant: Applicant) => {
+  const handleApprove = async (applicant: Applicant) => {
     if (!establishment) return;
     setHiring(true);
 
-    // Update application status
-    const { error: updateErr } = await supabase
+    const { error } = await supabase
       .from("job_applications")
-      .update({ status: "accepted" } as any)
+      .update({ status: "approved" } as any)
       .eq("id", applicant.application_id);
 
-    if (updateErr) {
-      toast({ title: "Erro ao aceitar", description: updateErr.message, variant: "destructive" });
-      setHiring(false);
-      return;
-    }
-
-    // Add to fleet_history
-    const { error: insertErr } = await supabase
-      .from("fleet_history")
-      .insert({
-        establishment_id: establishment.id,
-        driver_id: applicant.driver_id,
-        is_active: true,
-      } as any);
-
-    if (insertErr) {
-      toast({ title: "Erro ao adicionar à frota", description: insertErr.message, variant: "destructive" });
+    if (error) {
+      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Motorista contratado!", description: `${applicant.full_name} foi adicionado à sua frota.` });
+      toast({ title: "Motorista aprovado!", description: `${applicant.full_name} foi aprovado. Aguardando confirmação de presença.` });
       setSelectedApplicant(null);
       fetchAll();
     }
@@ -410,6 +394,11 @@ const DriversPage = () => {
                         {a.has_bag && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Bag</Badge>}
                       </div>
                     </div>
+                    {a.status === "approved" ? (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100 shrink-0 text-[10px]">Aguardando Confirmação</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-blue-600 border-blue-300 shrink-0 text-[10px]">Novo</Badge>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -518,9 +507,15 @@ const DriversPage = () => {
                 Interessado na vaga: <strong>{selectedApplicant.job_title}</strong>
               </p>
 
-              <Button className="w-full" onClick={() => handleHire(selectedApplicant)} disabled={hiring}>
-                {hiring ? "Contratando..." : "Contratar para este Turno"}
-              </Button>
+              {selectedApplicant.status === "approved" ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center text-sm text-amber-700">
+                  Aprovado — aguardando confirmação de presença do motorista.
+                </div>
+              ) : (
+                <Button className="w-full" onClick={() => handleApprove(selectedApplicant)} disabled={hiring}>
+                  {hiring ? "Aprovando..." : "Aprovar Motorista"}
+                </Button>
+              )}
             </div>
           )}
         </DialogContent>
