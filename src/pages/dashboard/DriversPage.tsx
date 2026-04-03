@@ -147,6 +147,7 @@ const DriversPage = () => {
   const [offerBonus, setOfferBonus] = useState(false);
   const [bonusValue, setBonusValue] = useState("");
   const [finalBonus, setFinalBonus] = useState("");
+  const [showFinalBonus, setShowFinalBonus] = useState(false);
   const [savingShiftEnd, setSavingShiftEnd] = useState(false);
   const shiftEndProcessedRef = useRef<Set<string>>(new Set());
 
@@ -274,7 +275,7 @@ const DriversPage = () => {
   const handleFinalizeShift = async () => {
     if (!endingJob) return;
     setSavingShiftEnd(true);
-    const bonus = finalBonus ? parseFloat(finalBonus) : 0;
+    const bonus = showFinalBonus && finalBonus ? parseFloat(finalBonus) : 0;
     const { error } = await supabase.from("jobs").update({
       status: "completed",
       bonus_value: (endingJob.bonus_value || 0) + bonus,
@@ -282,11 +283,24 @@ const DriversPage = () => {
     setSavingShiftEnd(false);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Turno finalizado!", description: "O turno foi encerrado com sucesso." });
-      // The review drawer will open via realtime listener
-      setEndingJob(null);
-      fetchJobs();
+      return;
+    }
+    toast({ title: "Turno finalizado!", description: "O turno foi encerrado com sucesso." });
+    // Directly open review without relying on realtime
+    const { data: apps } = await supabase.from("job_applications").select("driver_id")
+      .eq("job_id", endingJob.id).in("status", ["contracted", "confirmed"]).limit(1);
+    const completedJob = { ...endingJob, status: "completed" };
+    setEndingJob(null);
+    fetchJobs();
+    if (apps?.[0]?.driver_id) {
+      const driverId = apps[0].driver_id;
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("id", driverId!).maybeSingle();
+      setReviewDriverId(driverId);
+      setReviewDriverName(p?.full_name || "Motorista");
+      setReviewJob(completedJob as Job);
+      setReviewRating(5);
+      setReviewTags([]);
+      setReviewComment("");
     }
   };
 
@@ -1113,22 +1127,42 @@ const DriversPage = () => {
 
               {shiftEndMode === "finalize" && (
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Bônus de gratificação (R$) — opcional</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={finalBonus}
-                      onChange={e => setFinalBonus(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Valor extra para o motorista como reconhecimento.</p>
+                  {/* Valor fixo do turno */}
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <p className="text-sm text-muted-foreground">Valor do turno</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      R$ {(endingJob.fixed_value ?? 0).toFixed(2)}
+                    </p>
                   </div>
+
+                  {/* Toggle bônus */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="bonus-toggle" className="text-sm font-medium">Adicionar Bônus/Gratificação?</Label>
+                    <Switch
+                      id="bonus-toggle"
+                      checked={showFinalBonus}
+                      onCheckedChange={(v) => { setShowFinalBonus(v); if (!v) setFinalBonus(""); }}
+                    />
+                  </div>
+
+                  {showFinalBonus && (
+                    <div className="space-y-2">
+                      <Label>Valor do bônus (R$)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={finalBonus}
+                        onChange={e => setFinalBonus(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">Valor extra como reconhecimento. Não altera o valor do turno.</p>
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <Button variant="outline" className="flex-1" onClick={() => setShiftEndMode("choose")}>Voltar</Button>
                     <Button className="flex-1" onClick={handleFinalizeShift} disabled={savingShiftEnd}>
-                      {savingShiftEnd ? "Finalizando..." : "Finalizar Turno"}
+                      {savingShiftEnd ? "Finalizando..." : "Confirmar e Finalizar"}
                     </Button>
                   </div>
                 </div>
