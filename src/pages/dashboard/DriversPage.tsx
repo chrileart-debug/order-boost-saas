@@ -274,7 +274,7 @@ const DriversPage = () => {
   const handleFinalizeShift = async () => {
     if (!endingJob) return;
     setSavingShiftEnd(true);
-    const bonus = finalBonus ? parseFloat(finalBonus) : 0;
+    const bonus = showFinalBonus && finalBonus ? parseFloat(finalBonus) : 0;
     const { error } = await supabase.from("jobs").update({
       status: "completed",
       bonus_value: (endingJob.bonus_value || 0) + bonus,
@@ -282,11 +282,24 @@ const DriversPage = () => {
     setSavingShiftEnd(false);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Turno finalizado!", description: "O turno foi encerrado com sucesso." });
-      // The review drawer will open via realtime listener
-      setEndingJob(null);
-      fetchJobs();
+      return;
+    }
+    toast({ title: "Turno finalizado!", description: "O turno foi encerrado com sucesso." });
+    // Directly open review without relying on realtime
+    const { data: apps } = await supabase.from("job_applications").select("driver_id")
+      .eq("job_id", endingJob.id).in("status", ["contracted", "confirmed"]).limit(1);
+    const completedJob = { ...endingJob, status: "completed" };
+    setEndingJob(null);
+    fetchJobs();
+    if (apps?.[0]?.driver_id) {
+      const driverId = apps[0].driver_id;
+      const { data: p } = await supabase.from("profiles").select("full_name").eq("id", driverId!).maybeSingle();
+      setReviewDriverId(driverId);
+      setReviewDriverName(p?.full_name || "Motorista");
+      setReviewJob(completedJob as Job);
+      setReviewRating(5);
+      setReviewTags([]);
+      setReviewComment("");
     }
   };
 
