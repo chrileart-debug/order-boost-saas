@@ -14,6 +14,7 @@ import DashboardHome from "./pages/dashboard/DashboardHome";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import LogisticsPage from "./pages/dashboard/LogisticsPage";
+import DriversPage from "./pages/dashboard/DriversPage";
 import CouponsPage from "./pages/dashboard/CouponsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
 import SubscriptionPage from "./pages/dashboard/SubscriptionPage";
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="orders" element={<OrdersPage />} />
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="logistics" element={<LogisticsPage />} />
+                <Route path="drivers" element={<DriversPage />} />
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="subscription" element={<SubscriptionPage />} />
                 <Route path="settings" element={<SettingsPage />} />
