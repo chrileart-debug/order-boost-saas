@@ -319,6 +319,7 @@ const DriversPage = () => {
   };
 
 
+  const fetchAll = async () => {
     if (!establishment) return;
     setLoadingData(true);
     await Promise.all([fetchApplicants(), fetchFleet(), fetchJobs()]);
