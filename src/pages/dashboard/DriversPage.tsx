@@ -332,7 +332,7 @@ const DriversPage = () => {
     if (!establishment) return;
     const { data } = await supabase
       .from("jobs")
-      .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at, start_time, end_time, requirements")
+      .select("id, title, status, shift_type, hiring_type, payment_type, fixed_value, km_value, created_at, start_time, end_time, requirements, bonus_value, extended_minutes, extension_confirmed")
       .eq("establishment_id", establishment.id)
       .order("created_at", { ascending: false });
     setJobs((data || []) as Job[]);
