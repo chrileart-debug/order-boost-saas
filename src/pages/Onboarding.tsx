@@ -98,6 +98,11 @@ const Onboarding = () => {
       payload.plan_status = "trialing";
       const { data } = await supabase.from("establishments").insert(payload).select().single();
       if (data) setEstablishmentId(data.id);
+      // Ensure owner role exists
+      await supabase.from("user_roles").upsert(
+        { user_id: user.id, role: "owner" as any },
+        { onConflict: "user_id,role" }
+      );
     }
     setSaving(false);
     setStep(2);

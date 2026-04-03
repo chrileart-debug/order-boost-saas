@@ -2,6 +2,8 @@ import { getPublicStoreUrl } from "@/lib/publicStoreUrl";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +19,8 @@ import { NavLink } from "@/components/NavLink";
 import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
+
 const menuItems = [
   { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
   { title: "Pedidos", url: "/dashboard/orders", icon: ShoppingBag },
@@ -31,8 +35,20 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { establishment } = useEstablishment();
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.rpc("has_role", { _user_id: user.id, _role: "owner" }).then(({ data }) => {
+      setIsOwner(!!data);
+    });
+  }, [user]);
+
+  const visibleItems = menuItems.filter(
+    (item) => !ownerOnlyPaths.includes(item.url) || isOwner
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -45,7 +61,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink to={item.url} end={item.url === "/dashboard"} className="hover:bg-accent/50" activeClassName="bg-accent text-primary font-medium">
