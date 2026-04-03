@@ -147,6 +147,7 @@ const DriversPage = () => {
   const [offerBonus, setOfferBonus] = useState(false);
   const [bonusValue, setBonusValue] = useState("");
   const [finalBonus, setFinalBonus] = useState("");
+  const [showFinalBonus, setShowFinalBonus] = useState(false);
   const [savingShiftEnd, setSavingShiftEnd] = useState(false);
   const shiftEndProcessedRef = useRef<Set<string>>(new Set());
 
