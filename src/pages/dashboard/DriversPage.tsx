@@ -507,9 +507,15 @@ const DriversPage = () => {
                 Interessado na vaga: <strong>{selectedApplicant.job_title}</strong>
               </p>
 
-              <Button className="w-full" onClick={() => handleHire(selectedApplicant)} disabled={hiring}>
-                {hiring ? "Contratando..." : "Contratar para este Turno"}
-              </Button>
+              {selectedApplicant.status === "approved" ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center text-sm text-amber-700">
+                  Aprovado — aguardando confirmação de presença do motorista.
+                </div>
+              ) : (
+                <Button className="w-full" onClick={() => handleApprove(selectedApplicant)} disabled={hiring}>
+                  {hiring ? "Aprovando..." : "Aprovar Motorista"}
+                </Button>
+              )}
             </div>
           )}
         </DialogContent>
