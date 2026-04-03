@@ -235,35 +235,19 @@ const DriversPage = () => {
     setJobs((data || []) as Job[]);
   };
 
-  const handleHire = async (applicant: Applicant) => {
+  const handleApprove = async (applicant: Applicant) => {
     if (!establishment) return;
     setHiring(true);
 
-    // Update application status
-    const { error: updateErr } = await supabase
+    const { error } = await supabase
       .from("job_applications")
-      .update({ status: "accepted" } as any)
+      .update({ status: "approved" } as any)
       .eq("id", applicant.application_id);
 
-    if (updateErr) {
-      toast({ title: "Erro ao aceitar", description: updateErr.message, variant: "destructive" });
-      setHiring(false);
-      return;
-    }
-
-    // Add to fleet_history
-    const { error: insertErr } = await supabase
-      .from("fleet_history")
-      .insert({
-        establishment_id: establishment.id,
-        driver_id: applicant.driver_id,
-        is_active: true,
-      } as any);
-
-    if (insertErr) {
-      toast({ title: "Erro ao adicionar à frota", description: insertErr.message, variant: "destructive" });
+    if (error) {
+      toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Motorista contratado!", description: `${applicant.full_name} foi adicionado à sua frota.` });
+      toast({ title: "Motorista aprovado!", description: `${applicant.full_name} foi aprovado. Aguardando confirmação de presença.` });
       setSelectedApplicant(null);
       fetchAll();
     }
