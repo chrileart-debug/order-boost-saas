@@ -247,6 +247,13 @@ const DriversPage = () => {
           fetchApplicants();
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "fleet_history", filter: `establishment_id=eq.${establishment.id}` },
+        () => {
+          fetchFleet();
+        }
+      )
       .subscribe();
 
     return () => {
