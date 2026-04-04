@@ -1320,8 +1320,8 @@ const DriversPage = () => {
       </Sheet>
 
       {/* ============ SHEET FINAL DE TURNO ============ */}
-      <Sheet open={!!endingJob} onOpenChange={(open) => { if (!open) setEndingJob(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+      <Sheet open={!!endingJob} onOpenChange={() => { /* Non-dismissible */ }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto [&>button.absolute]:hidden" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-500" />
