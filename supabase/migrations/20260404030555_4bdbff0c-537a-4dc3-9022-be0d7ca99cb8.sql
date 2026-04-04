@@ -1,0 +1,1 @@
+ALTER TABLE public.driver_reviews DROP CONSTRAINT driver_reviews_unique;
