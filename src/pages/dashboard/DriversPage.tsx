@@ -411,14 +411,42 @@ const DriversPage = () => {
       reviewComment,
     ].filter(Boolean).join(" — ");
 
-    // UPSERT based on job_id to prevent duplicates
-    const { error } = await supabase.from("driver_reviews").upsert({
-      driver_id: reviewDriverId,
-      establishment_id: establishment.id,
-      rating: reviewRating,
-      comment: fullComment || null,
-      job_id: reviewJob?.id || null,
-    } as any, { onConflict: "driver_id,establishment_id,job_id" });
+    // Check if review already exists for this job to prevent duplicate key error
+    const jobId = reviewJob?.id || null;
+    let error: any = null;
+    if (jobId) {
+      const { data: existing } = await supabase
+        .from("driver_reviews")
+        .select("id")
+        .eq("driver_id", reviewDriverId)
+        .eq("job_id", jobId)
+        .maybeSingle();
+      if (existing) {
+        const { error: updateErr } = await supabase.from("driver_reviews").update({
+          rating: reviewRating,
+          comment: fullComment || null,
+        }).eq("id", existing.id);
+        error = updateErr;
+      } else {
+        const { error: insertErr } = await supabase.from("driver_reviews").insert({
+          driver_id: reviewDriverId,
+          establishment_id: establishment.id,
+          rating: reviewRating,
+          comment: fullComment || null,
+          job_id: jobId,
+        });
+        error = insertErr;
+      }
+    } else {
+      const { error: insertErr } = await supabase.from("driver_reviews").insert({
+        driver_id: reviewDriverId,
+        establishment_id: establishment.id,
+        rating: reviewRating,
+        comment: fullComment || null,
+        job_id: null,
+      });
+      error = insertErr;
+    }
 
     setSavingReview(false);
     if (error) {
@@ -1292,8 +1320,8 @@ const DriversPage = () => {
       </Sheet>
 
       {/* ============ SHEET FINAL DE TURNO ============ */}
-      <Sheet open={!!endingJob} onOpenChange={(open) => { if (!open) setEndingJob(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+      <Sheet open={!!endingJob} onOpenChange={() => { /* Non-dismissible */ }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto [&>button.absolute]:hidden" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()} onInteractOutside={(e) => e.preventDefault()}>
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-500" />
