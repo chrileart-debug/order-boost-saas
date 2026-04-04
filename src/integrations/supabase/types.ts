@@ -254,7 +254,9 @@ export type Database = {
           has_machine: boolean | null
           id: string
           is_onboarding_complete: boolean | null
+          lat: number | null
           license_plate: string | null
+          lng: number | null
           profile_photo_url: string | null
           rating_avg: number | null
           total_deliveries: number | null
@@ -274,7 +276,9 @@ export type Database = {
           has_machine?: boolean | null
           id: string
           is_onboarding_complete?: boolean | null
+          lat?: number | null
           license_plate?: string | null
+          lng?: number | null
           profile_photo_url?: string | null
           rating_avg?: number | null
           total_deliveries?: number | null
@@ -294,7 +298,9 @@ export type Database = {
           has_machine?: boolean | null
           id?: string
           is_onboarding_complete?: boolean | null
+          lat?: number | null
           license_plate?: string | null
+          lng?: number | null
           profile_photo_url?: string | null
           rating_avg?: number | null
           total_deliveries?: number | null
