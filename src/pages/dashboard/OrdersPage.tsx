@@ -522,10 +522,24 @@ const OrdersPage = () => {
               {[1, 2].map(i => <Skeleton key={i} className="h-16 rounded-lg" />)}
             </div>
           ) : fleetDrivers.length === 0 ? (
-            <div className="text-center py-6">
+            <div className="text-center py-6 space-y-4">
               <Truck className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Nenhum motorista ativo na sua frota.</p>
-              <p className="text-xs text-muted-foreground mt-1">Contrate motoristas na página de Motoristas.</p>
+              <p className="text-sm text-muted-foreground">Nenhum motorista da frota online.</p>
+              <p className="text-xs text-muted-foreground">Você pode despachar sem motorista e fazer a entrega por conta própria.</p>
+              <Button
+                className="w-full"
+                disabled={assigningDriver}
+                onClick={async () => {
+                  if (!driverModalOrderId) return;
+                  setAssigningDriver(true);
+                  await updateStatus(driverModalOrderId, "shipping");
+                  toast({ title: "Pedido despachado!", description: "Pedido enviado para entrega sem motorista." });
+                  setDriverModalOrderId(null);
+                  setAssigningDriver(false);
+                }}
+              >
+                Despachar sem motorista
+              </Button>
             </div>
           ) : (
             <div className="space-y-2 mt-2 max-h-[50vh] overflow-y-auto">
