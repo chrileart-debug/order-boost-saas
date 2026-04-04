@@ -359,10 +359,9 @@ const DriversPage = () => {
     setSavingShiftEnd(true);
     const bonus = offerBonus && bonusValue ? parseFloat(bonusValue) : 0;
     const { error } = await supabase.from("jobs").update({
-      extended_minutes: extendMinutes,
-      bonus_value: bonus,
+      extended_minutes: (endingJob.extended_minutes || 0) + extendMinutes,
+      bonus_value: (endingJob.bonus_value || 0) + bonus,
       extension_confirmed: false,
-      status: "open",
     } as any).eq("id", endingJob.id);
     setSavingShiftEnd(false);
     if (error) {
