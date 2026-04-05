@@ -1058,10 +1058,16 @@ const DriversPage = () => {
                       <span className="text-muted-foreground">Veículo:</span>
                       <span className="flex items-center gap-1 text-foreground">{vehicleIcon(selectedApplicant.vehicle_type)} {vehicleLabel(selectedApplicant.vehicle_type)}</span>
                     </div>
-                    {selectedApplicant.has_bag && <div className="flex items-center gap-2"><span className="text-muted-foreground">Bag térmica:</span><Badge variant="secondary" className="text-xs">Sim</Badge></div>}
-                    {selectedApplicant.has_machine && <div className="flex items-center gap-2"><span className="text-muted-foreground">Maquininha:</span><Badge variant="secondary" className="text-xs">Sim</Badge></div>}
-                    {selectedApplicant.cnh_number && <div className="flex items-center gap-2"><span className="text-muted-foreground">CNH:</span><span className="text-foreground">{selectedApplicant.cnh_number}</span></div>}
-                    {selectedApplicant.cnh_category && <div className="flex items-center gap-2"><span className="text-muted-foreground">Categoria:</span><span className="text-foreground">{selectedApplicant.cnh_category}</span></div>}
+                    {selectedApplicant.vehicle_type === "moto" && selectedApplicant.vehicle_details && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Detalhes:</span>
+                        <span className="text-foreground">
+                          {[selectedApplicant.vehicle_details.modelo, selectedApplicant.vehicle_details.ano_modelo, selectedApplicant.vehicle_details.cidade && selectedApplicant.vehicle_details.uf_jurisdicao ? `${selectedApplicant.vehicle_details.cidade}/${selectedApplicant.vehicle_details.uf_jurisdicao}` : null].filter(Boolean).join(" - ")}
+                        </span>
+                      </div>
+                    )}
+                    {selectedApplicant.cnh_category && <div className="flex items-center gap-2"><span className="text-muted-foreground">CNH:</span><span className="text-foreground">Categoria {selectedApplicant.cnh_category}</span></div>}
+                    <div className="flex items-center gap-2"><span className="text-muted-foreground">Bag térmica:</span><span className="text-foreground">{selectedApplicant.has_bag ? "Sim" : "Não"}</span></div>
                     {selectedApplicant.address_neighborhood && <div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-muted-foreground" /><span className="text-foreground">{selectedApplicant.address_neighborhood}{selectedApplicant.address_city ? `, ${selectedApplicant.address_city}` : ""}</span></div>}
                     {selectedApplicant.phone && <div className="flex items-center gap-2"><span className="text-muted-foreground">Telefone:</span><span className="text-foreground">{selectedApplicant.phone}</span></div>}
                   </div>
@@ -1156,11 +1162,15 @@ const DriversPage = () => {
                 </div>
               </div>
 
-              {(selectedFleetMember.cnh_number || selectedFleetMember.cnh_category) && (
+              {(selectedFleetMember.cnh_category || selectedFleetMember.vehicle_details) && (
                 <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
-                  <p className="font-medium text-foreground">CNH</p>
-                  {selectedFleetMember.cnh_number && <p className="text-muted-foreground">Número: {selectedFleetMember.cnh_number}</p>}
-                  {selectedFleetMember.cnh_category && <p className="text-muted-foreground">Categoria: {selectedFleetMember.cnh_category}</p>}
+                  {selectedFleetMember.cnh_category && <p className="text-muted-foreground">CNH: Categoria {selectedFleetMember.cnh_category}</p>}
+                  {selectedFleetMember.vehicle_type === "moto" && selectedFleetMember.vehicle_details && (
+                    <p className="text-muted-foreground">
+                      Detalhes: {[selectedFleetMember.vehicle_details.modelo, selectedFleetMember.vehicle_details.ano_modelo, selectedFleetMember.vehicle_details.cidade && selectedFleetMember.vehicle_details.uf_jurisdicao ? `${selectedFleetMember.vehicle_details.cidade}/${selectedFleetMember.vehicle_details.uf_jurisdicao}` : null].filter(Boolean).join(" - ")}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground">Bag térmica: {selectedFleetMember.has_bag ? "Sim" : "Não"}</p>
                 </div>
               )}
 
