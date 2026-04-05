@@ -360,6 +360,7 @@ const OrdersPage = () => {
     return (
       <div className="space-y-4">
         {filtered.map(order => {
+          const config = statusConfig[order.status] || { label: order.status, icon: Clock, color: "bg-muted text-muted-foreground" };
           const items = orderItems[order.id] || [];
           const date = new Date(order.created_at);
           const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -372,7 +373,7 @@ const OrdersPage = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-foreground text-lg">#{order.id.slice(0, 6).toUpperCase()}</span>
-                      <Badge variant="secondary" className={config?.color}>{config?.label}</Badge>
+                      <Badge variant="secondary" className={config.color}>{config.label}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{order.customer_name}{order.customer_phone ? ` • ${order.customer_phone}` : ""}</p>
                     <p className="text-xs text-muted-foreground">{dateStr}</p>
