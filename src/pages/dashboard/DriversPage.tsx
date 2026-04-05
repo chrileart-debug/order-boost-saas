@@ -655,6 +655,21 @@ const DriversPage = () => {
     setHiring(false);
   };
 
+  const handleReject = async (e: React.MouseEvent, applicant: Applicant) => {
+    e.stopPropagation();
+    const { error } = await supabase
+      .from("job_applications")
+      .update({ status: "rejected" } as any)
+      .eq("id", applicant.application_id);
+
+    if (error) {
+      toast({ title: "Erro ao rejeitar", description: error.message, variant: "destructive" });
+    } else {
+      setApplicants(prev => prev.filter(a => a.application_id !== applicant.application_id));
+      toast({ title: "Candidato removido" });
+    }
+  };
+
   const openJobSheet = (job?: Job) => {
     if (job) {
       // Only allow editing drafts
