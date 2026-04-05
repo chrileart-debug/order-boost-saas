@@ -937,11 +937,20 @@ const DriversPage = () => {
                         {a.has_bag && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Bag</Badge>}
                       </div>
                     </div>
-                    {a.status === "approved" ? (
-                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100 shrink-0 text-[10px]">Aguardando Confirmação</Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-blue-600 border-blue-300 shrink-0 text-[10px]">Novo</Badge>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {a.status === "approved" ? (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-100 text-[10px]">Aguardando</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-blue-600 border-blue-300 text-[10px]">Novo</Badge>
+                      )}
+                      <button
+                        onClick={(e) => handleReject(e, a)}
+                        className="p-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Remover candidato"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
