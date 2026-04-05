@@ -14,11 +14,15 @@ import { useToast } from "@/hooks/use-toast";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning/10 text-warning" },
   preparing: { label: "Preparando", icon: ChefHat, color: "bg-primary/10 text-primary" },
+  waiting_pickup: { label: "Aguardando Coleta", icon: PackageCheck, color: "bg-orange-100 text-orange-600" },
+  on_way_to_pickup: { label: "Motorista a Caminho", icon: Navigation, color: "bg-orange-200 text-orange-700" },
+  in_transit: { label: "Em Entrega", icon: Package, color: "bg-green-100 text-green-700" },
   shipping: { label: "Entrega", icon: Truck, color: "bg-blue-100 text-blue-700" },
   completed: { label: "Concluído", icon: CheckCircle, color: "bg-success/10 text-success" },
+  delivered: { label: "Entregue", icon: CheckCircle, color: "bg-success/10 text-success" },
 };
 
 const formatPrice = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
