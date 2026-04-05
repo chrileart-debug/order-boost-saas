@@ -360,7 +360,8 @@ const OrdersPage = () => {
     return (
       <div className="space-y-4">
         {filtered.map(order => {
-          const config = statusConfig[order.status] || { label: order.status, icon: Clock, color: "bg-muted text-muted-foreground" };
+          const items = orderItems[order.id] || [];
+          const date = new Date(order.created_at);
           const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
           return (
@@ -509,12 +510,13 @@ const OrdersPage = () => {
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
           <TabsTrigger value="preparing">Preparando</TabsTrigger>
-          <TabsTrigger value="shipping">Entrega</TabsTrigger>
+          <TabsTrigger value="delivery">Entrega</TabsTrigger>
           <TabsTrigger value="completed">Concluídos</TabsTrigger>
         </TabsList>
-        {Object.keys(statusConfig).map(s => (
-          <TabsContent key={s} value={s}>{renderOrders(s)}</TabsContent>
-        ))}
+        <TabsContent value="pending">{renderOrders(["pending"])}</TabsContent>
+        <TabsContent value="preparing">{renderOrders(["preparing"])}</TabsContent>
+        <TabsContent value="delivery">{renderOrders(deliveryStatuses)}</TabsContent>
+        <TabsContent value="completed">{renderOrders(finishedStatuses)}</TabsContent>
       </Tabs>
 
       {/* Driver Selection Modal */}
