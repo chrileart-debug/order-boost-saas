@@ -608,6 +608,7 @@ export type Database = {
       job_applications: {
         Row: {
           applied_at: string | null
+          confirmed_at: string | null
           driver_id: string | null
           id: string
           job_id: string | null
@@ -615,6 +616,7 @@ export type Database = {
         }
         Insert: {
           applied_at?: string | null
+          confirmed_at?: string | null
           driver_id?: string | null
           id?: string
           job_id?: string | null
@@ -622,6 +624,7 @@ export type Database = {
         }
         Update: {
           applied_at?: string | null
+          confirmed_at?: string | null
           driver_id?: string | null
           id?: string
           job_id?: string | null
