@@ -167,8 +167,8 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     );
   }
 
-  const activeOrders = orders.filter((o) => ["pending", "preparing", "shipping"].includes(o.status));
-  const pastOrders = orders.filter((o) => o.status === "completed").slice(0, 5);
+  const activeOrders = orders.filter((o) => ["pending", "preparing", "waiting_pickup", "on_way_to_pickup", "in_transit", "shipping"].includes(o.status));
+  const pastOrders = orders.filter((o) => ["completed", "delivered"].includes(o.status)).slice(0, 5);
 
   return (
     <div className="px-4 md:px-8 py-4 space-y-6">
