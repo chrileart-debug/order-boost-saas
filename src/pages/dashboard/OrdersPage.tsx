@@ -545,8 +545,8 @@ const OrdersPage = () => {
                 onClick={async () => {
                   if (!driverModalOrderId) return;
                   setAssigningDriver(true);
-                  await updateStatus(driverModalOrderId, "shipping");
-                  toast({ title: "Pedido despachado!", description: "Pedido enviado para entrega sem motorista." });
+                  await updateStatus(driverModalOrderId, "in_transit");
+                  toast({ title: "Pedido despachado!", description: "Pedido em entrega sem motorista." });
                   setDriverModalOrderId(null);
                   setAssigningDriver(false);
                 }}
