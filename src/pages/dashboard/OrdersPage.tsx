@@ -212,7 +212,7 @@ const OrdersPage = () => {
     setOrders(orders.map(o => o.id === orderId ? { ...o, ...updateData } : o));
   };
 
-  const nextStatus: Record<string, string> = { pending: "preparing", preparing: "shipping", shipping: "completed" };
+  const nextStatus: Record<string, string> = { pending: "preparing" };
 
   /* ─── Fetch fleet drivers for modal ─── */
   const openDriverModal = async (orderId: string) => {
@@ -267,11 +267,11 @@ const OrdersPage = () => {
     if (!driverModalOrderId) return;
     setAssigningDriver(true);
 
-    await updateStatus(driverModalOrderId, "shipping", { driver_id: driver.driver_id } as any);
+    await updateStatus(driverModalOrderId, "waiting_pickup", { driver_id: driver.driver_id } as any);
 
     toast({
       title: "Motorista designado!",
-      description: `${driver.full_name} foi atribuído ao pedido.`,
+      description: `${driver.full_name} foi atribuído. Aguardando coleta.`,
     });
 
     setDriverModalOrderId(null);
@@ -349,17 +349,18 @@ const OrdersPage = () => {
     printWindow.document.close();
   }, [orderItems]);
 
-  const renderOrders = (status: string) => {
-    const filtered = orders.filter(o => o.status === status);
+  const deliveryStatuses = ["waiting_pickup", "on_way_to_pickup", "in_transit", "shipping"];
+  const finishedStatuses = ["completed", "delivered"];
+
+  const renderOrders = (filterStatuses: string[]) => {
+    const filtered = orders.filter(o => filterStatuses.includes(o.status));
     if (filtered.length === 0) {
-      return <p className="text-muted-foreground text-center py-8">Nenhum pedido {statusConfig[status as keyof typeof statusConfig]?.label.toLowerCase()}.</p>;
+      return <p className="text-muted-foreground text-center py-8">Nenhum pedido nesta categoria.</p>;
     }
     return (
       <div className="space-y-4">
         {filtered.map(order => {
-          const config = statusConfig[order.status as keyof typeof statusConfig];
-          const items = orderItems[order.id] || [];
-          const date = new Date(order.created_at);
+          const config = statusConfig[order.status] || { label: order.status, icon: Clock, color: "bg-muted text-muted-foreground" };
           const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
           return (
