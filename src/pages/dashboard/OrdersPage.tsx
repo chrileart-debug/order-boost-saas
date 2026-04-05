@@ -9,20 +9,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX, Bike, Car, Ban, Star, PackageCheck, Navigation, Package } from "lucide-react";
+import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX, Bike, Car, Ban, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
+const statusConfig = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning/10 text-warning" },
   preparing: { label: "Preparando", icon: ChefHat, color: "bg-primary/10 text-primary" },
-  waiting_pickup: { label: "Aguardando Coleta", icon: PackageCheck, color: "bg-orange-100 text-orange-600" },
-  on_way_to_pickup: { label: "Motorista a Caminho", icon: Navigation, color: "bg-orange-200 text-orange-700" },
-  in_transit: { label: "Em Entrega", icon: Package, color: "bg-green-100 text-green-700" },
   shipping: { label: "Entrega", icon: Truck, color: "bg-blue-100 text-blue-700" },
   completed: { label: "Concluído", icon: CheckCircle, color: "bg-success/10 text-success" },
-  delivered: { label: "Entregue", icon: CheckCircle, color: "bg-success/10 text-success" },
 };
 
 const formatPrice = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -212,7 +208,7 @@ const OrdersPage = () => {
     setOrders(orders.map(o => o.id === orderId ? { ...o, ...updateData } : o));
   };
 
-  const nextStatus: Record<string, string> = { pending: "preparing" };
+  const nextStatus: Record<string, string> = { pending: "preparing", preparing: "shipping", shipping: "completed" };
 
   /* ─── Fetch fleet drivers for modal ─── */
   const openDriverModal = async (orderId: string) => {
@@ -267,11 +263,11 @@ const OrdersPage = () => {
     if (!driverModalOrderId) return;
     setAssigningDriver(true);
 
-    await updateStatus(driverModalOrderId, "waiting_pickup", { driver_id: driver.driver_id } as any);
+    await updateStatus(driverModalOrderId, "shipping", { driver_id: driver.driver_id } as any);
 
     toast({
       title: "Motorista designado!",
-      description: `${driver.full_name} foi atribuído. Aguardando coleta.`,
+      description: `${driver.full_name} foi atribuído ao pedido.`,
     });
 
     setDriverModalOrderId(null);
@@ -349,18 +345,15 @@ const OrdersPage = () => {
     printWindow.document.close();
   }, [orderItems]);
 
-  const deliveryStatuses = ["waiting_pickup", "on_way_to_pickup", "in_transit", "shipping"];
-  const finishedStatuses = ["completed", "delivered"];
-
-  const renderOrders = (filterStatuses: string[]) => {
-    const filtered = orders.filter(o => filterStatuses.includes(o.status));
+  const renderOrders = (status: string) => {
+    const filtered = orders.filter(o => o.status === status);
     if (filtered.length === 0) {
-      return <p className="text-muted-foreground text-center py-8">Nenhum pedido nesta categoria.</p>;
+      return <p className="text-muted-foreground text-center py-8">Nenhum pedido {statusConfig[status as keyof typeof statusConfig]?.label.toLowerCase()}.</p>;
     }
     return (
       <div className="space-y-4">
         {filtered.map(order => {
-          const config = statusConfig[order.status] || { label: order.status, icon: Clock, color: "bg-muted text-muted-foreground" };
+          const config = statusConfig[order.status as keyof typeof statusConfig];
           const items = orderItems[order.id] || [];
           const date = new Date(order.created_at);
           const dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -373,7 +366,7 @@ const OrdersPage = () => {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-foreground text-lg">#{order.id.slice(0, 6).toUpperCase()}</span>
-                      <Badge variant="secondary" className={config.color}>{config.label}</Badge>
+                      <Badge variant="secondary" className={config?.color}>{config?.label}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{order.customer_name}{order.customer_phone ? ` • ${order.customer_phone}` : ""}</p>
                     <p className="text-xs text-muted-foreground">{dateStr}</p>
@@ -511,13 +504,12 @@ const OrdersPage = () => {
         <TabsList className="grid grid-cols-4 w-full max-w-lg">
           <TabsTrigger value="pending">Pendentes</TabsTrigger>
           <TabsTrigger value="preparing">Preparando</TabsTrigger>
-          <TabsTrigger value="delivery">Entrega</TabsTrigger>
+          <TabsTrigger value="shipping">Entrega</TabsTrigger>
           <TabsTrigger value="completed">Concluídos</TabsTrigger>
         </TabsList>
-        <TabsContent value="pending">{renderOrders(["pending"])}</TabsContent>
-        <TabsContent value="preparing">{renderOrders(["preparing"])}</TabsContent>
-        <TabsContent value="delivery">{renderOrders(deliveryStatuses)}</TabsContent>
-        <TabsContent value="completed">{renderOrders(finishedStatuses)}</TabsContent>
+        {Object.keys(statusConfig).map(s => (
+          <TabsContent key={s} value={s}>{renderOrders(s)}</TabsContent>
+        ))}
       </Tabs>
 
       {/* Driver Selection Modal */}
@@ -545,8 +537,8 @@ const OrdersPage = () => {
                 onClick={async () => {
                   if (!driverModalOrderId) return;
                   setAssigningDriver(true);
-                  await updateStatus(driverModalOrderId, "in_transit");
-                  toast({ title: "Pedido despachado!", description: "Pedido em entrega sem motorista." });
+                  await updateStatus(driverModalOrderId, "shipping");
+                  toast({ title: "Pedido despachado!", description: "Pedido enviado para entrega sem motorista." });
                   setDriverModalOrderId(null);
                   setAssigningDriver(false);
                 }}

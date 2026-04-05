@@ -19,12 +19,8 @@ interface Props {
 const statusConfig: Record<string, { label: string; icon: any; color: string }> = {
   pending: { label: "Pendente", icon: Clock, color: "bg-warning text-warning-foreground" },
   preparing: { label: "Preparando", icon: ChefHat, color: "bg-primary text-primary-foreground" },
-  waiting_pickup: { label: "Aguardando Coleta", icon: Clock, color: "bg-orange-400 text-white" },
-  on_way_to_pickup: { label: "Motorista a Caminho", icon: Truck, color: "bg-orange-500 text-white" },
-  in_transit: { label: "Em Entrega", icon: Truck, color: "bg-green-500 text-white" },
   shipping: { label: "Saiu para entrega", icon: Truck, color: "bg-primary text-primary-foreground" },
   completed: { label: "Entregue", icon: CheckCircle2, color: "bg-green-500 text-white" },
-  delivered: { label: "Entregue", icon: CheckCircle2, color: "bg-green-500 text-white" },
 };
 
 const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
@@ -167,8 +163,8 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
     );
   }
 
-  const activeOrders = orders.filter((o) => ["pending", "preparing", "waiting_pickup", "on_way_to_pickup", "in_transit", "shipping"].includes(o.status));
-  const pastOrders = orders.filter((o) => ["completed", "delivered"].includes(o.status)).slice(0, 5);
+  const activeOrders = orders.filter((o) => ["pending", "preparing", "shipping"].includes(o.status));
+  const pastOrders = orders.filter((o) => o.status === "completed").slice(0, 5);
 
   return (
     <div className="px-4 md:px-8 py-4 space-y-6">
