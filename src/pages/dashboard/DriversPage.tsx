@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3, Clock, DollarSign, CheckCircle2, MoreVertical, Trash2, EyeOff, Copy } from "lucide-react";
+import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, CreditCard, ShieldCheck, MessageSquare, BarChart3, Clock, DollarSign, CheckCircle2, MoreVertical, Trash2, EyeOff, Copy, XCircle } from "lucide-react";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
