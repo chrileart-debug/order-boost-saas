@@ -20,6 +20,14 @@ import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, Credit
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+type VehicleDetails = {
+  modelo?: string;
+  ano_modelo?: string;
+  cidade?: string;
+  uf_jurisdicao?: string;
+  [key: string]: unknown;
+};
+
 type Applicant = {
   application_id: string;
   driver_id: string;
@@ -32,12 +40,12 @@ type Applicant = {
   has_bag: boolean | null;
   has_machine: boolean | null;
   profile_photo_url: string | null;
-  cnh_number: string | null;
   cnh_category: string | null;
   address_neighborhood: string | null;
   address_city: string | null;
   rating_avg: number | null;
   total_deliveries: number | null;
+  vehicle_details: VehicleDetails | null;
 };
 
 type FleetMember = {
@@ -52,8 +60,8 @@ type FleetMember = {
   profile_photo_url: string | null;
   rating_avg: number | null;
   total_deliveries: number | null;
-  cnh_number?: string | null;
   cnh_category?: string | null;
+  vehicle_details: VehicleDetails | null;
   source: "active_shift" | "available" | "history";
 };
 
@@ -516,12 +524,12 @@ const DriversPage = () => {
         has_bag: driver?.has_bag || false,
         has_machine: driver?.has_machine || false,
         profile_photo_url: driver?.profile_photo_url || null,
-        cnh_number: driver?.cnh_number || null,
         cnh_category: driver?.cnh_category || null,
         address_neighborhood: driver?.address_neighborhood || null,
         address_city: driver?.address_city || null,
         rating_avg: driver?.rating_avg ?? null,
         total_deliveries: driver?.total_deliveries ?? 0,
+        vehicle_details: (driver?.vehicle_details as VehicleDetails) || null,
       };
     });
 
@@ -552,7 +560,7 @@ const DriversPage = () => {
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, phone").in("id", fleetDriverIds),
-      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_number, cnh_category").in("id", fleetDriverIds),
+      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_category, vehicle_details").in("id", fleetDriverIds),
     ]);
 
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
@@ -581,8 +589,8 @@ const DriversPage = () => {
         profile_photo_url: driver?.profile_photo_url || null,
         rating_avg: driver?.rating_avg ?? null,
         total_deliveries: driver?.total_deliveries ?? 0,
-        cnh_number: driver?.cnh_number || null,
         cnh_category: driver?.cnh_category || null,
+        vehicle_details: (driver?.vehicle_details as VehicleDetails) || null,
         source,
       };
     });
@@ -1050,10 +1058,16 @@ const DriversPage = () => {
                       <span className="text-muted-foreground">Veículo:</span>
                       <span className="flex items-center gap-1 text-foreground">{vehicleIcon(selectedApplicant.vehicle_type)} {vehicleLabel(selectedApplicant.vehicle_type)}</span>
                     </div>
-                    {selectedApplicant.has_bag && <div className="flex items-center gap-2"><span className="text-muted-foreground">Bag térmica:</span><Badge variant="secondary" className="text-xs">Sim</Badge></div>}
-                    {selectedApplicant.has_machine && <div className="flex items-center gap-2"><span className="text-muted-foreground">Maquininha:</span><Badge variant="secondary" className="text-xs">Sim</Badge></div>}
-                    {selectedApplicant.cnh_number && <div className="flex items-center gap-2"><span className="text-muted-foreground">CNH:</span><span className="text-foreground">{selectedApplicant.cnh_number}</span></div>}
-                    {selectedApplicant.cnh_category && <div className="flex items-center gap-2"><span className="text-muted-foreground">Categoria:</span><span className="text-foreground">{selectedApplicant.cnh_category}</span></div>}
+                    {selectedApplicant.vehicle_type === "moto" && selectedApplicant.vehicle_details && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Detalhes:</span>
+                        <span className="text-foreground">
+                          {[selectedApplicant.vehicle_details.modelo, selectedApplicant.vehicle_details.ano_modelo, selectedApplicant.vehicle_details.cidade && selectedApplicant.vehicle_details.uf_jurisdicao ? `${selectedApplicant.vehicle_details.cidade}/${selectedApplicant.vehicle_details.uf_jurisdicao}` : null].filter(Boolean).join(" - ")}
+                        </span>
+                      </div>
+                    )}
+                    {selectedApplicant.cnh_category && <div className="flex items-center gap-2"><span className="text-muted-foreground">CNH:</span><span className="text-foreground">Categoria {selectedApplicant.cnh_category}</span></div>}
+                    <div className="flex items-center gap-2"><span className="text-muted-foreground">Bag térmica:</span><span className="text-foreground">{selectedApplicant.has_bag ? "Sim" : "Não"}</span></div>
                     {selectedApplicant.address_neighborhood && <div className="flex items-center gap-2"><MapPin className="w-3 h-3 text-muted-foreground" /><span className="text-foreground">{selectedApplicant.address_neighborhood}{selectedApplicant.address_city ? `, ${selectedApplicant.address_city}` : ""}</span></div>}
                     {selectedApplicant.phone && <div className="flex items-center gap-2"><span className="text-muted-foreground">Telefone:</span><span className="text-foreground">{selectedApplicant.phone}</span></div>}
                   </div>
@@ -1148,11 +1162,15 @@ const DriversPage = () => {
                 </div>
               </div>
 
-              {(selectedFleetMember.cnh_number || selectedFleetMember.cnh_category) && (
+              {(selectedFleetMember.cnh_category || selectedFleetMember.vehicle_details) && (
                 <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
-                  <p className="font-medium text-foreground">CNH</p>
-                  {selectedFleetMember.cnh_number && <p className="text-muted-foreground">Número: {selectedFleetMember.cnh_number}</p>}
-                  {selectedFleetMember.cnh_category && <p className="text-muted-foreground">Categoria: {selectedFleetMember.cnh_category}</p>}
+                  {selectedFleetMember.cnh_category && <p className="text-muted-foreground">CNH: Categoria {selectedFleetMember.cnh_category}</p>}
+                  {selectedFleetMember.vehicle_type === "moto" && selectedFleetMember.vehicle_details && (
+                    <p className="text-muted-foreground">
+                      Detalhes: {[selectedFleetMember.vehicle_details.modelo, selectedFleetMember.vehicle_details.ano_modelo, selectedFleetMember.vehicle_details.cidade && selectedFleetMember.vehicle_details.uf_jurisdicao ? `${selectedFleetMember.vehicle_details.cidade}/${selectedFleetMember.vehicle_details.uf_jurisdicao}` : null].filter(Boolean).join(" - ")}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground">Bag térmica: {selectedFleetMember.has_bag ? "Sim" : "Não"}</p>
                 </div>
               )}
 
