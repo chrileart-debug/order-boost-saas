@@ -216,19 +216,24 @@ const OrdersPage = () => {
     setDriverModalOrderId(orderId);
     setLoadingDrivers(true);
 
-    const { data: fleetData } = await supabase
-      .from("fleet_history")
+    // Fetch drivers with an ACTIVE shift right now (contracted + within start/end time)
+    const now = new Date().toISOString();
+    const { data: activeJobs } = await supabase
+      .from("jobs")
       .select("driver_id")
       .eq("establishment_id", establishment.id)
-      .eq("is_active", true);
+      .in("status", ["contracted", "ending"])
+      .not("driver_id", "is", null)
+      .lte("start_time", now)
+      .gte("end_time", now);
 
-    if (!fleetData?.length) {
+    if (!activeJobs?.length) {
       setFleetDrivers([]);
       setLoadingDrivers(false);
       return;
     }
 
-    const driverIds = fleetData.map(f => f.driver_id).filter(Boolean) as string[];
+    const driverIds = [...new Set(activeJobs.map(j => j.driver_id).filter(Boolean))] as string[];
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
       supabase.from("profiles").select("id, full_name").in("id", driverIds),
