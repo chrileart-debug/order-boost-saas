@@ -256,11 +256,12 @@ export type Database = {
           is_onboarding_complete: boolean | null
           lat: number | null
           license_plate: string | null
+          license_renavam: string | null
           lng: number | null
           profile_photo_url: string | null
           rating_avg: number | null
           total_deliveries: number | null
-          vehicle_model: string | null
+          vehicle_details: Json | null
           vehicle_type: string | null
         }
         Insert: {
@@ -278,11 +279,12 @@ export type Database = {
           is_onboarding_complete?: boolean | null
           lat?: number | null
           license_plate?: string | null
+          license_renavam?: string | null
           lng?: number | null
           profile_photo_url?: string | null
           rating_avg?: number | null
           total_deliveries?: number | null
-          vehicle_model?: string | null
+          vehicle_details?: Json | null
           vehicle_type?: string | null
         }
         Update: {
@@ -300,11 +302,12 @@ export type Database = {
           is_onboarding_complete?: boolean | null
           lat?: number | null
           license_plate?: string | null
+          license_renavam?: string | null
           lng?: number | null
           profile_photo_url?: string | null
           rating_avg?: number | null
           total_deliveries?: number | null
-          vehicle_model?: string | null
+          vehicle_details?: Json | null
           vehicle_type?: string | null
         }
         Relationships: [
