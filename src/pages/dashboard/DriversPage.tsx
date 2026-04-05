@@ -524,12 +524,12 @@ const DriversPage = () => {
         has_bag: driver?.has_bag || false,
         has_machine: driver?.has_machine || false,
         profile_photo_url: driver?.profile_photo_url || null,
-        cnh_number: driver?.cnh_number || null,
         cnh_category: driver?.cnh_category || null,
         address_neighborhood: driver?.address_neighborhood || null,
         address_city: driver?.address_city || null,
         rating_avg: driver?.rating_avg ?? null,
         total_deliveries: driver?.total_deliveries ?? 0,
+        vehicle_details: (driver?.vehicle_details as VehicleDetails) || null,
       };
     });
 
@@ -560,7 +560,7 @@ const DriversPage = () => {
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, phone").in("id", fleetDriverIds),
-      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_number, cnh_category").in("id", fleetDriverIds),
+      supabase.from("driver_profiles").select("id, vehicle_type, has_bag, profile_photo_url, rating_avg, total_deliveries, cnh_category, vehicle_details").in("id", fleetDriverIds),
     ]);
 
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
@@ -589,8 +589,8 @@ const DriversPage = () => {
         profile_photo_url: driver?.profile_photo_url || null,
         rating_avg: driver?.rating_avg ?? null,
         total_deliveries: driver?.total_deliveries ?? 0,
-        cnh_number: driver?.cnh_number || null,
         cnh_category: driver?.cnh_category || null,
+        vehicle_details: (driver?.vehicle_details as VehicleDetails) || null,
         source,
       };
     });
