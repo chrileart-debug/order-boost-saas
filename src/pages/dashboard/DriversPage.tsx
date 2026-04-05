@@ -20,6 +20,14 @@ import { Users, UserCheck, Briefcase, Plus, Star, Bike, Car, Ban, MapPin, Credit
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
+type VehicleDetails = {
+  modelo?: string;
+  ano_modelo?: string;
+  cidade?: string;
+  uf_jurisdicao?: string;
+  [key: string]: unknown;
+};
+
 type Applicant = {
   application_id: string;
   driver_id: string;
@@ -32,12 +40,12 @@ type Applicant = {
   has_bag: boolean | null;
   has_machine: boolean | null;
   profile_photo_url: string | null;
-  cnh_number: string | null;
   cnh_category: string | null;
   address_neighborhood: string | null;
   address_city: string | null;
   rating_avg: number | null;
   total_deliveries: number | null;
+  vehicle_details: VehicleDetails | null;
 };
 
 type FleetMember = {
@@ -52,8 +60,8 @@ type FleetMember = {
   profile_photo_url: string | null;
   rating_avg: number | null;
   total_deliveries: number | null;
-  cnh_number?: string | null;
   cnh_category?: string | null;
+  vehicle_details: VehicleDetails | null;
   source: "active_shift" | "available" | "history";
 };
 
