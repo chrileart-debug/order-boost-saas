@@ -158,16 +158,16 @@ export default function SupportChat({
   };
 
   const isSystemMessage = (msg: Message) =>
-    msg.sender_name === "Sistema" || msg.content.startsWith("📋");
+    msg.sender_name === "Sistema";
 
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 px-3 py-2">
-        <div className="space-y-1.5">
+        <div className="space-y-2.5">
           {timelineMessages.map((item, idx) => {
             if (item.type === "separator") {
               return (
-                <div key={`sep-${idx}`} className="flex items-center gap-2 my-3">
+                <div key={`sep-${idx}`} className="flex items-center gap-2 my-5">
                   <div className="flex-1 h-px bg-border" />
                   <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-[11px] text-muted-foreground whitespace-nowrap">
                     <Pin className="h-3 w-3 shrink-0" />
@@ -186,7 +186,7 @@ export default function SupportChat({
 
             if (isSystem) {
               return (
-                <div key={msg.id} className="flex justify-center my-1">
+                <div key={msg.id} className="flex justify-center my-4">
                   <div className="flex items-center gap-1.5 bg-muted/60 rounded-lg px-3 py-1.5 max-w-[85%]">
                     <Info className="h-3 w-3 text-muted-foreground shrink-0" />
                     <p className="text-[11px] text-muted-foreground leading-relaxed">

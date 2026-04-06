@@ -124,14 +124,6 @@ export default function SupportPage() {
       .single();
 
     if (data && !error) {
-      // Send intro message
-      await supabase.from("support_messages").insert({
-        ticket_id: data.id,
-        sender_id: user.id,
-        sender_name: establishment.name || "Lojista",
-        content: `📋 Assunto: ${selectedSubject.label} · 🔹 Detalhe: ${option}`,
-      });
-
       const newTicket: TicketMeta = {
         id: data.id,
         subject: fullSubject,
