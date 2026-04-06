@@ -324,8 +324,8 @@ const SubscriptionPage = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-2">
+            <CardContent className="flex-1 flex flex-col space-y-4">
+              <ul className="space-y-2 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-foreground">
                     <Check className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
