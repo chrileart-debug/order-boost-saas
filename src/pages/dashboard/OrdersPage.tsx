@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Clock, ChefHat, Truck, CheckCircle, Printer, MapPin, CreditCard, Tag, Volume2, VolumeX, Bike, Car, Ban, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import UpgradeBanner from "@/components/UpgradeBanner";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
@@ -488,6 +490,10 @@ const OrdersPage = () => {
       </div>
     );
   };
+
+  if (establishment?.plan_name === "free") {
+    return <UpgradeBanner message="A gestão de pedidos está disponível a partir do Plano Essential." />;
+  }
 
   if (loading) {
     return (

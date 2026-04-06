@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Truck, Plus, Trash2, MapPin, Package, Crown } from "lucide-react";
+import UpgradeBanner from "@/components/UpgradeBanner";
 import MaskedInput from "@/components/MaskedInput";
 import { getPlanLimits } from "@/lib/planLimits";
 import { useNavigate } from "react-router-dom";
@@ -136,6 +137,10 @@ const LogisticsPage = () => {
     await supabase.from("delivery_rules" as any).update({ is_active: !r.is_active }).eq("id", r.id);
     fetchRules(establishment.id);
   };
+
+  if (establishment?.plan_name === "free") {
+    return <UpgradeBanner message="A logística de entrega está disponível a partir do Plano Essential." />;
+  }
 
   if (estLoading) {
     return (
