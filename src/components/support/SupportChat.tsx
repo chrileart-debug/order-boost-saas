@@ -40,9 +40,8 @@ export default function SupportChat({
   allTickets,
 }: SupportChatProps) {
   const { user } = useAuth();
-  const [timelineMessages, setTimelineMessages] = useState<
-    { type: "separator"; subject: string; date: string } | { type: "msg"; msg: Message }
-  >([]);
+  type TimelineItem = { type: "separator"; subject: string; date: string } | { type: "msg"; msg: Message };
+  const [timelineMessages, setTimelineMessages] = useState<TimelineItem[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
