@@ -33,6 +33,7 @@ const ProductsPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const planLimits = getPlanLimits(establishment?.plan_name);
+  const isFree = establishment?.plan_name === "free";
 
   const [activeTab, setActiveTab] = useState("products");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -549,6 +550,15 @@ const ProductsPage = () => {
   );
 
   if (!establishment) return <div className="text-center py-12 text-muted-foreground">Configure seu estabelecimento primeiro.</div>;
+
+  if (isFree) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-foreground">Cardápio</h1>
+        <UpgradeBanner message="O Cardápio Digital está disponível a partir do Plano Essential. Faça upgrade para criar e gerenciar seus produtos." />
+      </div>
+    );
+  }
 
   const filteredLibItems = libraryItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()));
 

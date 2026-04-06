@@ -47,7 +47,7 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
           .eq("establishment_id", establishmentId)
           .eq("customer_phone", phone)
           .order("created_at", { ascending: false })
-          .limit(6),
+          .limit(20),
         supabase
           .from("establishments")
           .select("name, whatsapp, logo_url")
@@ -164,7 +164,7 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
   }
 
   const activeOrders = orders.filter((o) => ["pending", "preparing", "shipping"].includes(o.status));
-  const pastOrders = orders.filter((o) => o.status === "completed").slice(0, 5);
+  const pastOrders = orders.filter((o) => !["pending", "preparing", "shipping"].includes(o.status));
 
   return (
     <div className="px-4 md:px-8 py-4 space-y-6">

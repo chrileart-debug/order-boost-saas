@@ -63,6 +63,10 @@ type FleetMember = {
   cnh_category?: string | null;
   vehicle_details: VehicleDetails | null;
   source: "active_shift" | "available" | "history";
+  active_job_title?: string | null;
+  active_job_start?: string | null;
+  active_job_end?: string | null;
+  active_job_value?: number | null;
 };
 
 type Job = {
@@ -550,13 +554,19 @@ const DriversPage = () => {
 
     const { data: activeJobs } = await supabase
       .from("jobs")
-      .select("id, driver_id, status")
+      .select("id, driver_id, status, title, start_time, end_time, fixed_value, km_value, payment_type")
       .eq("establishment_id", establishment.id)
       .in("status", ["contracted", "ending"]);
 
     const activeShiftDriverIds = new Set(
       (activeJobs || []).map(j => j.driver_id).filter(Boolean) as string[]
     );
+
+    // Map driver_id -> active job info
+    const activeJobMap = new Map<string, any>();
+    (activeJobs || []).forEach(j => {
+      if (j.driver_id) activeJobMap.set(j.driver_id, j);
+    });
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, phone").in("id", fleetDriverIds),
@@ -571,6 +581,7 @@ const DriversPage = () => {
       const profile = profileMap.get(driverId);
       const driver = driverMap.get(driverId);
       const hasActiveShift = activeShiftDriverIds.has(driverId);
+      const activeJob = activeJobMap.get(driverId);
 
       let source: FleetMember["source"];
       if (hasActiveShift) source = "active_shift";
@@ -592,6 +603,10 @@ const DriversPage = () => {
         cnh_category: driver?.cnh_category || null,
         vehicle_details: (driver?.vehicle_details as VehicleDetails) || null,
         source,
+        active_job_title: activeJob?.title || null,
+        active_job_start: activeJob?.start_time || null,
+        active_job_end: activeJob?.end_time || null,
+        active_job_value: activeJob?.payment_type === "fixed" ? activeJob?.fixed_value : activeJob?.km_value || null,
       };
     });
 
@@ -869,41 +884,64 @@ const DriversPage = () => {
             </Card>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
-              {fleet.map(m => (
+              {fleet.map(m => {
+                const formatTime = (iso: string | null | undefined) => {
+                  if (!iso) return "";
+                  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                };
+                return (
                 <Card
                   key={m.fleet_id}
-                  className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "active_shift" ? "border-green-400 ring-1 ring-green-200" : ""}`}
+                  className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "active_shift" ? "border-primary/40 ring-1 ring-primary/20" : ""}`}
                   onClick={() => openFleetProfile(m)}
                 >
                   <CardContent className="flex items-center gap-4 p-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={getAvatarUrl(m.profile_photo_url)} />
-                      <AvatarFallback>{m.full_name.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative shrink-0">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={getAvatarUrl(m.profile_photo_url)} />
+                        <AvatarFallback>{m.full_name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      {m.rating_avg != null && (
+                        <div className="absolute -bottom-1 -right-1 flex items-center gap-0.5 bg-card border border-border rounded-full px-1 py-0.5">
+                          <Star className="w-2.5 h-2.5 text-yellow-500 fill-yellow-500" />
+                          <span className="text-[9px] font-semibold text-foreground">{Number(m.rating_avg).toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm text-foreground truncate">{m.full_name}</h3>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">{vehicleIcon(m.vehicle_type)} {vehicleLabel(m.vehicle_type)}</span>
-                        {m.has_bag && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Bag</Badge>}
-                      </div>
-                      {m.rating_avg != null && (
-                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                          <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                          <span>{Number(m.rating_avg).toFixed(1)}</span>
-                          <span>· {m.total_deliveries} entregas</span>
+                      {m.active_job_title && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{m.active_job_title}</p>
+                      )}
+                      {m.active_job_start && m.active_job_end && (
+                        <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatTime(m.active_job_start)} - {formatTime(m.active_job_end)}</span>
+                        </div>
+                      )}
+                      {m.active_job_value != null && (
+                        <p className="text-sm font-semibold text-primary mt-0.5">
+                          R$ {Number(m.active_job_value).toFixed(2)}
+                        </p>
+                      )}
+                      {!m.active_job_title && (
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">{vehicleIcon(m.vehicle_type)} {vehicleLabel(m.vehicle_type)}</span>
+                          {m.has_bag && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Bag</Badge>}
                         </div>
                       )}
                     </div>
                     {m.source === "active_shift" ? (
-                      <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100 shrink-0 text-[10px]">Em Serviço</Badge>
+                      <Badge className="bg-primary/10 text-primary border-primary/30 hover:bg-primary/10 shrink-0 text-[10px]">Em Serviço</Badge>
                     ) : m.source === "available" ? (
-                      <Badge variant="outline" className="text-green-600 border-green-300 shrink-0 text-[10px]">Disponível</Badge>
+                      <Badge variant="outline" className="text-primary border-primary/30 shrink-0 text-[10px]">Disponível</Badge>
                     ) : (
                       <Badge variant="secondary" className="shrink-0 text-[10px]">Histórico</Badge>
                     )}
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>

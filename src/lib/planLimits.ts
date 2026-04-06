@@ -1,10 +1,19 @@
 export const PLAN_LIMITS = {
+  free: {
+    maxProducts: 0,
+    maxModifierGroups: 0,
+    allowCoupons: false,
+    allowCombos: false,
+    allowMultipleDeliveryRules: false,
+    allowMenu: false,
+  },
   essential: {
     maxProducts: 10,
     maxModifierGroups: 3, // per product
     allowCoupons: false,
     allowCombos: false,
     allowMultipleDeliveryRules: false, // only 1 rule (fixed global)
+    allowMenu: true,
   },
   pro: {
     maxProducts: 50,
@@ -12,6 +21,7 @@ export const PLAN_LIMITS = {
     allowCoupons: true,
     allowCombos: true,
     allowMultipleDeliveryRules: true,
+    allowMenu: true,
   },
 } as const;
 

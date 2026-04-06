@@ -96,6 +96,10 @@ const OrdersPage = () => {
       audioRef.current = audio;
       setAudioUnlocked(true);
     }).catch(() => {});
+    // Request notification permission for background alerts
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, [audioUnlocked, establishment?.notification_sound_url]);
 
   useEffect(() => {
@@ -116,7 +120,18 @@ const OrdersPage = () => {
     audio.currentTime = 0;
     audio.volume = 1;
     audio.play().catch(() => {});
-  }, [soundEnabled, audioUnlocked]);
+
+    // Use Notification API for background tab alerts
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("Novo pedido!", {
+          body: "Você recebeu um novo pedido no ePrato.",
+          icon: establishment?.logo_url || "/placeholder.svg",
+          tag: "new-order",
+        });
+      } catch {}
+    }
+  }, [soundEnabled, audioUnlocked, establishment?.logo_url]);
 
   /* ─── Fetch orders ─── */
   const fetchOrders = useCallback(async () => {

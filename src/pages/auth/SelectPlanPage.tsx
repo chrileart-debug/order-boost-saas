@@ -1,14 +1,29 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowLeft, Crown, Zap } from "lucide-react";
+import { Check, ArrowLeft, Crown, Zap, Gift } from "lucide-react";
 
 const plans = [
+  {
+    id: "free",
+    name: "Gratuito",
+    price: "0",
+    icon: Gift,
+    popular: false,
+    trial: false,
+    features: [
+      "Gestão de pedidos",
+      "Painel de operações",
+      "Notificações push",
+      "Suporte básico",
+    ],
+  },
   {
     id: "essential",
     name: "Essential",
     price: "29,90",
     icon: Zap,
     popular: false,
+    trial: true,
     features: [
       "Cardápio digital ilimitado",
       "Gestão de pedidos",
@@ -23,6 +38,7 @@ const plans = [
     price: "59,90",
     icon: Crown,
     popular: true,
+    trial: true,
     features: [
       "Tudo do Essential",
       "Combos e promoções",
@@ -37,7 +53,7 @@ const plans = [
 const SelectPlanPage = () => {
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      <div className="container max-w-4xl mx-auto px-4 py-8 flex-1 flex flex-col">
+      <div className="container max-w-5xl mx-auto px-4 py-8 flex-1 flex flex-col">
         <Link
           to="/"
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8 transition-colors self-start"
@@ -49,11 +65,11 @@ const SelectPlanPage = () => {
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-foreground">Escolha seu plano</h1>
           <p className="text-muted-foreground mt-2">
-            Comece com 7 dias grátis. Cancele quando quiser.
+            Comece grátis ou teste os planos pagos por 7 dias sem compromisso.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto w-full">
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto w-full">
           {plans.map((plan) => (
             <div
               key={plan.id}
@@ -77,8 +93,14 @@ const SelectPlanPage = () => {
               </div>
 
               <div className="mb-6">
-                <span className="text-3xl font-extrabold text-foreground">R$ {plan.price}</span>
-                <span className="text-muted-foreground text-sm">/mês</span>
+                {plan.price === "0" ? (
+                  <span className="text-3xl font-extrabold text-foreground">Grátis</span>
+                ) : (
+                  <>
+                    <span className="text-3xl font-extrabold text-foreground">R$ {plan.price}</span>
+                    <span className="text-muted-foreground text-sm">/mês</span>
+                  </>
+                )}
               </div>
 
               <ul className="space-y-3 mb-8 flex-1">
@@ -92,7 +114,7 @@ const SelectPlanPage = () => {
 
               <Button asChild size="lg" className="w-full" variant={plan.popular ? "default" : "outline"}>
                 <Link to={`/auth/register?plan=${plan.id}`}>
-                  Começar 7 dias grátis
+                  {plan.trial ? "Começar 7 dias grátis" : "Começar grátis"}
                 </Link>
               </Button>
             </div>
