@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,13 +29,15 @@ interface SupportChatProps {
   senderName: string;
   isClosed?: boolean;
   allTickets?: TicketMeta[];
+  onTicketClosed?: () => void;
 }
 
 export default function SupportChat({
   ticketId,
   senderName,
-  isClosed = false,
+  isClosed: initialClosed = false,
   allTickets,
+  onTicketClosed,
 }: SupportChatProps) {
   const { user } = useAuth();
   type TimelineItem =
@@ -45,8 +47,11 @@ export default function SupportChat({
   const [timelineMessages, setTimelineMessages] = useState<TimelineItem[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [closedRealtime, setClosedRealtime] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
+
+  const isClosed = initialClosed || closedRealtime;
 
   const ticketIds = allTickets?.map((t) => t.id) ?? [ticketId];
 
@@ -105,6 +110,37 @@ export default function SupportChat({
     };
   }, [ticketId, user, allTickets?.length]);
 
+  // Realtime: watch ticket status changes
+  useEffect(() => {
+    if (initialClosed) return;
+
+    const channel = supabase
+      .channel(`support-ticket-close-${ticketId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "support_tickets",
+          filter: `id=eq.${ticketId}`,
+        },
+        (payload) => {
+          if ((payload.new as any).status === "closed") {
+            setClosedRealtime(true);
+            // Redirect after 2 seconds
+            if (onTicketClosed) {
+              setTimeout(() => onTicketClosed(), 2000);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [ticketId, initialClosed, onTicketClosed]);
+
   // Build timeline
   useEffect(() => {
     const ticketMap = new Map<string, TicketMeta>();
@@ -147,6 +183,20 @@ export default function SupportChat({
   const handleSend = async () => {
     if (!newMessage.trim() || !user || sending || isClosed) return;
     setSending(true);
+
+    // Double-check ticket status before sending
+    const { data: ticket } = await supabase
+      .from("support_tickets")
+      .select("status")
+      .eq("id", ticketId)
+      .single();
+
+    if (ticket?.status === "closed") {
+      setClosedRealtime(true);
+      setSending(false);
+      return;
+    }
+
     const { error } = await supabase.from("support_messages").insert({
       ticket_id: ticketId,
       sender_id: user.id,
