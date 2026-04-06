@@ -122,16 +122,24 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleItems.map((item) => (
+              {visibleItems.map((item) => {
+                const showBadge = (item.url === "/dashboard/support" || item.url === "/dashboard/admin-support") && unreadSupport > 0;
+                return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end={item.url === "/dashboard"} className="hover:bg-accent/50" activeClassName="bg-accent text-primary font-medium">
+                    <NavLink to={item.url} end={item.url === "/dashboard"} className="hover:bg-accent/50 relative" activeClassName="bg-accent text-primary font-medium">
                       <item.icon className="mr-2 h-4 w-4 shrink-0" />
                       {!collapsed && <span>{item.title}</span>}
+                      {showBadge && (
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+                          {unreadSupport > 99 ? "99+" : unreadSupport}
+                        </span>
+                      )}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
