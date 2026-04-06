@@ -20,6 +20,7 @@ import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut,
 import { Button } from "@/components/ui/button";
 
 const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
+const paidOnlyPaths = ["/dashboard/orders", "/dashboard/products", "/dashboard/logistics", "/dashboard/coupons"];
 
 const menuItems = [
   { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
@@ -53,10 +54,13 @@ export function AppSidebar() {
     });
   }, [user]);
 
+  const isFree = establishment?.plan_name === "free";
+
   // Show all items while loading role to avoid flash, filter once loaded
-  const visibleItems = !roleLoaded
+  const visibleItems = (!roleLoaded
     ? menuItems.filter((item) => !ownerOnlyPaths.includes(item.url))
-    : menuItems.filter((item) => !ownerOnlyPaths.includes(item.url) || isOwner);
+    : menuItems.filter((item) => !ownerOnlyPaths.includes(item.url) || isOwner)
+  ).filter((item) => !isFree || !paidOnlyPaths.includes(item.url));
 
   return (
     <Sidebar collapsible="icon">
