@@ -4,7 +4,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Lock, Pin } from "lucide-react";
+import { Send, Lock, Pin, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -25,11 +25,9 @@ interface TicketMeta {
 }
 
 interface SupportChatProps {
-  /** Current active (open) ticket id */
   ticketId: string;
   senderName: string;
   isClosed?: boolean;
-  /** All tickets for this establishment, ordered by created_at ASC for timeline */
   allTickets?: TicketMeta[];
 }
 
@@ -40,17 +38,19 @@ export default function SupportChat({
   allTickets,
 }: SupportChatProps) {
   const { user } = useAuth();
-  type TimelineItem = { type: "separator"; subject: string; date: string } | { type: "msg"; msg: Message };
+  type TimelineItem =
+    | { type: "separator"; subject: string; date: string }
+    | { type: "msg"; msg: Message };
+
   const [timelineMessages, setTimelineMessages] = useState<TimelineItem[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [rawMessages, setRawMessages] = useState<Message[]>([]);
 
-  // Collect all ticket ids for timeline
   const ticketIds = allTickets?.map((t) => t.id) ?? [ticketId];
 
-  // Fetch all messages for all tickets
+  // Fetch all messages
   useEffect(() => {
     if (!ticketIds.length) return;
 
@@ -62,7 +62,6 @@ export default function SupportChat({
         .order("created_at", { ascending: true });
       if (data) setRawMessages(data as Message[]);
 
-      // Mark unread
       if (user) {
         await supabase
           .from("support_messages")
@@ -74,7 +73,6 @@ export default function SupportChat({
     };
     fetchAll();
 
-    // Realtime for current open ticket
     const channel = supabase
       .channel(`support-timeline-${ticketId}`)
       .on(
@@ -107,12 +105,11 @@ export default function SupportChat({
     };
   }, [ticketId, user, allTickets?.length]);
 
-  // Build timeline with separators
+  // Build timeline
   useEffect(() => {
     const ticketMap = new Map<string, TicketMeta>();
     (allTickets ?? []).forEach((t) => ticketMap.set(t.id, t));
 
-    // If no allTickets provided, just show messages without separators
     if (!allTickets?.length) {
       setTimelineMessages(rawMessages.map((m) => ({ type: "msg" as const, msg: m })));
       return;
@@ -160,20 +157,23 @@ export default function SupportChat({
     setSending(false);
   };
 
+  const isSystemMessage = (msg: Message) =>
+    msg.sender_name === "Sistema" || msg.content.startsWith("📋");
+
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-3">
+      <ScrollArea className="flex-1 px-3 py-2">
+        <div className="space-y-1.5">
           {timelineMessages.map((item, idx) => {
             if (item.type === "separator") {
               return (
-                <div key={`sep-${idx}`} className="flex items-center gap-2 my-4">
+                <div key={`sep-${idx}`} className="flex items-center gap-2 my-3">
                   <div className="flex-1 h-px bg-border" />
-                  <div className="flex items-center gap-1.5 bg-muted/70 rounded-full px-3 py-1 text-xs text-muted-foreground whitespace-nowrap">
-                    <Pin className="h-3 w-3" />
-                    <span>{item.subject}</span>
-                    <span>·</span>
-                    <span>{item.date}</span>
+                  <div className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1 text-[11px] text-muted-foreground whitespace-nowrap">
+                    <Pin className="h-3 w-3 shrink-0" />
+                    <span className="font-medium">{item.subject}</span>
+                    <span className="opacity-60">·</span>
+                    <span className="opacity-60">{item.date}</span>
                   </div>
                   <div className="flex-1 h-px bg-border" />
                 </div>
@@ -182,67 +182,73 @@ export default function SupportChat({
 
             const msg = item.msg;
             const isMe = msg.sender_id === user?.id;
-            const isSystem = msg.sender_name === "Sistema";
+            const isSystem = isSystemMessage(msg);
+
+            if (isSystem) {
+              return (
+                <div key={msg.id} className="flex justify-center my-1">
+                  <div className="flex items-center gap-1.5 bg-muted/60 rounded-lg px-3 py-1.5 max-w-[85%]">
+                    <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      {msg.content}
+                    </p>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div
                 key={msg.id}
-                className={cn(
-                  "flex",
-                  isSystem ? "justify-center" : isMe ? "justify-end" : "justify-start"
-                )}
+                className={cn("flex", isMe ? "justify-end" : "justify-start")}
               >
-                {isSystem ? (
-                  <div className="bg-muted/50 rounded-lg px-4 py-2 text-xs text-muted-foreground italic">
-                    {msg.content}
-                  </div>
-                ) : (
-                  <div
+                <div
+                  className={cn(
+                    "max-w-[75%] rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                    isMe
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-muted text-foreground rounded-bl-sm"
+                  )}
+                >
+                  {!isMe && (
+                    <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">
+                      {msg.sender_name}
+                    </p>
+                  )}
+                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                  <p
                     className={cn(
-                      "max-w-[75%] rounded-2xl px-4 py-2 text-sm",
-                      isMe
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-muted text-foreground rounded-bl-md"
+                      "text-[10px] mt-0.5 text-right",
+                      isMe ? "text-primary-foreground/60" : "text-muted-foreground/60"
                     )}
                   >
-                    {!isMe && (
-                      <p className="text-xs font-medium text-muted-foreground mb-1">
-                        {msg.sender_name}
-                      </p>
-                    )}
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                    <p
-                      className={cn(
-                        "text-[10px] mt-1",
-                        isMe ? "text-primary-foreground/70" : "text-muted-foreground"
-                      )}
-                    >
-                      {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                )}
+                    {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
               </div>
             );
           })}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
+
       {isClosed ? (
         <div className="border-t p-3 flex items-center justify-center gap-2 text-muted-foreground text-sm">
           <Lock className="h-4 w-4" />
           <span>Este chamado foi encerrado</span>
         </div>
       ) : (
-        <div className="border-t p-3 flex gap-2">
+        <div className="border-t p-2.5 flex gap-2">
           <Input
             placeholder="Digite sua mensagem..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
             disabled={sending}
+            className="text-sm"
           />
           <Button size="icon" onClick={handleSend} disabled={sending || !newMessage.trim()}>
             <Send className="h-4 w-4" />

@@ -129,7 +129,7 @@ export default function SupportPage() {
         ticket_id: data.id,
         sender_id: user.id,
         sender_name: establishment.name || "Lojista",
-        content: `📋 **Assunto:** ${selectedSubject.label}\n🔹 **Detalhe:** ${option}`,
+        content: `📋 Assunto: ${selectedSubject.label} · 🔹 Detalhe: ${option}`,
       });
 
       const newTicket: TicketMeta = {
