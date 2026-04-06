@@ -895,9 +895,9 @@ const DriversPage = () => {
                   className={`cursor-pointer hover:border-primary/30 transition-colors ${m.source === "active_shift" ? "border-primary/40 ring-1 ring-primary/20" : ""}`}
                   onClick={() => openFleetProfile(m)}
                 >
-                  <CardContent className="flex items-center gap-4 p-4">
+                  <CardContent className="flex items-center gap-3 p-3">
                     <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12">
+                      <Avatar className="h-10 w-10">
                         <AvatarImage src={getAvatarUrl(m.profile_photo_url)} />
                         <AvatarFallback>{m.full_name.charAt(0)}</AvatarFallback>
                       </Avatar>
@@ -909,42 +909,39 @@ const DriversPage = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm text-foreground truncate">{m.full_name}</h3>
-                      {m.active_job_title && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{m.active_job_title}</p>
-                      )}
-                      {m.active_job_start && m.active_job_end && (
-                        <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          <span>
-                            {new Date(m.active_job_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {formatTime(m.active_job_start)} - {formatTime(m.active_job_end)}
-                          </span>
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium text-sm text-foreground truncate">{m.full_name}</h3>
+                        {m.source === "active_shift" ? (
+                          <Badge className="bg-primary/10 text-primary border-primary/30 hover:bg-primary/10 shrink-0 text-[10px] ml-2">Em Serviço</Badge>
+                        ) : m.source === "available" ? (
+                          <Badge variant="outline" className="text-primary border-primary/30 shrink-0 text-[10px] ml-2">Disponível</Badge>
+                        ) : (
+                          <Badge variant="secondary" className="shrink-0 text-[10px] ml-2">Histórico</Badge>
+                        )}
+                      </div>
+                      {m.active_job_title ? (
+                        <div className="mt-1 space-y-0.5">
+                          <p className="text-xs text-muted-foreground truncate">{m.active_job_title}</p>
+                          {m.active_job_start && m.active_job_end && (
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatTime(m.active_job_start)} – {formatTime(m.active_job_end)}
+                              </span>
+                              <span>{new Date(m.active_job_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+                            </div>
+                          )}
+                          {m.active_job_value != null && (
+                            <p className="text-sm font-semibold text-primary">R$ {Number(m.active_job_value).toFixed(2)}</p>
+                          )}
                         </div>
-                      )}
-                      {m.active_job_end && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Encerra em {new Date(m.active_job_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })} às {formatTime(m.active_job_end)}
-                        </p>
-                      )}
-                      {m.active_job_value != null && (
-                        <p className="text-sm font-semibold text-primary mt-0.5">
-                          R$ {Number(m.active_job_value).toFixed(2)}
-                        </p>
-                      )}
-                      {!m.active_job_title && (
+                      ) : (
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">{vehicleIcon(m.vehicle_type)} {vehicleLabel(m.vehicle_type)}</span>
                           {m.has_bag && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Bag</Badge>}
                         </div>
                       )}
                     </div>
-                    {m.source === "active_shift" ? (
-                      <Badge className="bg-primary/10 text-primary border-primary/30 hover:bg-primary/10 shrink-0 text-[10px]">Em Serviço</Badge>
-                    ) : m.source === "available" ? (
-                      <Badge variant="outline" className="text-primary border-primary/30 shrink-0 text-[10px]">Disponível</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">Histórico</Badge>
-                    )}
                   </CardContent>
                 </Card>
                 );
