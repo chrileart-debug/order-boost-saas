@@ -67,9 +67,14 @@ export default function LogisticsTermsModal() {
           </ol>
         </ScrollArea>
 
-        <Button onClick={handleAccept} disabled={accepting} className="w-full mt-4">
-          {accepting ? "Processando..." : "Li e concordo com os termos"}
-        </Button>
+        <div className="flex flex-col gap-2 mt-4">
+          <Button onClick={handleAccept} disabled={accepting} className="w-full">
+            {accepting ? "Processando..." : "Li e concordo com os termos"}
+          </Button>
+          <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => navigate("/dashboard")}>
+            Agora não
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
