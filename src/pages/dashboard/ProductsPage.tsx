@@ -35,15 +35,6 @@ const ProductsPage = () => {
   const planLimits = getPlanLimits(establishment?.plan_name);
   const isFree = establishment?.plan_name === "free";
 
-  if (!estLoading && establishment && isFree) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <h1 className="text-2xl font-bold text-foreground">Cardápio</h1>
-        <UpgradeBanner message="O Cardápio Digital está disponível a partir do Plano Essential. Faça upgrade para criar e gerenciar seus produtos." />
-      </div>
-    );
-  }
-
   const [activeTab, setActiveTab] = useState("products");
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
