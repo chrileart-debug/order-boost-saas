@@ -551,6 +551,15 @@ const ProductsPage = () => {
 
   if (!establishment) return <div className="text-center py-12 text-muted-foreground">Configure seu estabelecimento primeiro.</div>;
 
+  if (isFree) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-2xl font-bold text-foreground">Cardápio</h1>
+        <UpgradeBanner message="O Cardápio Digital está disponível a partir do Plano Essential. Faça upgrade para criar e gerenciar seus produtos." />
+      </div>
+    );
+  }
+
   const filteredLibItems = libraryItems.filter(i => !itemSearch || i.name.toLowerCase().includes(itemSearch.toLowerCase()));
 
   // Products available for combo selection (exclude current editing product)
