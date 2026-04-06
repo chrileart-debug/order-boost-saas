@@ -96,6 +96,10 @@ const OrdersPage = () => {
       audioRef.current = audio;
       setAudioUnlocked(true);
     }).catch(() => {});
+    // Request notification permission for background alerts
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
   }, [audioUnlocked, establishment?.notification_sound_url]);
 
   useEffect(() => {
