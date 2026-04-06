@@ -415,6 +415,7 @@ export type Database = {
       }
       establishments: {
         Row: {
+          accepted_logistics_terms: boolean
           address: Json | null
           asaas_customer_id: string | null
           asaas_subscription_id: string | null
@@ -448,6 +449,7 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          accepted_logistics_terms?: boolean
           address?: Json | null
           asaas_customer_id?: string | null
           asaas_subscription_id?: string | null
@@ -481,6 +483,7 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          accepted_logistics_terms?: boolean
           address?: Json | null
           asaas_customer_id?: string | null
           asaas_subscription_id?: string | null
