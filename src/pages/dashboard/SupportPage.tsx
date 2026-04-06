@@ -167,6 +167,11 @@ export default function SupportPage() {
             senderName={senderName}
             isClosed={false}
             allTickets={allTickets}
+            onTicketClosed={() => {
+              setOpenTicket(null);
+              setStep("subject");
+              fetchTickets();
+            }}
           />
         </div>
       </div>
