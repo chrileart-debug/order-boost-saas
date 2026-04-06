@@ -63,6 +63,12 @@ export default function AdminSupportPage() {
       sender_name: "Sistema",
       content: "O suporte foi encerrado pelo administrador. 🙏",
     });
+    // Mark all messages in this ticket as read
+    await supabase
+      .from("support_messages")
+      .update({ is_read: true })
+      .eq("ticket_id", ticketId)
+      .eq("is_read", false);
     await supabase.from("support_tickets").update({ status: "closed" }).eq("id", ticketId);
     await fetchTickets();
   };

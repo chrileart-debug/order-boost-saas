@@ -64,19 +64,27 @@ export function AppSidebar() {
     const isAdminUser = user.email === "chrileart@gmail.com";
 
     if (isAdminUser) {
-      // Admin: count unread across ALL tickets where sender is not admin
+      // Admin: count unread across ALL open tickets where sender is not admin
+      const { data: openTickets } = await supabase
+        .from("support_tickets")
+        .select("id")
+        .eq("status", "open");
+      if (!openTickets?.length) { setUnreadSupport(0); return; }
+      const openIds = openTickets.map((t: any) => t.id);
       const { count } = await supabase
         .from("support_messages")
         .select("*", { count: "exact", head: true })
+        .in("ticket_id", openIds)
         .eq("is_read", false)
         .neq("sender_id", user.id);
       setUnreadSupport(count ?? 0);
     } else if (establishment?.id) {
-      // Owner: count unread in own tickets where sender is not self
+      // Owner: count unread in own OPEN tickets where sender is not self
       const { data: tickets } = await supabase
         .from("support_tickets")
         .select("id")
-        .eq("establishment_id", establishment.id);
+        .eq("establishment_id", establishment.id)
+        .eq("status", "open");
       if (!tickets?.length) { setUnreadSupport(0); return; }
       const ticketIds = tickets.map((t: any) => t.id);
       const { count } = await supabase
@@ -94,6 +102,9 @@ export function AppSidebar() {
     const channel = supabase
       .channel("sidebar-support-badge")
       .on("postgres_changes", { event: "*", schema: "public", table: "support_messages" }, () => {
+        fetchUnread();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_tickets" }, () => {
         fetchUnread();
       })
       .subscribe();
