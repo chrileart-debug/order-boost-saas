@@ -2,7 +2,7 @@ import { getPublicStoreUrl } from "@/lib/publicStoreUrl";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
