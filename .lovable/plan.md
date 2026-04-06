@@ -1,38 +1,111 @@
 
 
-## Plano: Sheet de Detalhes da Vaga (read-only / editável para rascunho)
+## Plano: Reformular Planos (Free/Essential/Pro) e Sidebar por Plano
 
-### Problema
-Atualmente, clicar em uma vaga que não é rascunho mostra um toast de erro "Edição bloqueada". Vagas publicadas (open, contracted, ending, completed) não mostram nenhuma informação ao clicar. O lojista não consegue visualizar os detalhes de suas vagas.
+### Resumo
+Atualizar limites, features dos cards, e restringir menus do sidebar conforme o plano do estabelecimento.
 
-### Solução
-Ao clicar em qualquer card de vaga, abrir um Sheet (direita para esquerda) com os detalhes da vaga. Se o status for `draft`, mostrar o formulário de edição existente. Se for qualquer outro status, mostrar uma visualização read-only com todas as informações formatadas.
+---
 
-### Implementação
+### 1. Resposta: URLs por Plano
 
-**Arquivo: `src/pages/dashboard/DriversPage.tsx`**
+**Plano Gratuito:**
+- `/dashboard` (Painel)
+- `/dashboard/drivers` (Motoristas)
+- `/dashboard/subscription` (Assinatura)
+- `/dashboard/settings` (Configurações)
 
-1. **Novo state**: Adicionar `viewingJob` (Job | null) para controlar o Sheet de visualização read-only.
+**Plano Essential (tudo do Gratuito +):**
+- `/dashboard/orders` (Pedidos)
+- `/dashboard/products` (Produtos)
+- `/dashboard/logistics` (Logística)
+- `/dashboard/coupons` (Cupons)
 
-2. **Modificar `openJobSheet`**: Remover o toast de erro. Se o job for draft, abrir o sheet de edição (comportamento atual). Se não for draft, setar `viewingJob` com os dados do job.
+**Plano Pro (tudo do Essential, com limites maiores)**
+- Mesmas URLs do Essential, sem restrições adicionais de rota.
 
-3. **Tornar todos os cards clicáveis**: Remover a condição `j.status === "draft"` do `onClick` e do `cursor-pointer`. Todos os cards terão `cursor-pointer` e chamarão `openJobSheet(j)`.
+---
 
-4. **Novo Sheet read-only**: Adicionar um Sheet controlado por `viewingJob` que exibe:
-   - Título da vaga
-   - Badge de status
-   - Tipo de veículo (ícone + label)
-   - Turno (Integral/Meio Período/Noturno)
-   - Horário (início – fim)
-   - Data
-   - Tipo de contratação (Freelancer/Fixo)
-   - Tipo e valor do pagamento (R$ X.XX)
-   - Bônus (se houver)
-   - Extensão (se houver)
-   - Layout clean com `bg-muted/50 rounded-lg` consistente com os outros Sheets
+### 2. Atualizar `src/lib/planLimits.ts`
 
-### Detalhes Técnicos
-- Reutilizar helpers existentes: `jobStatusLabel`, `jobStatusVariant`, `vehicleIcon`, `vehicleLabel`, `formatTime`
-- O Sheet read-only não terá botões de salvar/publicar
-- A lógica do `openJobSheet` será bifurcada: draft → sheet de edição, outros → sheet de visualização
+Novos limites conforme especificado:
+
+```text
+free:
+  maxProducts: 0, maxCombos: 0, maxCategories: 0
+  maxModifierGroups: 0, maxCoupons: 0
+  allowMenu: false, allowOrders: false, allowLogistics: false, allowCoupons: false
+
+essential:
+  maxProducts: 10, maxCombos: 5, maxCategories: 5
+  maxModifierGroups: 10, maxCoupons: 2
+  allowMenu: true, allowOrders: true, allowLogistics: true, allowCoupons: true
+
+pro:
+  maxProducts: 30, maxCombos: 30, maxCategories: 15
+  maxModifierGroups: 20, maxCoupons: 10
+  allowMenu: true, allowOrders: true, allowLogistics: true, allowCoupons: true
+```
+
+---
+
+### 3. Sidebar filtrado por plano (`src/components/AppSidebar.tsx`)
+
+- Ler `establishment.plan_name` do contexto.
+- Itens restritos ao plano pago (Essential+): Pedidos, Produtos, Logística, Cupons.
+- Se `plan_name === "free"`, esconder esses 4 itens do menu.
+- Manter: Painel, Motoristas, Assinatura, Configurações para todos.
+
+---
+
+### 4. Atualizar cards de planos em `SelectPlanPage.tsx`
+
+Novas features por card:
+
+**Gratuito:**
+- Gestão de Motoristas
+- Painel de Vagas e Turnos
+- Configurações do Estabelecimento
+
+**Essential (R$ 29,90/mês) -- com trial 7 dias:**
+- Até 10 produtos (simples + combos)
+- Até 5 combos
+- Até 5 categorias
+- Até 10 adicionais por item
+- Até 2 cupons ativos
+- Cardápio Digital ativo
+- Gestão de Pedidos
+- Suporte em horário comercial
+
+**PRO (R$ 59,90/mês) -- com trial 7 dias:**
+- Até 30 produtos
+- Combos ilimitados (dentro do limite)
+- Até 15 categorias
+- Até 20 adicionais por item
+- Até 10 cupons ativos
+- Suporte VIP prioritário
+
+---
+
+### 5. Atualizar cards em `SubscriptionPage.tsx`
+
+Alinhar as features listadas nos cards com os mesmos textos do `SelectPlanPage`.
+
+---
+
+### 6. Proteção de rotas pagas para plano Free
+
+No `DashboardLayout` ou nas páginas individuais (`OrdersPage`, `ProductsPage`, `LogisticsPage`, `CouponsPage`): se `plan_name === "free"`, renderizar o componente `UpgradeBanner` existente em vez do conteúdo real.
+
+---
+
+### Arquivos Modificados
+- `src/lib/planLimits.ts` -- novos campos de limite
+- `src/components/AppSidebar.tsx` -- filtro de menu por plano
+- `src/pages/auth/SelectPlanPage.tsx` -- features atualizadas
+- `src/pages/dashboard/SubscriptionPage.tsx` -- features atualizadas
+- `src/pages/dashboard/OrdersPage.tsx` -- guard UpgradeBanner
+- `src/pages/dashboard/ProductsPage.tsx` -- guard UpgradeBanner
+- `src/pages/dashboard/LogisticsPage.tsx` -- guard UpgradeBanner
+- `src/pages/dashboard/CouponsPage.tsx` -- guard UpgradeBanner
 
