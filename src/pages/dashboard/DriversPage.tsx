@@ -63,6 +63,10 @@ type FleetMember = {
   cnh_category?: string | null;
   vehicle_details: VehicleDetails | null;
   source: "active_shift" | "available" | "history";
+  active_job_title?: string | null;
+  active_job_start?: string | null;
+  active_job_end?: string | null;
+  active_job_value?: number | null;
 };
 
 type Job = {
