@@ -38,23 +38,24 @@ export default function LogisticsTermsModal() {
   };
 
   return (
-    <AlertDialog open>
-      <AlertDialogContent
-        className="max-w-lg"
+    <Dialog open>
+      <DialogContent
+        className="max-w-lg [&>button]:hidden"
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <AlertDialogHeader>
+        <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            <AlertDialogTitle className="text-lg">
+            <DialogTitle className="text-lg">
               Termo de Intermediação e Isenção de Responsabilidade
-            </AlertDialogTitle>
+            </DialogTitle>
           </div>
-          <AlertDialogDescription className="text-sm text-muted-foreground">
+          <DialogDescription className="text-sm text-muted-foreground">
             Para acessar as funcionalidades de Motoristas e Logística, você precisa ler e aceitar os termos abaixo.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <ScrollArea className="max-h-[50vh] pr-3">
           <ol className="list-decimal list-inside space-y-3 text-sm text-foreground mt-2">
@@ -67,8 +68,8 @@ export default function LogisticsTermsModal() {
         <Button onClick={handleAccept} disabled={accepting} className="w-full mt-4">
           {accepting ? "Processando..." : "Li e concordo com os termos"}
         </Button>
-      </AlertDialogContent>
-    </AlertDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
 
