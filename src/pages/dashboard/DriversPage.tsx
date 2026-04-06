@@ -919,6 +919,11 @@ const DriversPage = () => {
                           <span>{formatTime(m.active_job_start)} - {formatTime(m.active_job_end)}</span>
                         </div>
                       )}
+                      {m.hired_at && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Contratado em {new Date(m.hired_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                        </p>
+                      )}
                       {m.active_job_value != null && (
                         <p className="text-sm font-semibold text-primary mt-0.5">
                           R$ {Number(m.active_job_value).toFixed(2)}
