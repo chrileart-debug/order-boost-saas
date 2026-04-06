@@ -1181,6 +1181,77 @@ export type Database = {
           },
         ]
       }
+      support_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          sender_id: string
+          sender_name: string
+          ticket_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          sender_id: string
+          sender_name?: string
+          ticket_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          sender_id?: string
+          sender_name?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          establishment_name: string
+          id: string
+          plan_name: string
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          establishment_name: string
+          id?: string
+          plan_name?: string
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          establishment_name?: string
+          id?: string
+          plan_name?: string
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -1215,6 +1286,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_support_admin: { Args: never; Returns: boolean }
       transition_job_statuses: { Args: never; Returns: undefined }
     }
     Enums: {

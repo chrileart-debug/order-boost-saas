@@ -16,11 +16,12 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users, ScrollText } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
 const paidOnlyPaths = ["/dashboard/orders", "/dashboard/products", "/dashboard/logistics", "/dashboard/coupons"];
+const adminOnlyPaths = ["/dashboard/admin-support"];
 
 const menuItems = [
   { title: "Painel", url: "/dashboard", icon: LayoutDashboard },
@@ -29,9 +30,11 @@ const menuItems = [
   { title: "Logística", url: "/dashboard/logistics", icon: Truck },
   { title: "Motoristas", url: "/dashboard/drivers", icon: Users },
   { title: "Cupons", url: "/dashboard/coupons", icon: Ticket },
+  { title: "Suporte", url: "/dashboard/support", icon: Headphones },
   { title: "Assinatura", url: "/dashboard/subscription", icon: CreditCard },
   { title: "Termos", url: "/dashboard/terms", icon: ScrollText },
   { title: "Configurações", url: "/dashboard/settings", icon: Settings },
+  { title: "Admin Suporte", url: "/dashboard/admin-support", icon: ShieldCheck },
 ];
 
 export function AppSidebar() {
@@ -56,12 +59,15 @@ export function AppSidebar() {
   }, [user]);
 
   const isFree = establishment?.plan_name === "free";
+  const isAdmin = user?.email === "chrileart@gmail.com";
 
   // Show all items while loading role to avoid flash, filter once loaded
   const visibleItems = (!roleLoaded
     ? menuItems.filter((item) => !ownerOnlyPaths.includes(item.url))
     : menuItems.filter((item) => !ownerOnlyPaths.includes(item.url) || isOwner)
-  ).filter((item) => !isFree || !paidOnlyPaths.includes(item.url));
+  )
+    .filter((item) => !isFree || !paidOnlyPaths.includes(item.url))
+    .filter((item) => !adminOnlyPaths.includes(item.url) || isAdmin);
 
   return (
     <Sidebar collapsible="icon">
