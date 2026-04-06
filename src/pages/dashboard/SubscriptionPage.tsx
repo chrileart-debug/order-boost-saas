@@ -270,7 +270,7 @@ const SubscriptionPage = () => {
   }
 
   const renderPlanCards = () => (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {plans.map((plan) => {
         const Icon = plan.icon;
         const currentTier = currentPlanDef?.tier ?? 0;
@@ -282,7 +282,7 @@ const SubscriptionPage = () => {
         return (
           <Card
             key={plan.id}
-            className={`relative transition-all ${
+            className={`relative transition-all flex flex-col ${
               isCurrent
                 ? "border-primary ring-2 ring-primary/20 shadow-md"
                 : plan.popular
@@ -324,8 +324,8 @@ const SubscriptionPage = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-2">
+            <CardContent className="flex-1 flex flex-col space-y-4">
+              <ul className="space-y-2 flex-1">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-foreground">
                     <Check className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
@@ -380,7 +380,7 @@ const SubscriptionPage = () => {
   // ── Free plan or no paid subscription ──
   if (isFree || !isPaidActive) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6 px-4 py-2">
+      <div className="max-w-4xl mx-auto space-y-6 px-4 py-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
           <p className="text-muted-foreground text-sm mt-1">
@@ -422,7 +422,7 @@ const SubscriptionPage = () => {
 
   // ── Paid active plan — Tabs ──
   return (
-    <div className="max-w-3xl mx-auto space-y-5 px-4 py-2">
+    <div className="max-w-4xl mx-auto space-y-5 px-4 py-2">
       <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
 
       <Tabs defaultValue="plan" className="w-full">
