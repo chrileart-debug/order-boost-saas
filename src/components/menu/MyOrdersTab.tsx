@@ -47,7 +47,7 @@ const MyOrdersTab = ({ slug, establishmentId, onCartChange }: Props) => {
           .eq("establishment_id", establishmentId)
           .eq("customer_phone", phone)
           .order("created_at", { ascending: false })
-          .limit(6),
+          .limit(20),
         supabase
           .from("establishments")
           .select("name, whatsapp, logo_url")

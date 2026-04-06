@@ -73,7 +73,8 @@ const Signup = () => {
     }
   };
 
-  const planLabel = selectedPlan === "pro" ? "PRO" : "Essential";
+  const planLabel = selectedPlan === "pro" ? "PRO" : selectedPlan === "free" ? "Gratuito" : "Essential";
+  const isFree = selectedPlan === "free";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface px-4">
@@ -87,7 +88,7 @@ const Signup = () => {
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-foreground">Criar Conta</h1>
             <p className="text-muted-foreground mt-2">
-              Plano <span className="font-semibold text-primary">{planLabel}</span> — 7 dias grátis
+              Plano <span className="font-semibold text-primary">{planLabel}</span>{isFree ? "" : " — 7 dias grátis"}
             </p>
           </div>
 
