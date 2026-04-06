@@ -491,6 +491,10 @@ const OrdersPage = () => {
     );
   };
 
+  if (establishment?.plan_name === "free") {
+    return <UpgradeBanner message="A gestão de pedidos está disponível a partir do Plano Essential." />;
+  }
+
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
