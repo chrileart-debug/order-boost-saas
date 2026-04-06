@@ -157,6 +157,10 @@ const CouponsPage = () => {
   const formatPrice = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  if (establishment?.plan_name === "free") {
+    return <UpgradeBanner message="Os cupons de desconto estão disponíveis a partir do Plano Essential." />;
+  }
+
   if (estLoading) {
     return (
       <div className="space-y-6 animate-fade-in">

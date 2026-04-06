@@ -137,6 +137,10 @@ const LogisticsPage = () => {
     fetchRules(establishment.id);
   };
 
+  if (establishment?.plan_name === "free") {
+    return <UpgradeBanner message="A logística de entrega está disponível a partir do Plano Essential." />;
+  }
+
   if (estLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
