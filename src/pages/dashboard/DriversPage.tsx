@@ -554,13 +554,19 @@ const DriversPage = () => {
 
     const { data: activeJobs } = await supabase
       .from("jobs")
-      .select("id, driver_id, status")
+      .select("id, driver_id, status, title, start_time, end_time, fixed_value, km_value, payment_type")
       .eq("establishment_id", establishment.id)
       .in("status", ["contracted", "ending"]);
 
     const activeShiftDriverIds = new Set(
       (activeJobs || []).map(j => j.driver_id).filter(Boolean) as string[]
     );
+
+    // Map driver_id -> active job info
+    const activeJobMap = new Map<string, any>();
+    (activeJobs || []).forEach(j => {
+      if (j.driver_id) activeJobMap.set(j.driver_id, j);
+    });
 
     const [{ data: profiles }, { data: driverProfiles }] = await Promise.all([
       supabase.from("profiles").select("id, full_name, phone").in("id", fleetDriverIds),
@@ -575,6 +581,7 @@ const DriversPage = () => {
       const profile = profileMap.get(driverId);
       const driver = driverMap.get(driverId);
       const hasActiveShift = activeShiftDriverIds.has(driverId);
+      const activeJob = activeJobMap.get(driverId);
 
       let source: FleetMember["source"];
       if (hasActiveShift) source = "active_shift";
@@ -596,6 +603,10 @@ const DriversPage = () => {
         cnh_category: driver?.cnh_category || null,
         vehicle_details: (driver?.vehicle_details as VehicleDetails) || null,
         source,
+        active_job_title: activeJob?.title || null,
+        active_job_start: activeJob?.start_time || null,
+        active_job_end: activeJob?.end_time || null,
+        active_job_value: activeJob?.payment_type === "fixed" ? activeJob?.fixed_value : activeJob?.km_value || null,
       };
     });
 
