@@ -1072,6 +1072,87 @@ const DriversPage = () => {
         </Button>
       )}
 
+      {/* ============ SHEET DETALHES DA VAGA (READ-ONLY) ============ */}
+      <Sheet open={!!viewingJob} onOpenChange={(open) => !open && setViewingJob(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{viewingJob?.title}</SheetTitle>
+          </SheetHeader>
+          {viewingJob && (
+            <div className="space-y-4 mt-4">
+              <div className="flex items-center gap-2">
+                <Badge variant={jobStatusVariant(viewingJob.status)}>{jobStatusLabel(viewingJob.status)}</Badge>
+              </div>
+
+              <div className="space-y-3">
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    {vehicleIcon(viewingJob.requirements?.vehicle_type)}
+                    <span className="text-foreground font-medium">{vehicleLabel(viewingJob.requirements?.vehicle_type)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Briefcase className="w-4 h-4" />
+                    <span>{viewingJob.shift_type === "full" ? "Integral" : viewingJob.shift_type === "part" ? "Meio Período" : viewingJob.shift_type === "night" ? "Noturno" : viewingJob.shift_type || "—"}</span>
+                  </div>
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span className="text-foreground">
+                      {viewingJob.start_time ? new Date(viewingJob.start_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                      {" – "}
+                      {viewingJob.end_time ? new Date(viewingJob.end_time).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                    </span>
+                  </div>
+                  {viewingJob.start_time && (
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(viewingJob.start_time).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-foreground">{viewingJob.hiring_type === "freelancer" ? "Freelancer" : viewingJob.hiring_type === "fixed" ? "Fixo" : viewingJob.hiring_type || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <DollarSign className="w-4 h-4 text-primary" />
+                    <span className="text-foreground font-semibold text-base">
+                      {viewingJob.payment_type === "fixed"
+                        ? `R$ ${Number(viewingJob.fixed_value || 0).toFixed(2)}`
+                        : `R$ ${Number(viewingJob.km_value || 0).toFixed(2)} /km`}
+                    </span>
+                  </div>
+                </div>
+
+                {(viewingJob.bonus_value != null && viewingJob.bonus_value > 0) && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                      <span className="text-foreground">Bônus: <strong>R$ {Number(viewingJob.bonus_value).toFixed(2)}</strong></span>
+                    </div>
+                  </div>
+                )}
+
+                {(viewingJob.extended_minutes != null && viewingJob.extended_minutes > 0) && (
+                  <div className="bg-muted/50 rounded-lg p-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-primary" />
+                      <span className="text-foreground">
+                        Extensão: <strong>{viewingJob.extended_minutes} min</strong>
+                        {viewingJob.extension_confirmed === true ? " (aceita)" : viewingJob.extension_confirmed === false ? " (pendente)" : ""}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* ============ SHEET PERFIL MOTORISTA INTERESSADO ============ */}
       <Sheet open={!!selectedApplicant} onOpenChange={(open) => !open && setSelectedApplicant(null)}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
