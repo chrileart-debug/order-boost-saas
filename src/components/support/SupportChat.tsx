@@ -118,7 +118,7 @@ export default function SupportChat({
       return;
     }
 
-    const timeline: typeof timelineMessages = [];
+    const timeline: TimelineItem[] = [];
     let currentTicketId: string | null = null;
 
     for (const msg of rawMessages) {
