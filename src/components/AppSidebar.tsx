@@ -44,6 +44,7 @@ export function AppSidebar() {
   const { establishment } = useEstablishment();
   const [isOwner, setIsOwner] = useState(false);
   const [roleLoaded, setRoleLoaded] = useState(false);
+  const [unreadSupport, setUnreadSupport] = useState(0);
 
   useEffect(() => {
     if (!user) {
@@ -51,12 +52,53 @@ export function AppSidebar() {
       setRoleLoaded(false);
       return;
     }
-    // Fetch role immediately and cache result
     supabase.rpc("has_role", { _user_id: user.id, _role: "owner" }).then(({ data }) => {
       setIsOwner(!!data);
       setRoleLoaded(true);
     });
   }, [user]);
+
+  // Unread support messages count + realtime
+  const fetchUnread = useCallback(async () => {
+    if (!user) { setUnreadSupport(0); return; }
+    const isAdminUser = user.email === "chrileart@gmail.com";
+
+    if (isAdminUser) {
+      // Admin: count unread across ALL tickets where sender is not admin
+      const { count } = await supabase
+        .from("support_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("is_read", false)
+        .neq("sender_id", user.id);
+      setUnreadSupport(count ?? 0);
+    } else if (establishment?.id) {
+      // Owner: count unread in own tickets where sender is not self
+      const { data: tickets } = await supabase
+        .from("support_tickets")
+        .select("id")
+        .eq("establishment_id", establishment.id);
+      if (!tickets?.length) { setUnreadSupport(0); return; }
+      const ticketIds = tickets.map((t: any) => t.id);
+      const { count } = await supabase
+        .from("support_messages")
+        .select("*", { count: "exact", head: true })
+        .in("ticket_id", ticketIds)
+        .eq("is_read", false)
+        .neq("sender_id", user.id);
+      setUnreadSupport(count ?? 0);
+    }
+  }, [user, establishment?.id]);
+
+  useEffect(() => {
+    fetchUnread();
+    const channel = supabase
+      .channel("sidebar-support-badge")
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_messages" }, () => {
+        fetchUnread();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchUnread]);
 
   const isFree = establishment?.plan_name === "free";
   const isAdmin = user?.email === "chrileart@gmail.com";
