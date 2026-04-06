@@ -4,7 +4,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Lock } from "lucide-react";
+import { Send, Lock, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -17,43 +17,66 @@ interface Message {
   created_at: string;
 }
 
+interface TicketMeta {
+  id: string;
+  subject: string;
+  status: string;
+  created_at: string;
+}
+
 interface SupportChatProps {
+  /** Current active (open) ticket id */
   ticketId: string;
   senderName: string;
   isClosed?: boolean;
+  /** All tickets for this establishment, ordered by created_at ASC for timeline */
+  allTickets?: TicketMeta[];
 }
 
-export default function SupportChat({ ticketId, senderName, isClosed = false }: SupportChatProps) {
+export default function SupportChat({
+  ticketId,
+  senderName,
+  isClosed = false,
+  allTickets,
+}: SupportChatProps) {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([]);
+  type TimelineItem = { type: "separator"; subject: string; date: string } | { type: "msg"; msg: Message };
+  const [timelineMessages, setTimelineMessages] = useState<TimelineItem[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [rawMessages, setRawMessages] = useState<Message[]>([]);
 
+  // Collect all ticket ids for timeline
+  const ticketIds = allTickets?.map((t) => t.id) ?? [ticketId];
+
+  // Fetch all messages for all tickets
   useEffect(() => {
-    if (!ticketId) return;
+    if (!ticketIds.length) return;
 
-    supabase
-      .from("support_messages")
-      .select("*")
-      .eq("ticket_id", ticketId)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        if (data) setMessages(data as Message[]);
-      });
-
-    if (user) {
-      supabase
+    const fetchAll = async () => {
+      const { data } = await supabase
         .from("support_messages")
-        .update({ is_read: true })
-        .eq("ticket_id", ticketId)
-        .neq("sender_id", user.id)
-        .eq("is_read", false)
-        .then(() => {});
-    }
+        .select("*")
+        .in("ticket_id", ticketIds)
+        .order("created_at", { ascending: true });
+      if (data) setRawMessages(data as Message[]);
 
+      // Mark unread
+      if (user) {
+        await supabase
+          .from("support_messages")
+          .update({ is_read: true })
+          .in("ticket_id", ticketIds)
+          .neq("sender_id", user.id)
+          .eq("is_read", false);
+      }
+    };
+    fetchAll();
+
+    // Realtime for current open ticket
     const channel = supabase
-      .channel(`support-${ticketId}`)
+      .channel(`support-timeline-${ticketId}`)
       .on(
         "postgres_changes",
         {
@@ -64,7 +87,7 @@ export default function SupportChat({ ticketId, senderName, isClosed = false }: 
         },
         (payload) => {
           const msg = payload.new as Message;
-          setMessages((prev) => {
+          setRawMessages((prev) => {
             if (prev.some((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
@@ -82,11 +105,47 @@ export default function SupportChat({ ticketId, senderName, isClosed = false }: 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [ticketId, user]);
+  }, [ticketId, user, allTickets?.length]);
+
+  // Build timeline with separators
+  useEffect(() => {
+    const ticketMap = new Map<string, TicketMeta>();
+    (allTickets ?? []).forEach((t) => ticketMap.set(t.id, t));
+
+    // If no allTickets provided, just show messages without separators
+    if (!allTickets?.length) {
+      setTimelineMessages(rawMessages.map((m) => ({ type: "msg" as const, msg: m })));
+      return;
+    }
+
+    const timeline: TimelineItem[] = [];
+    let currentTicketId: string | null = null;
+
+    for (const msg of rawMessages) {
+      if (msg.ticket_id !== currentTicketId) {
+        currentTicketId = msg.ticket_id;
+        const meta = ticketMap.get(msg.ticket_id);
+        if (meta) {
+          timeline.push({
+            type: "separator",
+            subject: meta.subject,
+            date: new Date(meta.created_at).toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            }),
+          });
+        }
+      }
+      timeline.push({ type: "msg", msg });
+    }
+
+    setTimelineMessages(timeline);
+  }, [rawMessages, allTickets]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [timelineMessages]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || !user || sending || isClosed) return;
@@ -105,11 +164,34 @@ export default function SupportChat({ ticketId, senderName, isClosed = false }: 
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-3">
-          {messages.map((msg) => {
+          {timelineMessages.map((item, idx) => {
+            if (item.type === "separator") {
+              return (
+                <div key={`sep-${idx}`} className="flex items-center gap-2 my-4">
+                  <div className="flex-1 h-px bg-border" />
+                  <div className="flex items-center gap-1.5 bg-muted/70 rounded-full px-3 py-1 text-xs text-muted-foreground whitespace-nowrap">
+                    <Pin className="h-3 w-3" />
+                    <span>{item.subject}</span>
+                    <span>·</span>
+                    <span>{item.date}</span>
+                  </div>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+              );
+            }
+
+            const msg = item.msg;
             const isMe = msg.sender_id === user?.id;
             const isSystem = msg.sender_name === "Sistema";
+
             return (
-              <div key={msg.id} className={cn("flex", isSystem ? "justify-center" : isMe ? "justify-end" : "justify-start")}>
+              <div
+                key={msg.id}
+                className={cn(
+                  "flex",
+                  isSystem ? "justify-center" : isMe ? "justify-end" : "justify-start"
+                )}
+              >
                 {isSystem ? (
                   <div className="bg-muted/50 rounded-lg px-4 py-2 text-xs text-muted-foreground italic">
                     {msg.content}
@@ -124,11 +206,21 @@ export default function SupportChat({ ticketId, senderName, isClosed = false }: 
                     )}
                   >
                     {!isMe && (
-                      <p className="text-xs font-medium text-muted-foreground mb-1">{msg.sender_name}</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        {msg.sender_name}
+                      </p>
                     )}
                     <p className="whitespace-pre-wrap">{msg.content}</p>
-                    <p className={cn("text-[10px] mt-1", isMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                      {new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    <p
+                      className={cn(
+                        "text-[10px] mt-1",
+                        isMe ? "text-primary-foreground/70" : "text-muted-foreground"
+                      )}
+                    >
+                      {new Date(msg.created_at).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </p>
                   </div>
                 )}
