@@ -1065,7 +1065,7 @@ const DriversPage = () => {
       {/* FAB - Fixed position, always visible on jobs tab */}
       {activeTab === "jobs" && (
         <Button
-          className="fixed bottom-4 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
+          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg p-0"
           onClick={() => openJobSheet()}
         >
           <Plus className="w-6 h-6" />
