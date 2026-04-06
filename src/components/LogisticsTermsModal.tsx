@@ -17,6 +17,7 @@ const TERMS = [
 ];
 
 export default function LogisticsTermsModal() {
+  const navigate = useNavigate();
   const { establishment, refresh } = useEstablishment();
   const { toast } = useToast();
   const [accepting, setAccepting] = useState(false);
