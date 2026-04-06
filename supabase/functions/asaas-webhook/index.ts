@@ -6,6 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const PLAN_VALUES: Record<string, { min: number; max: number; name: string }> = {
+  essential: { min: 25, max: 40, name: "essential" },
+  pro: { min: 40, max: 70, name: "pro" },
+};
+
+function detectPlan(value: number): string {
+  for (const [, range] of Object.entries(PLAN_VALUES)) {
+    if (value >= range.min && value < range.max) return range.name;
+  }
+  // Fallback: if value >= 40, it's pro; otherwise essential
+  return value >= 40 ? "pro" : "essential";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -68,6 +81,7 @@ Deno.serve(async (req) => {
 
     const establishmentId = resolvedEstablishmentId;
 
+    // ── PAYMENT CONFIRMED / RECEIVED ──
     if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
       if (!payment) {
         return new Response(JSON.stringify({ ok: true, skipped: true }), {
@@ -76,23 +90,22 @@ Deno.serve(async (req) => {
         });
       }
 
-      let planType = "essential";
-      if (payment.value >= 49) {
-        planType = "pro";
-      }
+      const planType = detectPlan(payment.value || 0);
 
-      // Calculate next_billing_date: today + 30 days (UTC-safe)
+      // Calculate next_billing_date: today + 30 days
       const today = new Date();
       const nextBilling = new Date(today);
       nextBilling.setDate(nextBilling.getDate() + 30);
       const nextBillingISO = nextBilling.toISOString();
 
-      console.log(`Data de hoje: ${today.toISOString()}, Data calculada para vencimento: ${nextBillingISO}`);
+      console.log(`Plano detectado: ${planType} (valor: ${payment.value})`);
+      console.log(`Data de hoje: ${today.toISOString()}, Vencimento: ${nextBillingISO}`);
 
-      // Update establishment — ALWAYS set active on confirmed payment
+      // Update establishment — set active + update plan_name
       const estUpdate: Record<string, unknown> = {
         plan_status: "active",
-        cancel_at_period_end: false, // Clear any pending cancellation
+        plan_name: planType,
+        cancel_at_period_end: false,
       };
       if (payment.customer) {
         estUpdate.asaas_customer_id = payment.customer;
@@ -110,7 +123,7 @@ Deno.serve(async (req) => {
         console.error("Falha ao atualizar establishments:", estUpdateError.message);
       }
 
-      // Upsert subscription with CONFIRMED data
+      // Upsert subscription
       const { error: subError } = await supabase
         .from("subscriptions")
         .upsert(
@@ -139,6 +152,34 @@ Deno.serve(async (req) => {
       });
 
       console.log("Banco atualizado: plano ativado", planType, "próxima cobrança:", payment.dueDate || nextBillingISO);
+
+    // ── PAYMENT REFUNDED / DELETED ──
+    } else if (event === "PAYMENT_REFUNDED" || event === "PAYMENT_DELETED") {
+      console.log("Pagamento estornado/deletado, revertendo plano");
+
+      await supabase
+        .from("establishments")
+        .update({ plan_status: "inactive", plan_name: "free" })
+        .eq("id", establishmentId);
+
+      await supabase
+        .from("subscriptions")
+        .update({ status: "inactive", updated_at: new Date().toISOString() })
+        .eq("establishment_id", establishmentId);
+
+      if (payment) {
+        await supabase.from("payments").insert({
+          establishment_id: establishmentId,
+          amount: payment.value || 0,
+          status: "refunded",
+          gateway_name: "asaas",
+          gateway_transaction_id: payment.id || null,
+        });
+      }
+
+      console.log("Banco atualizado: plano revertido para free (estorno)");
+
+    // ── PAYMENT OVERDUE ──
     } else if (event === "PAYMENT_OVERDUE") {
       const { error: overdueUpdateError } = await supabase
         .from("establishments")
@@ -155,8 +196,9 @@ Deno.serve(async (req) => {
         .eq("establishment_id", establishmentId);
 
       console.log("Banco atualizado: overdue");
+
+    // ── SUBSCRIPTION DELETED / INACTIVE ──
     } else if (event === "SUBSCRIPTION_DELETED" || event === "SUBSCRIPTION_INACTIVE") {
-      // PROTECTION: Only degrade if the event matches the ACTIVE subscription
       const subscriptionIdFromEvent = subData?.id || payment?.subscription || null;
 
       const { data: est } = await supabase
@@ -173,21 +215,17 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { error: inactiveUpdateError } = await supabase
+      await supabase
         .from("establishments")
-        .update({ plan_status: "inactive" })
+        .update({ plan_status: "inactive", plan_name: "free" })
         .eq("id", establishmentId);
-
-      if (inactiveUpdateError) {
-        console.error("Falha ao atualizar plan_status inactive:", inactiveUpdateError.message);
-      }
 
       await supabase
         .from("subscriptions")
         .update({ status: "inactive", updated_at: new Date().toISOString() })
         .eq("establishment_id", establishmentId);
 
-      console.log("Banco atualizado: inactive");
+      console.log("Banco atualizado: inactive, plan_name resetado para free");
     } else {
       console.log("Unhandled event:", event);
     }
