@@ -282,7 +282,7 @@ const SubscriptionPage = () => {
         return (
           <Card
             key={plan.id}
-            className={`relative transition-all ${
+            className={`relative transition-all flex flex-col ${
               isCurrent
                 ? "border-primary ring-2 ring-primary/20 shadow-md"
                 : plan.popular
