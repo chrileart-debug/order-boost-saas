@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import LogisticsTermsModal from "@/components/LogisticsTermsModal";
 import { useAuth } from "@/components/AuthProvider";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -169,8 +170,14 @@ const LogisticsPage = () => {
   const showKmField = form.type === "per_km";
   const showValueField = form.type !== "free";
 
+  const termsAccepted = !!establishment?.accepted_logistics_terms;
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in relative">
+      {!termsAccepted && <LogisticsTermsModal />}
+      {!termsAccepted && (
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 rounded-lg" />
+      )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Logística de Entrega</h1>
         {!planLimits.allowMultipleDeliveryRules && rules.length >= 1 ? (

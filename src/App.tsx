@@ -14,6 +14,7 @@ import DashboardHome from "./pages/dashboard/DashboardHome";
 import OrdersPage from "./pages/dashboard/OrdersPage";
 import ProductsPage from "./pages/dashboard/ProductsPage";
 import LogisticsPage from "./pages/dashboard/LogisticsPage";
+import TermsPage from "./pages/dashboard/TermsPage";
 import DriversPage from "./pages/dashboard/DriversPage";
 import CouponsPage from "./pages/dashboard/CouponsPage";
 import SettingsPage from "./pages/dashboard/SettingsPage";
@@ -55,6 +56,7 @@ const App = () => (
                 <Route path="drivers" element={<DriversPage />} />
                 <Route path="coupons" element={<CouponsPage />} />
                 <Route path="subscription" element={<SubscriptionPage />} />
+                <Route path="terms" element={<TermsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
               <Route path="/:slug" element={<MenuPage />} />

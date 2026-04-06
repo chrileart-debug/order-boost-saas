@@ -16,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users, ScrollText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
@@ -30,6 +30,7 @@ const menuItems = [
   { title: "Motoristas", url: "/dashboard/drivers", icon: Users },
   { title: "Cupons", url: "/dashboard/coupons", icon: Ticket },
   { title: "Assinatura", url: "/dashboard/subscription", icon: CreditCard },
+  { title: "Termos", url: "/dashboard/terms", icon: ScrollText },
   { title: "Configurações", url: "/dashboard/settings", icon: Settings },
 ];
 

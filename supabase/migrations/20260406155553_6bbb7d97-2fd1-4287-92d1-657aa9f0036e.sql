@@ -1,0 +1,1 @@
+ALTER TABLE public.establishments ADD COLUMN accepted_logistics_terms boolean NOT NULL DEFAULT false;
