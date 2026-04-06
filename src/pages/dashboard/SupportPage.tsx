@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Package, Truck, CreditCard, AlertTriangle } from "lucide-react";
 import SupportChat from "@/components/support/SupportChat";
+import FaqSection from "@/components/support/FaqSection";
 
 const SUBJECTS = [
   {
@@ -230,6 +231,8 @@ export default function SupportPage() {
           </Card>
         ))}
       </div>
+
+      <FaqSection />
     </div>
   );
 }
