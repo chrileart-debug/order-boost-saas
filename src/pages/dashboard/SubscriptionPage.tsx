@@ -270,7 +270,7 @@ const SubscriptionPage = () => {
   }
 
   const renderPlanCards = () => (
-    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 grid-cols-1 xl:grid-cols-3">
       {plans.map((plan) => {
         const Icon = plan.icon;
         const currentTier = currentPlanDef?.tier ?? 0;
@@ -311,7 +311,7 @@ const SubscriptionPage = () => {
                 </div>
                 <div>
                   <CardTitle className="text-lg">{plan.name}</CardTitle>
-                  <div className="flex items-baseline gap-0.5">
+                  <div className="flex items-baseline gap-1 flex-wrap">
                     {plan.price === "0" ? (
                       <span className="text-2xl font-extrabold text-foreground">Grátis</span>
                     ) : (
