@@ -260,6 +260,7 @@ export type Database = {
           lng: number | null
           profile_photo_url: string | null
           rating_avg: number | null
+          search_preferences: Json
           total_deliveries: number | null
           vehicle_details: Json | null
           vehicle_type: string | null
@@ -283,6 +284,7 @@ export type Database = {
           lng?: number | null
           profile_photo_url?: string | null
           rating_avg?: number | null
+          search_preferences?: Json
           total_deliveries?: number | null
           vehicle_details?: Json | null
           vehicle_type?: string | null
@@ -306,6 +308,7 @@ export type Database = {
           lng?: number | null
           profile_photo_url?: string | null
           rating_avg?: number | null
+          search_preferences?: Json
           total_deliveries?: number | null
           vehicle_details?: Json | null
           vehicle_type?: string | null
@@ -812,6 +815,7 @@ export type Database = {
           driver_id: string | null
           establishment_id: string
           id: string
+          is_collected: boolean
           lat: number | null
           lng: number | null
           observations: string | null
@@ -833,6 +837,7 @@ export type Database = {
           driver_id?: string | null
           establishment_id: string
           id?: string
+          is_collected?: boolean
           lat?: number | null
           lng?: number | null
           observations?: string | null
@@ -854,6 +859,7 @@ export type Database = {
           driver_id?: string | null
           establishment_id?: string
           id?: string
+          is_collected?: boolean
           lat?: number | null
           lng?: number | null
           observations?: string | null
