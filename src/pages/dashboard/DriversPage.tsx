@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
+import LogisticsTermsModal from "@/components/LogisticsTermsModal";
 import { useEstablishment } from "@/components/EstablishmentProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -862,8 +863,14 @@ const DriversPage = () => {
     );
   }
 
+  const termsAccepted = !!establishment?.accepted_logistics_terms;
+
   return (
     <div className="space-y-6 animate-fade-in relative">
+      {!termsAccepted && <LogisticsTermsModal />}
+      {!termsAccepted && (
+        <div className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 rounded-lg" />
+      )}
       <h1 className="text-2xl font-bold text-foreground">Motoristas</h1>
 
       <Tabs defaultValue="interested" className="w-full" onValueChange={setActiveTab}>
