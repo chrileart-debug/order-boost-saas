@@ -942,7 +942,6 @@ const DriversPage = () => {
                 </Card>
                 );
               })}
-              ))}
             </div>
           )}
         </TabsContent>
