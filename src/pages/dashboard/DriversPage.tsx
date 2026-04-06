@@ -916,12 +916,14 @@ const DriversPage = () => {
                       {m.active_job_start && m.active_job_end && (
                         <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
-                          <span>{formatTime(m.active_job_start)} - {formatTime(m.active_job_end)}</span>
+                          <span>
+                            {new Date(m.active_job_start).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} {formatTime(m.active_job_start)} - {formatTime(m.active_job_end)}
+                          </span>
                         </div>
                       )}
-                      {m.hired_at && (
+                      {m.active_job_end && (
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Contratado em {new Date(m.hired_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          Encerra em {new Date(m.active_job_end).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })} às {formatTime(m.active_job_end)}
                         </p>
                       )}
                       {m.active_job_value != null && (
