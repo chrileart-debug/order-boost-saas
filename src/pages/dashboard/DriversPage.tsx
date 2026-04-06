@@ -204,6 +204,9 @@ const DriversPage = () => {
   // Active tab for FAB visibility
   const [activeTab, setActiveTab] = useState("interested");
 
+  // Read-only job viewing
+  const [viewingJob, setViewingJob] = useState<Job | null>(null);
+
   useEffect(() => {
     endingJobIdRef.current = endingJob?.id ?? null;
   }, [endingJob]);
@@ -687,9 +690,9 @@ const DriversPage = () => {
 
   const openJobSheet = (job?: Job) => {
     if (job) {
-      // Only allow editing drafts
+      // Non-draft: open read-only view
       if (job.status !== "draft") {
-        toast({ title: "Edição bloqueada", description: "Apenas vagas em rascunho podem ser editadas.", variant: "destructive" });
+        setViewingJob(job);
         return;
       }
       setEditingJob(job);
@@ -1015,7 +1018,7 @@ const DriversPage = () => {
           ) : (
             <div className="grid gap-3">
               {jobs.map(j => (
-                <Card key={j.id} className={`hover:border-primary/30 transition-colors ${j.status === "draft" ? "cursor-pointer" : ""}`} onClick={() => j.status === "draft" && openJobSheet(j)}>
+                <Card key={j.id} className="hover:border-primary/30 transition-colors cursor-pointer" onClick={() => openJobSheet(j)}>
                   <CardContent className="flex items-center justify-between p-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-sm text-foreground">{j.title}</h3>
