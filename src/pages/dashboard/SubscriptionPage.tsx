@@ -18,7 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle, ShieldCheck, AlertTriangle, RotateCcw } from "lucide-react";
+import { Check, Crown, Zap, Loader2, CreditCard, Receipt, XCircle, ShieldCheck, AlertTriangle, RotateCcw, Gift } from "lucide-react";
 import { toast } from "sonner";
 
 interface Subscription {
@@ -38,6 +38,19 @@ interface Payment {
 }
 
 const plans = [
+  {
+    id: "free",
+    name: "Gratuito",
+    price: "0",
+    value: 0,
+    tier: 0,
+    icon: Gift,
+    features: [
+      "Gestão de Motoristas",
+      "Painel de Vagas e Turnos",
+      "Configurações do Estabelecimento",
+    ],
+  },
   {
     id: "essential",
     name: "Essential",
@@ -227,9 +240,13 @@ const SubscriptionPage = () => {
     }
   };
 
-  const isActive = establishment?.plan_status === "active";
+  // Use establishment.plan_name as the source of truth
+  const currentPlanName = establishment?.plan_name || "free";
+  const isFree = currentPlanName === "free";
+  const isPaidActive = establishment?.plan_status === "active" && !isFree;
   const isCancelScheduled = !!establishment?.cancel_at_period_end;
-  const activePlan = isActive ? (subscription?.plan_type || "essential") : null;
+
+  const currentPlanDef = plans.find((p) => p.id === currentPlanName);
 
   const nextBillingDate = subscription?.next_billing_date
     ? new Date(subscription.next_billing_date)
@@ -253,13 +270,14 @@ const SubscriptionPage = () => {
   }
 
   const renderPlanCards = () => (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-3">
       {plans.map((plan) => {
         const Icon = plan.icon;
-        const currentTier = plans.find((p) => p.id === activePlan)?.tier ?? 0;
-        const isCurrent = activePlan === plan.id;
-        const isUpgrade = isActive && !isCurrent && plan.tier > currentTier;
-        const isDowngrade = isActive && !isCurrent && plan.tier < currentTier;
+        const currentTier = currentPlanDef?.tier ?? 0;
+        const isCurrent = currentPlanName === plan.id;
+        const isUpgrade = !isCurrent && plan.tier > currentTier;
+        const isDowngrade = !isCurrent && plan.tier < currentTier;
+        const isPaidPlan = plan.tier > 0;
 
         return (
           <Card
@@ -294,8 +312,14 @@ const SubscriptionPage = () => {
                 <div>
                   <CardTitle className="text-lg">{plan.name}</CardTitle>
                   <div className="flex items-baseline gap-0.5">
-                    <span className="text-2xl font-extrabold text-foreground">R$ {plan.price}</span>
-                    <span className="text-muted-foreground text-xs">/mês</span>
+                    {plan.price === "0" ? (
+                      <span className="text-2xl font-extrabold text-foreground">Grátis</span>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-extrabold text-foreground">R$ {plan.price}</span>
+                        <span className="text-muted-foreground text-xs">/mês</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -317,18 +341,21 @@ const SubscriptionPage = () => {
                 </Button>
               ) : isDowngrade ? (
                 <p className="text-center text-xs text-muted-foreground py-2">Plano inferior ao atual</p>
-              ) : isUpgrade ? (
+              ) : isUpgrade && isPaidPlan ? (
                 <Button
                   onClick={() => handleCheckout(plan)}
                   disabled={checkoutLoading === plan.id}
                   className="w-full h-11 font-semibold"
+                  variant={plan.popular ? "default" : "outline"}
                 >
                   {checkoutLoading === plan.id ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Gerando link...</>
                   ) : (
-                    `Fazer Upgrade para ${plan.name}`
+                    isPaidActive ? `Fazer Upgrade para ${plan.name}` : "Assinar agora"
                   )}
                 </Button>
+              ) : !isPaidPlan ? (
+                null
               ) : (
                 <Button
                   onClick={() => handleCheckout(plan)}
@@ -350,14 +377,41 @@ const SubscriptionPage = () => {
     </div>
   );
 
-  // ── No active plan ──
-  if (!isActive) {
+  // ── Free plan or no paid subscription ──
+  if (isFree || !isPaidActive) {
     return (
-      <div className="max-w-2xl mx-auto space-y-6 px-4 py-2">
+      <div className="max-w-3xl mx-auto space-y-6 px-4 py-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
-          <p className="text-muted-foreground text-sm mt-1">Escolha o plano ideal para o seu negócio.</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {isFree
+              ? "Você está no plano Gratuito. Faça upgrade para desbloquear mais recursos."
+              : "Escolha o plano ideal para o seu negócio."}
+          </p>
         </div>
+
+        {/* Current plan summary for free users */}
+        {isFree && (
+          <Card className="bg-card">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                    <Gift className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Plano atual</p>
+                    <p className="text-lg font-bold text-foreground">Gratuito</p>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15">
+                  Ativo
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {renderPlanCards()}
         <p className="text-center text-xs text-muted-foreground">
           Pagamento seguro via Asaas. Cancele a qualquer momento.
@@ -366,9 +420,9 @@ const SubscriptionPage = () => {
     );
   }
 
-  // ── Active plan — Tabs ──
+  // ── Paid active plan — Tabs ──
   return (
-    <div className="max-w-2xl mx-auto space-y-5 px-4 py-2">
+    <div className="max-w-3xl mx-auto space-y-5 px-4 py-2">
       <h1 className="text-2xl font-bold text-foreground">Assinatura</h1>
 
       <Tabs defaultValue="plan" className="w-full">
@@ -378,15 +432,12 @@ const SubscriptionPage = () => {
         </TabsList>
 
         <TabsContent value="plan" className="space-y-5 mt-4">
-          {/* Cancellation scheduled alert */}
           {isCancelScheduled && (
             <Card className="border-amber-500/30 bg-amber-500/5">
               <CardContent className="p-4 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="flex-1 space-y-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Cancelamento agendado
-                  </p>
+                  <p className="text-sm font-medium text-foreground">Cancelamento agendado</p>
                   <p className="text-xs text-muted-foreground">
                     Sua assinatura será encerrada em{" "}
                     <strong>
@@ -395,14 +446,9 @@ const SubscriptionPage = () => {
                         : "breve"}
                     </strong>
                     . Até lá, você continua com acesso completo ao plano{" "}
-                    <strong className="capitalize">{activePlan}</strong>.
+                    <strong className="capitalize">{currentPlanName}</strong>.
                   </p>
-                  <Button
-                    size="sm"
-                    onClick={handleReactivate}
-                    disabled={reactivateLoading}
-                    className="mt-1"
-                  >
+                  <Button size="sm" onClick={handleReactivate} disabled={reactivateLoading} className="mt-1">
                     {reactivateLoading ? (
                       <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Reativando...</>
                     ) : (
@@ -418,17 +464,14 @@ const SubscriptionPage = () => {
             <CardContent className="p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {(() => {
-                    const Def = plans.find((p) => p.id === activePlan);
-                    return Def ? (
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Def.icon className="w-5 h-5 text-primary" />
-                      </div>
-                    ) : null;
-                  })()}
+                  {currentPlanDef && (
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <currentPlanDef.icon className="w-5 h-5 text-primary" />
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wide">Plano atual</p>
-                    <p className="text-lg font-bold text-foreground capitalize">{activePlan}</p>
+                    <p className="text-lg font-bold text-foreground capitalize">{currentPlanDef?.name || currentPlanName}</p>
                   </div>
                 </div>
                 <Badge className={
@@ -444,7 +487,8 @@ const SubscriptionPage = () => {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Valor mensal</span>
                   <span className="font-semibold text-foreground">
-                    R$ {activePlan === "pro" ? "49,90" : "29,90"}
+                    R$ {currentPlanDef?.price || "0"}
+                    {currentPlanDef && currentPlanDef.value > 0 ? "" : ""}
                   </span>
                 </div>
                 {nextBillingDate && (
@@ -461,29 +505,12 @@ const SubscriptionPage = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-foreground" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Método de pagamento</p>
-                  <p className="text-sm font-medium text-foreground">Cartão de crédito •••• 7667</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
-                Alterar
-              </Button>
-            </CardContent>
-          </Card>
-
           <div>
             <p className="text-sm font-semibold text-foreground mb-3">Planos disponíveis</p>
             {renderPlanCards()}
           </div>
 
-          {/* Cancel / Reactivate footer */}
+          {/* Cancel / Reactivate footer — only for paid plans */}
           <div className="pt-1 text-center">
             {isCancelScheduled ? (
               <Button
@@ -510,7 +537,7 @@ const SubscriptionPage = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Deseja cancelar a renovação?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Você terá acesso ao plano <strong className="capitalize">{activePlan}</strong> até o dia{" "}
+                      Você terá acesso ao plano <strong className="capitalize">{currentPlanDef?.name || currentPlanName}</strong> até o dia{" "}
                       <strong>
                         {nextBillingDate
                           ? nextBillingDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
@@ -559,7 +586,7 @@ const SubscriptionPage = () => {
                         {new Date(p.created_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        R$ {p.amount.toFixed(2).replace(".", ",")} · Cartão •••• 7667
+                        R$ {p.amount.toFixed(2).replace(".", ",")}
                       </p>
                     </div>
                     <Badge
