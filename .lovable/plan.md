@@ -1,66 +1,100 @@
 
 
-## Plano: Termo de Intermediação e Isenção de Responsabilidade
+## Plano: Centro de Suporte EPRATO (Chat em Tempo Real)
 
 ### Resumo
-Adicionar camada de segurança jurídica: coluna no banco, modal obrigatório antes de acessar Motoristas/Logística, e página de consulta do termo.
+Criar sistema de suporte com chat em tempo real via Supabase Realtime, permitindo lojistas abrirem chamados por assunto e o admin (chrileart@gmail.com) gerenciar todos os chamados.
 
 ---
 
-### 1. Migração de Banco de Dados
+### 1. Banco de Dados (2 tabelas + migração)
 
-Adicionar coluna `accepted_logistics_terms` (boolean, default false) na tabela `establishments`.
+**Tabela `support_tickets`:**
+- `id` uuid PK
+- `establishment_id` uuid NOT NULL
+- `establishment_name` text NOT NULL
+- `plan_name` text NOT NULL
+- `subject` text NOT NULL (Produtos, Adicionais, Problemas Técnicos, Pagamentos, Outros)
+- `status` text DEFAULT 'open' (open, closed)
+- `created_at` timestamptz DEFAULT now()
+- `updated_at` timestamptz DEFAULT now()
 
-```sql
-ALTER TABLE establishments
-ADD COLUMN accepted_logistics_terms boolean NOT NULL DEFAULT false;
-```
+**Tabela `support_messages`:**
+- `id` uuid PK
+- `ticket_id` uuid NOT NULL
+- `sender_id` uuid NOT NULL
+- `sender_name` text NOT NULL
+- `content` text NOT NULL
+- `is_read` boolean DEFAULT false
+- `created_at` timestamptz DEFAULT now()
 
----
+**RLS:**
+- Lojistas: SELECT/INSERT nos próprios tickets (via establishment owner_id) e mensagens dos seus tickets
+- Admin (chrileart@gmail.com): SELECT/INSERT/UPDATE em todos os tickets e mensagens, usando `auth.uid()` do admin
 
-### 2. Componente `LogisticsTermsModal`
-
-Novo arquivo: `src/components/LogisticsTermsModal.tsx`
-
-- Dialog/AlertDialog inescapável (`onInteractOutside` bloqueado, sem botão X)
-- Título: "Termo de Intermediação e Isenção de Responsabilidade"
-- Exibe os 5 pontos do termo em lista numerada
-- Botão único: "Li e concordo com os termos"
-- Ao clicar: faz `update` em `establishments` setando `accepted_logistics_terms = true`, depois chama `refresh()` do EstablishmentProvider
-
----
-
-### 3. Guard nas páginas DriversPage e LogisticsPage
-
-Em ambas as páginas, no topo do render:
-- Ler `establishment.accepted_logistics_terms` do contexto
-- Se `false` ou `undefined`: renderizar o `LogisticsTermsModal` aberto + conteúdo com blur/overlay bloqueando interação
-- Se `true`: renderizar normalmente
+**Realtime:** Habilitar realtime em `support_messages` para updates em tempo real.
 
 ---
 
-### 4. Página "Termos e Responsabilidades"
+### 2. Página do Lojista (`src/pages/dashboard/SupportPage.tsx`)
 
-Novo arquivo: `src/pages/dashboard/TermsPage.tsx`
-- Exibe o texto completo do termo de forma estática e organizada (Card com lista numerada)
-- Apenas leitura, sem ações
+**Estado inicial:** Grid de 5 cards clicáveis (Produtos, Adicionais, Problemas Técnicos, Pagamentos, Outros) + lista de tickets anteriores abertos.
 
----
+**Ao selecionar assunto:**
+- Cria ticket no banco com `establishment_id`, `establishment_name`, `plan_name`, `subject`
+- Abre interface de chat (ScrollArea com mensagens + input na parte inferior)
+- Usa `supabase.channel()` para escutar novas mensagens em tempo real
 
-### 5. Sidebar e Rotas
-
-**AppSidebar.tsx**: Adicionar item "Termos" com ícone `FileText` (ou `ScrollText`) antes de "Configurações", visível para todos os planos.
-
-**App.tsx**: Adicionar rota `/dashboard/terms` → `TermsPage` dentro do layout do dashboard.
+**Ao clicar em ticket existente:** Abre o chat daquele ticket.
 
 ---
 
-### Arquivos Modificados
-- **Migração SQL**: nova coluna `accepted_logistics_terms`
-- `src/components/LogisticsTermsModal.tsx` — novo componente
-- `src/pages/dashboard/TermsPage.tsx` — nova página
-- `src/pages/dashboard/DriversPage.tsx` — guard com modal + blur
-- `src/pages/dashboard/LogisticsPage.tsx` — guard com modal + blur
-- `src/components/AppSidebar.tsx` — novo item "Termos"
-- `src/App.tsx` — nova rota `/dashboard/terms`
+### 3. Dashboard Admin (`src/pages/dashboard/AdminSupportPage.tsx`)
+
+- Verificação: só renderiza se `user.email === 'chrileart@gmail.com'`
+- Lista todos os tickets agrupados/filtráveis por loja e status
+- Mostra: nome da loja, plano, assunto, data, status
+- Ao clicar: abre o mesmo componente de chat para responder
+
+---
+
+### 4. Componente de Chat (`src/components/support/SupportChat.tsx`)
+
+- Recebe `ticketId` como prop
+- Carrega mensagens existentes via SELECT
+- Subscribe no canal realtime `support_messages` filtrado por `ticket_id`
+- Input + botão enviar na parte inferior
+- Mensagens do usuário à direita (bolha azul), mensagens do admin à esquerda (bolha cinza)
+- Marca mensagens como lidas ao abrir
+
+---
+
+### 5. Badge de Notificação no Sidebar
+
+- No `AppSidebar.tsx`, adicionar item "Suporte" com ícone `Headphones` (ou `MessageCircle`)
+- Query de contagem: mensagens não lidas onde `sender_id != user.id` nos tickets do establishment
+- Para admin: mensagens não lidas em qualquer ticket
+- Exibir badge vermelho com contagem ao lado do texto "Suporte"
+- Usar subscribe realtime para atualizar contagem sem polling
+
+---
+
+### 6. Rotas
+
+- `/dashboard/support` → `SupportPage` (lojista)
+- `/dashboard/admin-support` → `AdminSupportPage` (admin only)
+- Rota admin-support visível no sidebar apenas para chrileart@gmail.com
+
+---
+
+### Arquivos
+
+| Ação | Arquivo |
+|------|---------|
+| Migração | Nova migração SQL (2 tabelas, RLS, realtime) |
+| Novo | `src/pages/dashboard/SupportPage.tsx` |
+| Novo | `src/pages/dashboard/AdminSupportPage.tsx` |
+| Novo | `src/components/support/SupportChat.tsx` |
+| Editar | `src/components/AppSidebar.tsx` (item Suporte + badge + admin-support) |
+| Editar | `src/App.tsx` (2 novas rotas) |
 
