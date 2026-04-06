@@ -1,111 +1,66 @@
 
 
-## Plano: Reformular Planos (Free/Essential/Pro) e Sidebar por Plano
+## Plano: Termo de Intermediação e Isenção de Responsabilidade
 
 ### Resumo
-Atualizar limites, features dos cards, e restringir menus do sidebar conforme o plano do estabelecimento.
+Adicionar camada de segurança jurídica: coluna no banco, modal obrigatório antes de acessar Motoristas/Logística, e página de consulta do termo.
 
 ---
 
-### 1. Resposta: URLs por Plano
+### 1. Migração de Banco de Dados
 
-**Plano Gratuito:**
-- `/dashboard` (Painel)
-- `/dashboard/drivers` (Motoristas)
-- `/dashboard/subscription` (Assinatura)
-- `/dashboard/settings` (Configurações)
+Adicionar coluna `accepted_logistics_terms` (boolean, default false) na tabela `establishments`.
 
-**Plano Essential (tudo do Gratuito +):**
-- `/dashboard/orders` (Pedidos)
-- `/dashboard/products` (Produtos)
-- `/dashboard/logistics` (Logística)
-- `/dashboard/coupons` (Cupons)
-
-**Plano Pro (tudo do Essential, com limites maiores)**
-- Mesmas URLs do Essential, sem restrições adicionais de rota.
-
----
-
-### 2. Atualizar `src/lib/planLimits.ts`
-
-Novos limites conforme especificado:
-
-```text
-free:
-  maxProducts: 0, maxCombos: 0, maxCategories: 0
-  maxModifierGroups: 0, maxCoupons: 0
-  allowMenu: false, allowOrders: false, allowLogistics: false, allowCoupons: false
-
-essential:
-  maxProducts: 10, maxCombos: 5, maxCategories: 5
-  maxModifierGroups: 10, maxCoupons: 2
-  allowMenu: true, allowOrders: true, allowLogistics: true, allowCoupons: true
-
-pro:
-  maxProducts: 30, maxCombos: 30, maxCategories: 15
-  maxModifierGroups: 20, maxCoupons: 10
-  allowMenu: true, allowOrders: true, allowLogistics: true, allowCoupons: true
+```sql
+ALTER TABLE establishments
+ADD COLUMN accepted_logistics_terms boolean NOT NULL DEFAULT false;
 ```
 
 ---
 
-### 3. Sidebar filtrado por plano (`src/components/AppSidebar.tsx`)
+### 2. Componente `LogisticsTermsModal`
 
-- Ler `establishment.plan_name` do contexto.
-- Itens restritos ao plano pago (Essential+): Pedidos, Produtos, Logística, Cupons.
-- Se `plan_name === "free"`, esconder esses 4 itens do menu.
-- Manter: Painel, Motoristas, Assinatura, Configurações para todos.
+Novo arquivo: `src/components/LogisticsTermsModal.tsx`
 
----
-
-### 4. Atualizar cards de planos em `SelectPlanPage.tsx`
-
-Novas features por card:
-
-**Gratuito:**
-- Gestão de Motoristas
-- Painel de Vagas e Turnos
-- Configurações do Estabelecimento
-
-**Essential (R$ 29,90/mês) -- com trial 7 dias:**
-- Até 10 produtos (simples + combos)
-- Até 5 combos
-- Até 5 categorias
-- Até 10 adicionais por item
-- Até 2 cupons ativos
-- Cardápio Digital ativo
-- Gestão de Pedidos
-- Suporte em horário comercial
-
-**PRO (R$ 59,90/mês) -- com trial 7 dias:**
-- Até 30 produtos
-- Combos ilimitados (dentro do limite)
-- Até 15 categorias
-- Até 20 adicionais por item
-- Até 10 cupons ativos
-- Suporte VIP prioritário
+- Dialog/AlertDialog inescapável (`onInteractOutside` bloqueado, sem botão X)
+- Título: "Termo de Intermediação e Isenção de Responsabilidade"
+- Exibe os 5 pontos do termo em lista numerada
+- Botão único: "Li e concordo com os termos"
+- Ao clicar: faz `update` em `establishments` setando `accepted_logistics_terms = true`, depois chama `refresh()` do EstablishmentProvider
 
 ---
 
-### 5. Atualizar cards em `SubscriptionPage.tsx`
+### 3. Guard nas páginas DriversPage e LogisticsPage
 
-Alinhar as features listadas nos cards com os mesmos textos do `SelectPlanPage`.
+Em ambas as páginas, no topo do render:
+- Ler `establishment.accepted_logistics_terms` do contexto
+- Se `false` ou `undefined`: renderizar o `LogisticsTermsModal` aberto + conteúdo com blur/overlay bloqueando interação
+- Se `true`: renderizar normalmente
 
 ---
 
-### 6. Proteção de rotas pagas para plano Free
+### 4. Página "Termos e Responsabilidades"
 
-No `DashboardLayout` ou nas páginas individuais (`OrdersPage`, `ProductsPage`, `LogisticsPage`, `CouponsPage`): se `plan_name === "free"`, renderizar o componente `UpgradeBanner` existente em vez do conteúdo real.
+Novo arquivo: `src/pages/dashboard/TermsPage.tsx`
+- Exibe o texto completo do termo de forma estática e organizada (Card com lista numerada)
+- Apenas leitura, sem ações
+
+---
+
+### 5. Sidebar e Rotas
+
+**AppSidebar.tsx**: Adicionar item "Termos" com ícone `FileText` (ou `ScrollText`) antes de "Configurações", visível para todos os planos.
+
+**App.tsx**: Adicionar rota `/dashboard/terms` → `TermsPage` dentro do layout do dashboard.
 
 ---
 
 ### Arquivos Modificados
-- `src/lib/planLimits.ts` -- novos campos de limite
-- `src/components/AppSidebar.tsx` -- filtro de menu por plano
-- `src/pages/auth/SelectPlanPage.tsx` -- features atualizadas
-- `src/pages/dashboard/SubscriptionPage.tsx` -- features atualizadas
-- `src/pages/dashboard/OrdersPage.tsx` -- guard UpgradeBanner
-- `src/pages/dashboard/ProductsPage.tsx` -- guard UpgradeBanner
-- `src/pages/dashboard/LogisticsPage.tsx` -- guard UpgradeBanner
-- `src/pages/dashboard/CouponsPage.tsx` -- guard UpgradeBanner
+- **Migração SQL**: nova coluna `accepted_logistics_terms`
+- `src/components/LogisticsTermsModal.tsx` — novo componente
+- `src/pages/dashboard/TermsPage.tsx` — nova página
+- `src/pages/dashboard/DriversPage.tsx` — guard com modal + blur
+- `src/pages/dashboard/LogisticsPage.tsx` — guard com modal + blur
+- `src/components/AppSidebar.tsx` — novo item "Termos"
+- `src/App.tsx` — nova rota `/dashboard/terms`
 
