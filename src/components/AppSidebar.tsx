@@ -109,7 +109,9 @@ export function AppSidebar() {
     : menuItems.filter((item) => !ownerOnlyPaths.includes(item.url) || isOwner)
   )
     .filter((item) => !isFree || !paidOnlyPaths.includes(item.url))
-    .filter((item) => !adminOnlyPaths.includes(item.url) || isAdmin);
+    .filter((item) => !adminOnlyPaths.includes(item.url) || isAdmin)
+    // For admin: hide the regular support link (they use admin-support)
+    .filter((item) => !(isAdmin && item.url === "/dashboard/support"));
 
   return (
     <Sidebar collapsible="icon">
