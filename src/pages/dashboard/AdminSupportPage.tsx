@@ -46,8 +46,19 @@ export default function AdminSupportPage() {
   }, [isAdmin, statusFilter]);
 
   const handleCloseTicket = async (ticketId: string) => {
+    // Send system goodbye message
+    if (user) {
+      await supabase.from("support_messages").insert({
+        ticket_id: ticketId,
+        sender_id: user.id,
+        sender_name: "Sistema",
+        content: "Muito obrigado, o suporte encerrou. 🙏",
+      });
+    }
     await supabase.from("support_tickets").update({ status: "closed" }).eq("id", ticketId);
     fetchTickets();
+    // Update local ticket status for immediate UI feedback
+    setTickets((prev) => prev.map((t) => t.id === ticketId ? { ...t, status: "closed" } : t));
   };
 
   if (!isAdmin) {
@@ -62,7 +73,7 @@ export default function AdminSupportPage() {
     const ticket = tickets.find((t) => t.id === activeTicketId);
     return (
       <div className="h-[calc(100vh-8rem)] flex flex-col animate-fade-in">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => { setActiveTicketId(null); fetchTickets(); }}>
               <ArrowLeft className="h-5 w-5" />
@@ -83,7 +94,11 @@ export default function AdminSupportPage() {
           )}
         </div>
         <div className="flex-1 border rounded-lg overflow-hidden bg-card">
-          <SupportChat ticketId={activeTicketId} senderName="Suporte EPRATO" />
+          <SupportChat
+            ticketId={activeTicketId}
+            senderName="Suporte EPRATO"
+            isClosed={ticket?.status === "closed"}
+          />
         </div>
       </div>
     );
@@ -91,7 +106,7 @@ export default function AdminSupportPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Suporte — Admin</h1>
           <p className="text-muted-foreground">{tickets.length} chamado(s)</p>

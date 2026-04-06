@@ -4,7 +4,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
+import { Send, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Message {
@@ -20,9 +20,10 @@ interface Message {
 interface SupportChatProps {
   ticketId: string;
   senderName: string;
+  isClosed?: boolean;
 }
 
-export default function SupportChat({ ticketId, senderName }: SupportChatProps) {
+export default function SupportChat({ ticketId, senderName, isClosed = false }: SupportChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -32,7 +33,6 @@ export default function SupportChat({ ticketId, senderName }: SupportChatProps) 
   useEffect(() => {
     if (!ticketId) return;
 
-    // Load existing messages
     supabase
       .from("support_messages")
       .select("*")
@@ -42,7 +42,6 @@ export default function SupportChat({ ticketId, senderName }: SupportChatProps) 
         if (data) setMessages(data as Message[]);
       });
 
-    // Mark unread messages as read
     if (user) {
       supabase
         .from("support_messages")
@@ -53,7 +52,6 @@ export default function SupportChat({ ticketId, senderName }: SupportChatProps) 
         .then(() => {});
     }
 
-    // Subscribe to realtime
     const channel = supabase
       .channel(`support-${ticketId}`)
       .on(
@@ -70,7 +68,6 @@ export default function SupportChat({ ticketId, senderName }: SupportChatProps) 
             if (prev.some((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
-          // Mark as read if from other user
           if (user && msg.sender_id !== user.id) {
             supabase
               .from("support_messages")
@@ -92,7 +89,7 @@ export default function SupportChat({ ticketId, senderName }: SupportChatProps) 
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !user || sending) return;
+    if (!newMessage.trim() || !user || sending || isClosed) return;
     setSending(true);
     const { error } = await supabase.from("support_messages").insert({
       ticket_id: ticketId,
@@ -110,42 +107,56 @@ export default function SupportChat({ ticketId, senderName }: SupportChatProps) 
         <div className="space-y-3">
           {messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
+            const isSystem = msg.sender_name === "Sistema";
             return (
-              <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "max-w-[75%] rounded-2xl px-4 py-2 text-sm",
-                    isMe
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted text-foreground rounded-bl-md"
-                  )}
-                >
-                  {!isMe && (
-                    <p className="text-xs font-medium text-muted-foreground mb-1">{msg.sender_name}</p>
-                  )}
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                  <p className={cn("text-[10px] mt-1", isMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                    {new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
+              <div key={msg.id} className={cn("flex", isSystem ? "justify-center" : isMe ? "justify-end" : "justify-start")}>
+                {isSystem ? (
+                  <div className="bg-muted/50 rounded-lg px-4 py-2 text-xs text-muted-foreground italic">
+                    {msg.content}
+                  </div>
+                ) : (
+                  <div
+                    className={cn(
+                      "max-w-[75%] rounded-2xl px-4 py-2 text-sm",
+                      isMe
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : "bg-muted text-foreground rounded-bl-md"
+                    )}
+                  >
+                    {!isMe && (
+                      <p className="text-xs font-medium text-muted-foreground mb-1">{msg.sender_name}</p>
+                    )}
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className={cn("text-[10px] mt-1", isMe ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                      {new Date(msg.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                )}
               </div>
             );
           })}
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
-      <div className="border-t p-3 flex gap-2">
-        <Input
-          placeholder="Digite sua mensagem..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-          disabled={sending}
-        />
-        <Button size="icon" onClick={handleSend} disabled={sending || !newMessage.trim()}>
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
+      {isClosed ? (
+        <div className="border-t p-3 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+          <Lock className="h-4 w-4" />
+          <span>Este chamado foi encerrado</span>
+        </div>
+      ) : (
+        <div className="border-t p-3 flex gap-2">
+          <Input
+            placeholder="Digite sua mensagem..."
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+            disabled={sending}
+          />
+          <Button size="icon" onClick={handleSend} disabled={sending || !newMessage.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
