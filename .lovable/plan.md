@@ -1,73 +1,38 @@
 
 
-## Plano: Corrigir Badge "Em Serviço" e Automatizar fleet_history
+## Plano: Sheet de Detalhes da Vaga (read-only / editável para rascunho)
 
 ### Problema
-1. Motoristas com jobs `completed` continuam com badge "Em Serviço" porque o frontend filtra jobs com `status !== "finalizado"` (string errada) em vez de excluir `completed`/`cancelled`.
-2. A tabela `fleet_history` nunca é populada -- nenhum trigger existe para fazer UPSERT quando jobs mudam de status.
+Atualmente, clicar em uma vaga que não é rascunho mostra um toast de erro "Edição bloqueada". Vagas publicadas (open, contracted, ending, completed) não mostram nenhuma informação ao clicar. O lojista não consegue visualizar os detalhes de suas vagas.
 
-### Correções
+### Solução
+Ao clicar em qualquer card de vaga, abrir um Sheet (direita para esquerda) com os detalhes da vaga. Se o status for `draft`, mostrar o formulário de edição existente. Se for qualquer outro status, mostrar uma visualização read-only com todas as informações formatadas.
 
-#### 1. Database Trigger -- Automatizar fleet_history (Migration SQL)
+### Implementação
 
-Criar trigger na tabela `jobs` que:
-- Quando `status` muda para `contracted`: faz UPSERT em `fleet_history` com `(establishment_id, driver_id, is_active = true)`
-- Quando `status` muda para `completed` ou `cancelled`: faz UPDATE em `fleet_history` setando `is_active = false` para aquele par `(establishment_id, driver_id)`
+**Arquivo: `src/pages/dashboard/DriversPage.tsx`**
 
-```sql
-CREATE OR REPLACE FUNCTION public.sync_fleet_history()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'
-AS $$
-BEGIN
-  IF NEW.status = 'contracted' AND NEW.driver_id IS NOT NULL THEN
-    INSERT INTO fleet_history (establishment_id, driver_id, is_active, hired_at)
-    VALUES (NEW.establishment_id, NEW.driver_id, true, now())
-    ON CONFLICT ON CONSTRAINT fleet_history_establishment_driver
-    DO UPDATE SET is_active = true, hired_at = now();
-  END IF;
+1. **Novo state**: Adicionar `viewingJob` (Job | null) para controlar o Sheet de visualização read-only.
 
-  IF NEW.status IN ('completed', 'cancelled') AND NEW.driver_id IS NOT NULL THEN
-    UPDATE fleet_history
-    SET is_active = false
-    WHERE establishment_id = NEW.establishment_id
-      AND driver_id = NEW.driver_id;
-  END IF;
+2. **Modificar `openJobSheet`**: Remover o toast de erro. Se o job for draft, abrir o sheet de edição (comportamento atual). Se não for draft, setar `viewingJob` com os dados do job.
 
-  RETURN NEW;
-END;
-$$;
+3. **Tornar todos os cards clicáveis**: Remover a condição `j.status === "draft"` do `onClick` e do `cursor-pointer`. Todos os cards terão `cursor-pointer` e chamarão `openJobSheet(j)`.
 
-CREATE TRIGGER trg_sync_fleet_history
-  AFTER INSERT OR UPDATE OF status ON jobs
-  FOR EACH ROW EXECUTE FUNCTION sync_fleet_history();
-```
-
-Tambem precisa criar uma UNIQUE constraint em `fleet_history(establishment_id, driver_id)` para o ON CONFLICT funcionar:
-```sql
-ALTER TABLE fleet_history
-  ADD CONSTRAINT fleet_history_establishment_driver
-  UNIQUE (establishment_id, driver_id);
-```
-
-#### 2. Frontend -- Corrigir fetchFleet e Badge (DriversPage.tsx)
-
-**fetchFleet**: Simplificar a lógica para usar `fleet_history` como fonte da verdade. Ainda buscar jobs ativos para determinar quem está "Em Serviço" vs "Disponível":
-- Buscar todos os registros de `fleet_history` do estabelecimento
-- Buscar jobs do estabelecimento com status IN (`contracted`, `ending`) para saber quem está ativo agora
-- Badge "Em Serviço": somente se o motorista tem job com status `contracted` ou `ending`
-- Badge "Histórico": se `fleet_history.is_active = false`
-- Badge "Disponível": se `fleet_history.is_active = true` mas sem job ativo
-
-**Mudança no `source`**: Renomear/ajustar o campo `source` do FleetMember para refletir o status real do job vinculado (`"active_shift"` | `"available"` | `"history"`).
-
-**Correção do filtro**: Substituir `j.status !== "finalizado"` por `["contracted", "ending"].includes(j.status)` para filtrar apenas jobs realmente ativos.
-
-### Arquivos Modificados
-- Nova migration SQL (trigger + constraint)
-- `src/pages/dashboard/DriversPage.tsx` (fetchFleet + badge rendering)
+4. **Novo Sheet read-only**: Adicionar um Sheet controlado por `viewingJob` que exibe:
+   - Título da vaga
+   - Badge de status
+   - Tipo de veículo (ícone + label)
+   - Turno (Integral/Meio Período/Noturno)
+   - Horário (início – fim)
+   - Data
+   - Tipo de contratação (Freelancer/Fixo)
+   - Tipo e valor do pagamento (R$ X.XX)
+   - Bônus (se houver)
+   - Extensão (se houver)
+   - Layout clean com `bg-muted/50 rounded-lg` consistente com os outros Sheets
 
 ### Detalhes Técnicos
-- O trigger usa SECURITY DEFINER para bypassar RLS
-- A constraint UNIQUE garante idempotência do UPSERT
-- O realtime listener existente em `job_applications` continua funcionando; adicionamos refresh no listener de `jobs` também
+- Reutilizar helpers existentes: `jobStatusLabel`, `jobStatusVariant`, `vehicleIcon`, `vehicleLabel`, `formatTime`
+- O Sheet read-only não terá botões de salvar/publicar
+- A lógica do `openJobSheet` será bifurcada: draft → sheet de edição, outros → sheet de visualização
 
