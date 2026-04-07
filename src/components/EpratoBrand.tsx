@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import "@fontsource/nunito/700.css";
 
 interface EpratoBrandProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -17,14 +18,14 @@ export function EpratoBrand({ size = "md", iconOnly = false, className }: Eprato
   return (
     <span
       className={cn(
-        "font-semibold tracking-tight select-none inline-flex items-baseline leading-none",
+        "select-none inline-flex items-baseline leading-none tracking-tight",
         sizeMap[size],
         className
       )}
-      style={{ fontFamily: "'Inter', sans-serif" }}
+      style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700 }}
     >
       <span className="text-primary">E</span>
-      {!iconOnly && <span style={{ color: "#1a1a1a" }}>prato</span>}
+      {!iconOnly && <span style={{ color: "#1A1A1A" }}>PRATO</span>}
     </span>
   );
 }
