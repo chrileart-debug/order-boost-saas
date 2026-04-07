@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import "@fontsource/nunito/700.css";
+import "@fontsource/comfortaa/700.css";
 
 interface EpratoBrandProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -22,10 +22,10 @@ export function EpratoBrand({ size = "md", iconOnly = false, className }: Eprato
         sizeMap[size],
         className
       )}
-      style={{ fontFamily: "'Nunito', sans-serif", fontWeight: 700 }}
+      style={{ fontFamily: "'Comfortaa', cursive", fontWeight: 700 }}
     >
-      <span className="text-primary">E</span>
-      {!iconOnly && <span style={{ color: "#1A1A1A" }}>PRATO</span>}
+      <span className="text-primary">e</span>
+      {!iconOnly && <span style={{ color: "#1A1A1A" }}>prato</span>}
     </span>
   );
 }
