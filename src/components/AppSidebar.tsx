@@ -16,7 +16,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
+import logoEprato from "@/assets/logo-eprato.png";
 import { Button } from "@/components/ui/button";
 
 const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
@@ -127,9 +128,12 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="p-4 flex items-center gap-2">
-          <Utensils className="w-6 h-6 text-primary shrink-0" />
-          {!collapsed && <span className="text-lg font-bold text-foreground">EPRATO</span>}
+        <div className="p-3 flex items-center justify-center">
+          {collapsed ? (
+            <img src={logoEprato} alt="EPRATO" className="h-8 w-auto object-contain" style={{ clipPath: 'inset(0 78% 0 0)' }} />
+          ) : (
+            <img src={logoEprato} alt="EPRATO" className="h-10 w-auto object-contain" />
+          )}
         </div>
 
         <SidebarGroup>
