@@ -128,11 +128,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <div className="p-3 flex items-center justify-center">
-          {collapsed ? (
-            <img src={logoEprato} alt="EPRATO" className="h-8 w-auto object-contain" style={{ clipPath: 'inset(0 78% 0 0)' }} />
-          ) : (
-            <img src={logoEprato} alt="EPRATO" className="h-10 w-auto object-contain" />
-          )}
+          <span className="text-2xl font-black tracking-tight select-none" style={{ fontFamily: "'Nunito', 'Inter', sans-serif", letterSpacing: '-0.02em' }}>
+            <span className="text-primary">E</span>
+            {!collapsed && <span className="text-foreground">PRATO</span>}
+          </span>
         </div>
 
         <SidebarGroup>
