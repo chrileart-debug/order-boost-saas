@@ -16,7 +16,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
+import logoEprato from "@/assets/logo-eprato.png";
 import { Button } from "@/components/ui/button";
 
 const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
