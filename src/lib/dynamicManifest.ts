@@ -33,8 +33,8 @@ export function setDynamicManifest(establishment: {
           { src: establishment.logo_url, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ]
       : [
-          { src: assetPath("pwa-192x192.png"), sizes: "192x192", type: "image/png" },
-          { src: assetPath("pwa-512x512.png"), sizes: "512x512", type: "image/png" },
+          { src: "https://vneumrbaohyzmuhibwzc.supabase.co/storage/v1/object/public/logo-eprato/lojista/lojista.png", sizes: "192x192", type: "image/png" },
+          { src: "https://vneumrbaohyzmuhibwzc.supabase.co/storage/v1/object/public/logo-eprato/lojista/lojista.png", sizes: "512x512", type: "image/png" },
         ],
   };
 
