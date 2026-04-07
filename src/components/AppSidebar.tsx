@@ -16,7 +16,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { NavLink } from "@/components/NavLink";
-import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, ShoppingBag, Package, Truck, Ticket, Settings, LogOut, Utensils, ExternalLink, CreditCard, Users, ScrollText, Headphones, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const ownerOnlyPaths = ["/dashboard/drivers", "/dashboard/logistics"];
@@ -127,11 +127,9 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="p-3 flex items-center justify-center">
-          <span className="text-2xl font-black tracking-tight select-none" style={{ fontFamily: "'Nunito', 'Inter', sans-serif", letterSpacing: '-0.02em' }}>
-            <span className="text-primary">E</span>
-            {!collapsed && <span className="text-foreground">PRATO</span>}
-          </span>
+        <div className="p-4 flex items-center gap-2">
+          <Utensils className="w-6 h-6 text-primary shrink-0" />
+          {!collapsed && <span className="text-lg font-bold text-foreground">EPRATO</span>}
         </div>
 
         <SidebarGroup>
