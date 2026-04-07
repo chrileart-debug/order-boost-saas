@@ -128,7 +128,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        <div className="p-4 flex items-center justify-center">
+        <div className={cn("px-4 py-4 flex items-center", collapsed ? "justify-center" : "justify-start")}>
           <EpratoBrand size={collapsed ? "md" : "lg"} iconOnly={collapsed} />
         </div>
 
